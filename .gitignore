@@ -11,8 +11,14 @@ corpus/**/out/
 corpus/**/diff/
 *.actual.png
 
-# External sample downloads (see corpus/samples/README.md)
+# External sample downloads + paired references (see corpus/samples/README.md).
+# Licensing on third-party samples is unconfirmed; never commit them.
 corpus/samples/customerscanvas/
+corpus/samples/*.idml
+corpus/samples/*.pdf
+
+# Adobe-copyrighted reference material kept locally only.
+idml-specification.pdf
 
 # Editor/OS
 .DS_Store
