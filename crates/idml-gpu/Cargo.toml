@@ -1,0 +1,34 @@
+[package]
+name = "idml-gpu"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "wgpu backend and Vello integration. Owns the PathRasterizer trait."
+
+[lints]
+workspace = true
+
+[features]
+default = ["cpu"]
+# Selects the active rasterizer. Only one may be enabled at a time; the
+# default (none) means the crate exposes only the trait surface. The
+# concrete choice is made after Spike A concludes.
+vello-backend = ["dep:vello"]
+# CPU rasterizer via tiny-skia — always buildable, exercises the full
+# pipeline in environments without a GPU. Primarily used by tests and
+# the fidelity harness.
+cpu = ["dep:tiny-skia", "dep:image"]
+
+[dependencies]
+idml-compose = { path = "../idml-compose" }
+wgpu = "22"
+bytemuck = { version = "1", features = ["derive"] }
+pollster = "0.4"
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+vello = { version = "0.3", optional = true }
+tiny-skia = { version = "0.11", optional = true }
+image = { workspace = true, optional = true }

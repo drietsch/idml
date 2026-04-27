@@ -1,0 +1,20 @@
+target/
+**/*.rs.bk
+Cargo.lock
+
+# WASM build output
+pkg/
+node_modules/
+
+# Fidelity artefacts (generated locally)
+corpus/**/out/
+corpus/**/diff/
+*.actual.png
+
+# External sample downloads (see corpus/samples/README.md)
+corpus/samples/customerscanvas/
+
+# Editor/OS
+.DS_Store
+.vscode/
+.idea/
