@@ -1,0 +1,9 @@
+# Drop linked assets here for diff reproduction. Out-of-tree by default
+# so we don't accidentally commit Adobe-licensed product photography.
+*.jpg
+*.jpeg
+*.png
+*.pdf
+*.tif
+*.tiff
+*.psd

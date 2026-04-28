@@ -1,0 +1,5 @@
+Sample-3-Links/ holds the linked images for Sample-3.idml. See README.md.
+The actual asset files are intentionally git-ignored — Pixabay images
+are CC0 but we'd rather not commit copies, and the Philips / Pagination
+files are proprietary. Drop your local copies into this directory to
+let the diff harness resolve them.
