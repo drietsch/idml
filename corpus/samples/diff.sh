@@ -114,3 +114,41 @@ echo "]" >> "$REPORT"
 echo
 echo "summary: $pass_pages/$total_pages pages pass §13.2 thresholds"
 echo "report: $REPORT"
+
+# Manifest sidecar — the web viewer reads this to populate the sample
+# picker. Upserts an entry for $NAME without disturbing entries for
+# other samples that have been diffed. Pure jq would be cleaner but
+# we don't want to require jq; awk + python3 fallback covers macOS
+# and most Linux dev boxes.
+MANIFEST="$SAMPLE_DIR/manifest.json"
+python3 - "$MANIFEST" "$NAME" "$IDML" "$PDF" "$total_pages" "$pass_pages" "$OUT" "$REPORT" <<'PY'
+import json
+import os
+import sys
+from pathlib import Path
+
+(_, manifest, name, idml, pdf, total, passed, out, report) = sys.argv
+data = {"samples": []}
+mp = Path(manifest)
+if mp.exists():
+    try:
+        data = json.loads(mp.read_text())
+    except json.JSONDecodeError:
+        data = {"samples": []}
+data.setdefault("samples", [])
+data["samples"] = [s for s in data["samples"] if s.get("name") != name]
+data["samples"].append(
+    {
+        "name": name,
+        "idml": os.path.basename(idml),
+        "pdf": os.path.basename(pdf),
+        "pages": int(total),
+        "passing": int(passed),
+        "diff_dir": out,
+        "report": report,
+    }
+)
+data["samples"].sort(key=lambda s: s["name"])
+mp.write_text(json.dumps(data, indent=2) + "\n")
+print(f"manifest: {manifest}")
+PY
