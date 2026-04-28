@@ -36,13 +36,30 @@ LINKS_FLAG=""
 if [ -d "$SAMPLE_DIR/$NAME-Links" ]; then
     LINKS_FLAG="--links-dir $SAMPLE_DIR/$NAME-Links"
 fi
+
+# Per-sample font mapping. The default registrations below cover
+# sample.idml's chairman + body content (serif Minion Pro mapped to
+# Cormorant Garamond, sans-serif Open Sans for headers). Other samples
+# (Sample-3 uses sans-serif Myriad Pro everywhere; InDesign substitutes
+# Minion Pro with Myriad-like glyphs at PDF export) can override the
+# defaults by dropping a `$NAME.fonts.sh` next to the IDML — that file
+# sets the FONT_FLAGS array verbatim before we hand it to inspect.
+DEFAULT_FONT="$FONTS/SourceSerif4.ttf"
+FONT_FLAGS=(
+    --font-family "Open Sans=$FONTS/OpenSans.ttf"
+    --font-family "Open Sans/Italic=$FONTS/OpenSans-Italic.ttf"
+    --font-family "Minion Pro=$FONTS/CormorantGaramond.ttf"
+)
+if [ -f "$SAMPLE_DIR/$NAME.fonts.sh" ]; then
+    # shellcheck disable=SC1090
+    . "$SAMPLE_DIR/$NAME.fonts.sh"
+fi
+
 (cd "$ROOT" && cargo run -q --release -p idml-renderer --bin idml-inspect -- \
     "$IDML" \
     --render "$OUT/cand.png" \
-    --default-font "$FONTS/SourceSerif4.ttf" \
-    --font-family "Open Sans=$FONTS/OpenSans.ttf" \
-    --font-family "Open Sans/Italic=$FONTS/OpenSans-Italic.ttf" \
-    --font-family "Minion Pro=$FONTS/CormorantGaramond.ttf" \
+    --default-font "$DEFAULT_FONT" \
+    "${FONT_FLAGS[@]}" \
     $LINKS_FLAG \
     --dpi "$DPI" >/dev/null)
 
