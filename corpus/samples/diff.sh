@@ -30,12 +30,20 @@ command -v pdftoppm >/dev/null || { echo "install poppler (pdftoppm)"; exit 1; }
 rm -rf "$OUT" && mkdir -p "$OUT"
 
 echo "==> render IDML through idml-inspect → $OUT"
+# Per-sample optional Links/ folder (e.g. corpus/samples/<name>-Links/)
+# resolved into the renderer; harmless if it doesn't exist.
+LINKS_FLAG=""
+if [ -d "$SAMPLE_DIR/$NAME-Links" ]; then
+    LINKS_FLAG="--links-dir $SAMPLE_DIR/$NAME-Links"
+fi
 (cd "$ROOT" && cargo run -q --release -p idml-renderer --bin idml-inspect -- \
     "$IDML" \
     --render "$OUT/cand.png" \
     --default-font "$FONTS/SourceSerif4.ttf" \
     --font-family "Open Sans=$FONTS/OpenSans.ttf" \
+    --font-family "Open Sans/Italic=$FONTS/OpenSans-Italic.ttf" \
     --font-family "Minion Pro=$FONTS/CormorantGaramond.ttf" \
+    $LINKS_FLAG \
     --dpi "$DPI" >/dev/null)
 
 echo "==> rasterise $PDF via pdftoppm at $DPI dpi"
