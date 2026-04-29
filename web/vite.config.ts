@@ -77,6 +77,9 @@ export default defineConfig({
     // The wasm-bindgen JS loader imports the .wasm via
     // `new URL('./*_bg.wasm', import.meta.url)`. Vite resolves that
     // natively so no extra plugin is needed here.
-    exclude: ["idml_wasm"],
+    exclude: ["idml_wasm", "idml_edit_wasm"],
+  },
+  worker: {
+    format: "es",
   },
 });

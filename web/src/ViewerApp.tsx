@@ -5,7 +5,7 @@ import { renderPagesUploaded } from "./wasmClient";
 
 const ZERO_TX: Transform = { zoom: 1, panX: 0, panY: 0 };
 
-export function App() {
+export function ViewerApp() {
   const [manifest, setManifest] = useState<Manifest | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [page, setPage] = useState(1);

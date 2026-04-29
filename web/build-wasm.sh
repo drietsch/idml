@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
-# web/build-wasm.sh — build the idml-wasm crate for browser use.
+# web/build-wasm.sh — build the wasm crates for browser use.
 #
-# Output:
-#   web/src/wasm/idml_wasm.js        loader (ES module, --target web)
-#   web/src/wasm/idml_wasm_bg.wasm   binary
-#   web/src/wasm/idml_wasm.d.ts      TypeScript types
+# Outputs (per crate):
+#   web/src/wasm/idml_wasm.js        viewer loader (ES module, --target web)
+#   web/src/wasm/idml_wasm_bg.wasm   viewer binary
+#   web/src/wasm/idml_wasm.d.ts      viewer types
+#
+#   web/src/wasm/idml_edit_wasm.js        editor loader
+#   web/src/wasm/idml_edit_wasm_bg.wasm   editor binary
+#   web/src/wasm/idml_edit_wasm.d.ts      editor types
 #
 # Requirements:
 #   * rustup target add wasm32-unknown-unknown   (one-time)
@@ -32,19 +36,35 @@ if [ "$WB_INSTALLED" != "$WB_VER" ]; then
     echo "  if loading fails: cargo install wasm-bindgen-cli --version $WB_VER --force"
 fi
 
-echo "==> cargo build --release --target wasm32-unknown-unknown -p idml-wasm"
-RUSTFLAGS="-C opt-level=z -C codegen-units=1" \
-    cargo build --release --target wasm32-unknown-unknown -p idml-wasm
-
-echo "==> wasm-bindgen --target web --out-dir $OUT_DIR"
 mkdir -p "$OUT_DIR"
-wasm-bindgen "$TARGET_DIR/idml_wasm.wasm" --target web --out-dir "$OUT_DIR"
 
-if command -v wasm-opt >/dev/null; then
-    echo "==> wasm-opt -Oz (binaryen)"
-    wasm-opt -Oz "$OUT_DIR/idml_wasm_bg.wasm" -o "$OUT_DIR/idml_wasm_bg.wasm.opt"
-    mv "$OUT_DIR/idml_wasm_bg.wasm.opt" "$OUT_DIR/idml_wasm_bg.wasm"
-else
+# Build a single wasm crate, run wasm-bindgen, optionally wasm-opt.
+# $1 = cargo package name (e.g. idml-wasm)
+# $2 = artifact stem (e.g. idml_wasm)
+build_crate() {
+    local pkg="$1"
+    local stem="$2"
+    echo "==> cargo build --release --target wasm32-unknown-unknown -p $pkg"
+    RUSTFLAGS="-C opt-level=z -C codegen-units=1" \
+        cargo build --release --target wasm32-unknown-unknown -p "$pkg"
+
+    echo "==> wasm-bindgen --target web ($stem)"
+    wasm-bindgen "$TARGET_DIR/$stem.wasm" --target web --out-dir "$OUT_DIR"
+
+    if command -v wasm-opt >/dev/null; then
+        echo "==> wasm-opt -Oz ($stem)"
+        wasm-opt -Oz "$OUT_DIR/${stem}_bg.wasm" -o "$OUT_DIR/${stem}_bg.wasm.opt"
+        mv "$OUT_DIR/${stem}_bg.wasm.opt" "$OUT_DIR/${stem}_bg.wasm"
+    fi
+}
+
+# Build the read-only viewer surface.
+build_crate idml-wasm idml_wasm
+
+# Build the editor surface (Project, command bus, wgpu Surface presenter).
+build_crate idml-edit-wasm idml_edit_wasm
+
+if ! command -v wasm-opt >/dev/null; then
     echo "note: wasm-opt not found; skipping size pass (install binaryen for ~30% smaller bundles)"
 fi
 
