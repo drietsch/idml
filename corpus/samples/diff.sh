@@ -17,6 +17,15 @@ set -euo pipefail
 NAME="${1:-sample}"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SAMPLE_DIR="$ROOT/corpus/samples"
+GENERATED_DIR="$ROOT/corpus/generated"
+# Resolve the IDML/PDF pair against either the curated samples
+# directory or the generated mega-files directory. Generated samples
+# (emitted by `cargo run -p idml-gen -- emit`) take precedence so a
+# generator-produced fixture can shadow a hand-curated one with the
+# same name during development.
+if [ -f "$GENERATED_DIR/$NAME.idml" ]; then
+    SAMPLE_DIR="$GENERATED_DIR"
+fi
 IDML="$SAMPLE_DIR/$NAME.idml"
 PDF="$SAMPLE_DIR/$NAME.pdf"
 OUT="${IDML_DIFF_OUT:-/tmp/idml-diff}"
