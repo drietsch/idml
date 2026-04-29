@@ -47,7 +47,7 @@ export function ViewerApp() {
       setReport(null);
       return;
     }
-    fetch(`/diff/report.json`)
+    fetch(`/diff/${sample.name}/report.json`)
       .then((r) => (r.ok ? r.json() : Promise.reject(r)))
       .then((rows: PageReport[]) => setReport(rows))
       .catch(() => setReport(null));
@@ -78,18 +78,18 @@ export function ViewerApp() {
       : sample?.pages ?? 0;
 
   const refSrc =
-    mode === "corpus" && totalPages > 0
-      ? `/diff/ref-${pad3(page)}.png`
+    mode === "corpus" && sample && totalPages > 0
+      ? `/diff/${sample.name}/ref-${pad3(page)}.png`
       : null;
   const candSrc =
     mode === "upload"
       ? uploadedPages?.[page - 1] ?? null
-      : totalPages > 0
-        ? `/diff/cand-${pad3(page)}.png`
+      : sample && totalPages > 0
+        ? `/diff/${sample.name}/cand-${pad3(page)}.png`
         : null;
   const heatSrc =
-    mode === "corpus" && showHeatmap && totalPages > 0
-      ? `/diff/heat-${pad3(page)}.png`
+    mode === "corpus" && sample && showHeatmap && totalPages > 0
+      ? `/diff/${sample.name}/heat-${pad3(page)}.png`
       : null;
 
   const reportRow = report?.find((r) => r.page === page);

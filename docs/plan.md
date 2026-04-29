@@ -91,7 +91,7 @@ Mapped to idea.md's Phase 0–4 plus the pre-0 spikes from the original plan.
 | Linear gradients (sRGB-correct stops) | ✅ |
 | Stroke gradients (text frames, rectangles, ovals, lines) | ✅ |
 | Hard-edge drop shadow | ✅ |
-| Gaussian blur on drop shadow | ❌ |
+| Gaussian blur on drop shadow | ✅ |
 | Overprint simulation | ❌ |
 | Spot colour delta-tinting | ❌ |
 

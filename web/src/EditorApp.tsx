@@ -100,7 +100,15 @@ export function EditorApp() {
 
   const requestRender = useCallback(() => {
     if (rafRef.current !== null) return;
-    rafRef.current = requestAnimationFrame(() => {
+    // Hidden tabs throttle rAF to ~0Hz, which silently kills every
+    // render queued through `requestAnimationFrame`. Fall back to
+    // `setTimeout` when the page isn't visible so headless tests +
+    // backgrounded previews + OffscreenCanvas-style hosts still paint.
+    const schedule = (cb: FrameRequestCallback) =>
+      document.visibilityState === "hidden"
+        ? (window.setTimeout(() => cb(performance.now()), 0) as unknown as number)
+        : window.requestAnimationFrame(cb);
+    rafRef.current = schedule(() => {
       rafRef.current = null;
       const c = clientRef.current;
       if (!c) return;
@@ -463,9 +471,12 @@ export function EditorApp() {
       setPageSizePt(sz);
       setEpoch(c.epoch);
       setDocName("(restored session)");
-      requestAnimationFrame(() => {
-        fitPage();
-      });
+      // Use the same hidden-tab-resilient scheduler the renderer uses.
+      const sched = (cb: () => void) =>
+        document.visibilityState === "hidden"
+          ? window.setTimeout(cb, 0)
+          : window.requestAnimationFrame(cb);
+      sched(() => fitPage());
     } catch (e) {
       setError((e as Error).message);
     }
@@ -796,9 +807,12 @@ export function EditorApp() {
       const sz = c.pageSizePt(0) ?? c.firstPageSizePt();
       setPageSizePt(sz);
       setEpoch(c.epoch);
-      requestAnimationFrame(() => {
-        fitPage();
-      });
+      // Use the same hidden-tab-resilient scheduler the renderer uses.
+      const sched = (cb: () => void) =>
+        document.visibilityState === "hidden"
+          ? window.setTimeout(cb, 0)
+          : window.requestAnimationFrame(cb);
+      sched(() => fitPage());
     } catch (e) {
       setError((e as Error).message);
     }

@@ -6,8 +6,8 @@
       "pdf": "Sample-3.pdf",
       "pages": 5,
       "passing": 0,
-      "diff_dir": "/tmp/idml-diff",
-      "report": "/tmp/idml-diff/report.json"
+      "diff_dir": "/tmp/idml-diff-Sample-3",
+      "report": "/tmp/idml-diff-Sample-3/report.json"
     }
   ]
 }
