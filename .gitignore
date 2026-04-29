@@ -16,6 +16,13 @@ corpus/**/diff/
 corpus/samples/customerscanvas/
 corpus/samples/*.idml
 corpus/samples/*.pdf
+# Exception: the hand-authored manual-sample.* (originally created in
+# this repo by the project author for renderer regression testing) is
+# tracked. Add other tracked samples here on a case-by-case basis.
+!corpus/samples/manual-sample.idml
+!corpus/samples/manual-sample.indd
+!corpus/samples/manual-sample.pdf
+!corpus/samples/manual-sample.export.meta.json
 
 # Adobe-copyrighted reference material kept locally only.
 idml-specification.pdf
