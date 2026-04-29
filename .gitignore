@@ -11,6 +11,11 @@ corpus/**/out/
 corpus/**/diff/
 *.actual.png
 
+# InDesign lock files (created next to a .indd while it's open in
+# the GUI; harmless to delete when the app isn't running).
+*.idlk
+~*
+
 # External sample downloads + paired references (see corpus/samples/README.md).
 # Licensing on third-party samples is unconfirmed; never commit them.
 corpus/samples/customerscanvas/
