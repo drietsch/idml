@@ -13,10 +13,10 @@
       "name": "manual-sample",
       "idml": "manual-sample.idml",
       "pdf": "manual-sample.pdf",
-      "pages": 6,
+      "pages": 9,
       "passing": 0,
-      "diff_dir": "/tmp/idml-diff-manual-sample",
-      "report": "/tmp/idml-diff-manual-sample/report.json"
+      "diff_dir": "/tmp/idml-diff",
+      "report": "/tmp/idml-diff/report.json"
     }
   ]
 }
