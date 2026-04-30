@@ -17,6 +17,15 @@
       "passing": 0,
       "diff_dir": "/tmp/idml-diff",
       "report": "/tmp/idml-diff/report.json"
+    },
+    {
+      "name": "sample-3",
+      "idml": "sample-3.idml",
+      "pdf": "sample-3.pdf",
+      "pages": 5,
+      "passing": 0,
+      "diff_dir": "/tmp/idml-diff",
+      "report": "/tmp/idml-diff/report.json"
     }
   ]
 }
