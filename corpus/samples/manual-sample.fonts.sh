@@ -18,3 +18,8 @@ FONT_FLAGS=(
     --font-family "Arial/Bold=$FONTS/Inter.ttf"
     --font-family "Arial/Bold Italic=$FONTS/OpenSans-Italic.ttf"
 )
+# Manual sample's placed images live in `corpus/samples/media/`,
+# referenced by absolute file URIs in the IDML. The resolver looks
+# them up by basename in any registered link-dir, so registering the
+# media directory makes the photos resolve without rewriting URIs.
+LINKS_FLAG="--links-dir $SAMPLE_DIR/media"
