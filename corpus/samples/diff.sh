@@ -82,8 +82,22 @@ fi
     --dpi "$DPI" >/dev/null)
 
 if [ "$HAVE_PDF" -eq 1 ]; then
+    # Match pdftoppm's CMYK profile to whatever our renderer uses
+    # (FOGRA39 by default — see crates/idml-renderer/src/bin/inspect.rs's
+    # resolve_cmyk_profile_by_name + crates/idml-color/src/lib.rs).
+    # Without this, pdftoppm's poppler-baked default is U.S. Web
+    # Coated SWOP, which produces ~(35,31,32) sRGB for K=100; our
+    # renderer with Adobe FOGRA39 produces ~(29,29,27); the
+    # ~4 ΔE delta is entirely the CMYK profile mismatch and adds
+    # to every solid-CMYK fill across the corpus. Forcing both
+    # paths to FOGRA39 makes them apples-to-apples.
+    PDFTOPPM_CMYK_FLAGS=()
+    FOGRA39="/Library/Application Support/Adobe/Color/Profiles/Recommended/CoatedFOGRA39.icc"
+    if [ -f "$FOGRA39" ]; then
+        PDFTOPPM_CMYK_FLAGS=(-defaultcmykprofile "$FOGRA39")
+    fi
     echo "==> rasterise $PDF via pdftoppm at $DPI dpi"
-    pdftoppm -r "$DPI" -png "$PDF" "$OUT/ref" >/dev/null
+    pdftoppm "${PDFTOPPM_CMYK_FLAGS[@]}" -r "$DPI" -png "$PDF" "$OUT/ref" >/dev/null
     # pdftoppm uses the smallest sufficient zero-padding (2 digits for
     # 48 pages). idml-inspect always pads to 3. Normalise both to 3 so
     # the per-page loop below can pair them by integer page number.
