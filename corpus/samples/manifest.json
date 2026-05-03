@@ -10,10 +10,28 @@
       "report": "/tmp/idml-diff-Sample-3/report.json"
     },
     {
+      "name": "line-sheet",
+      "idml": "line-sheet.idml",
+      "pdf": "line-sheet.pdf",
+      "pages": 7,
+      "passing": 0,
+      "diff_dir": "/tmp/idml-diff",
+      "report": "/tmp/idml-diff/report.json"
+    },
+    {
       "name": "manual-sample",
       "idml": "manual-sample.idml",
       "pdf": "manual-sample.pdf",
       "pages": 9,
+      "passing": 0,
+      "diff_dir": "/tmp/idml-diff",
+      "report": "/tmp/idml-diff/report.json"
+    },
+    {
+      "name": "sample",
+      "idml": "sample.idml",
+      "pdf": "sample.pdf",
+      "pages": 48,
       "passing": 0,
       "diff_dir": "/tmp/idml-diff",
       "report": "/tmp/idml-diff/report.json"
