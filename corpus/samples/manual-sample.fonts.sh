@@ -36,6 +36,14 @@ FONT_FLAGS=(
     --font-family "Gilroy=$FONTS/Roboto-Bold.ttf"
     --font-family "Gilroy/Black=$FONTS/Roboto-Bold.ttf"
     --font-family "Gilroy/Black Italic=$FONTS/Roboto-BoldItalic.ttf"
+    # Note: a `--font-metrics "Arial=…"` override is intentionally not
+    # set here. Empirically the reference PDF was rendered with
+    # Roboto (or a Roboto-shape font) directly — its baseline math
+    # already matches what our renderer produces with Roboto's natural
+    # metrics. Pinning Arial's em-fractions here moves baselines away
+    # from the reference, not toward it. Keep the override available
+    # for any future sample where the reference was actually
+    # Arial-rendered.
 )
 # Manual sample's placed images live in `corpus/samples/media/`,
 # referenced by absolute file URIs in the IDML. The resolver looks
