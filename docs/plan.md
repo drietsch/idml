@@ -106,7 +106,7 @@ Tables, CJK, anchored objects, table-of-contents resolution.
 - **`idml-text`**: `shape_run` + tracking, `compose_paragraph` with hyphenation, `layout_paragraph` (single-font), `layout_runs` (multi-font with per-run shaping + auto-leading). `apply_tab_stops` handles Left / Right / Center / Decimal alignment. 31 unit tests.
 - **`idml-compose`**: display list with `Transform::for_rect_in` helper, `DisplayCommand::transform_mut` accessor, gradient pool, image pool, glyph cache via `(font_id, glyph_id)`. `emit_*_transformed` helpers fold an outer affine into the unit-rect mapping. 25 unit tests.
 - **`idml-gpu`**: `PathRasterizer` trait + `RasterOptions`. Two impls behind feature flags: `cpu` (tiny-skia, default) and `vello-backend` (wgpu via Vello). Vello covers FillPath / StrokePath / Image / LinearGradient; DropShadow is the lone stub.
-- **`idml-renderer`**: `build_document` with master-spread pass, frame routing, per-page image dedup, renderer-scoped DecodedImage cache. Per-story `StoryEmitter` struct holds all per-story mutable state (frame chain bookkeeping, vertical-justify command range tracking, numbered-list counter). `FontTable` with `FontMetrics` cache (cap height, x height, ascender from OS/2 + hhea). 17 lib tests + 11 integration tests.
+- **`idml-renderer`**: `build_document` with master-spread pass, frame routing, per-page image dedup, renderer-scoped DecodedImage cache (size surfaced via `PipelineStats::decoded_images` ✅). Per-story `StoryEmitter` struct holds all per-story mutable state (frame chain bookkeeping, vertical-justify command range tracking, numbered-list counter). `FontTable` with `FontMetrics` cache (cap height, x height, ascender from OS/2 + hhea). 17 lib tests + 11 integration tests.
 - **`idml-color`**: `IccTransform::cmyk_to_linear_rgb` via lcms2 on native; wasm32 falls back to naive math at the call site. Stable.
 - **`idml-fidelity`**: ΔE2000 + SSIM diff CLI. Corpus expansion is queued.
 - **`idml-wasm`**: `render_to_png` + `parse_summary` wasm-bindgen entrypoints.
@@ -115,7 +115,7 @@ Tables, CJK, anchored objects, table-of-contents resolution.
 
 ### Tier 1 — small, ready to ship
 
-1. **Image dedup metrics** in `PipelineStats` — surface `decoded_image_cache.len()` so users see cross-page sharing land. ~5 lines.
+1. **Image dedup metrics** in `PipelineStats` ✅ — `decoded_images` field surfaces the renderer-scoped `DecodedImage` cache size at the end of each render; also wired into `idml-inspect`'s JSON totals.
 2. **Stroke gradient endpoints** from `<Gradient>` `Angle` + `Length` — currently hardcoded `(0,0)→(0,1)`. Means rotated gradients render at 90°.
 3. **Justification enum promotion** — last stringly-typed surface. Used in 5+ places (Paragraph, ParagraphStyleDef, ResolvedParagraph, ResolvedParagraphAttrs, map_justification). Mechanical but multi-touch.
 4. **NumberingExpression substitution** — IDML allows `^#` + custom prefixes/suffixes per style ("Step ^# of 5"); current emit is hardcoded `<n>.\t`.
@@ -209,6 +209,6 @@ a8d3d90 Per-run mid-paragraph font switching
 
 | # | Batch | Why |
 |---|---|---|
-| 1 | Image dedup metrics + Stroke gradient endpoints | Two trivial Tier 1 wins; closes the gradient-direction gap and adds long-flagged observability. |
+| 1 | Image dedup metrics ✅ + Stroke gradient endpoints | Two trivial Tier 1 wins; closes the gradient-direction gap and adds long-flagged observability. |
 | 2 | Test font + glyph-level integration tests | Highest leverage missing piece. Once a TTF lands, every text-path test grows real assertions. |
 | 3 | Justify-vertical mode | Vertical justification is mostly there; this completes the typography surface for body copy. |
