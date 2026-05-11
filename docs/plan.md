@@ -126,7 +126,7 @@ Tables, CJK, anchored objects, table-of-contents resolution.
 
 7. **Composer calibration** — drive `spikes/composer-calibration` against InDesign-PDF references. Tune `tolerance`, `hyphen_penalty`, `stretch_ratio` toward parity. Spike B in the original plan.
 8. **`rustybuzz::Face` cache in `FontTable`** — currently per-paragraph dedup only. Per-render cache wants self-referential `Face<'static>`-over-`Bytes`. Needs `self_cell` / `ouroboros` (offline-unavailable in this environment) or a carefully-reviewed `unsafe` transmute.
-9. **Bullets character formatting** — the bullet inherits the first run's font / size / colour today. IDML allows a separate character style for the bullet.
+9. **Bullets character formatting** ✅ — parser captures `BulletsCharacterStyle` + `BulletsAndNumberingDigitsCharacterStyle` on `ParagraphStyleDef` / `ResolvedParagraph` (cascade via BasedOn); `ResolvedParagraphAttrs` carries them through to the renderer. Pipeline resolves the marker style via the standard `CharacterStyle` cascade and threads the resolved `FillColor` into `build_run_paint_picker_resolved` as a leading bullet paint band so the bullet glyph emits with a distinct `FillPath` paint from the content runs. Bullet-vs-numbered-list lookup follows IDML's two-field convention — `NumberedList` reads the digits-style ref; `BulletList` reads `BulletsCharacterStyle` and falls back to the digits-style ref (InDesign's UI exposes a single "Character Style" picker per paragraph style regardless of list kind). Glyph-level coverage: `text_glyph_level::bullet_character_style_paints_bullet_differently_from_content`. Font/size override through the same character style is queued (parser fields already land; pipeline keeps inheriting run 0's face/size today).
 10. **Decimal-tab leader characters** — `<TabStop Leader="...">` lets you put dots between a label and a number; not yet rendered.
 11. **Vello DropShadow** — depends on offscreen-layer plumbing (#12).
 
@@ -200,11 +200,11 @@ a8d3d90 Per-run mid-paragraph font switching
 - `idml-compose`: 22 unit
 - `idml-edit`: 25 unit + 18 integration (`seed_hello`)
 - `idml-gpu`: 17 unit (CPU default; +vello-backend adds 0 today)
-- `idml-renderer`: 31 lib + 3 inspect bin + 11 `pipeline_lib` + 4 `inspect_e2e` + 3 `real_ttf` + 8 `real_ttf_features` + 7 `text_glyph_level` + 4 `seed_hello`
+- `idml-renderer`: 31 lib + 3 inspect bin + 11 `pipeline_lib` + 4 `inspect_e2e` + 3 `real_ttf` + 8 `real_ttf_features` + 8 `text_glyph_level` + 4 `seed_hello`
 - `idml-fidelity`: 8 unit + 3 integration (`cli_smoke`)
 - `idml-gen`: 9 unit + 25 integration (`snapshot`)
 - Spikes: 0 (composer-calibration / vello-eval / wasm-size)
-- **Total: 309 across the workspace** (CPU default features). `text_glyph_level` (the new file landed for Tier-1 #6) contributes 7 to that total.
+- **Total: 310 across the workspace** (CPU default features). `text_glyph_level` (the new file landed for Tier-1 #6 + Tier-2 #9 bullet character style) contributes 8 to that total.
 
 ## Recommended order for the next 3 batches
 
