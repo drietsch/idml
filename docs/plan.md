@@ -93,7 +93,7 @@ Mapped to idea.md's Phase 0–4 plus the pre-0 spikes from the original plan.
 | Hard-edge drop shadow | ✅ |
 | Gaussian blur on drop shadow | ✅ |
 | Overprint simulation | ❌ |
-| Spot colour delta-tinting | ❌ |
+| Spot colour delta-tinting | ✅ `Color Model="Spot"` parses `AlternateSpace` / `AlternateColorValue` / `TintValue`; `ColorEntry::effective_cmyk` folds spot→CMYK fallback + swatch-level tint (`base * tint / 100`) before ICC. Spot ink names aren't rendered — we always preview via the CMYK alternate. |
 
 ### Phase 4 — Advanced — partial
 
