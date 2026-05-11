@@ -95,9 +95,20 @@ Mapped to idea.md's Phase 0–4 plus the pre-0 spikes from the original plan.
 | Overprint simulation | ❌ |
 | Spot colour delta-tinting | ❌ |
 
-### Phase 4 — Advanced — not started
+### Phase 4 — Advanced — partial
 
-Tables, CJK, anchored objects, table-of-contents resolution.
+| Feature | Status |
+|---|---|
+| Tables — parser + AST | ✅ `Table` / `TableRow` / `TableColumn` / `TableCell` + `CellStyleDef` / `TableStyleDef` + `ResolvedCell` / `ResolvedTable` with BasedOn cascade. Cells host their own nested `<ParagraphStyleRange>` children; `TableCell::coords()` returns `(column, row)` (matching IDML's `Name="col:row"` serialisation). |
+| Tables — scene-graph + grid layout | ✅ row heights × column widths laid out from frame top-left; cells with `RowSpan` / `ColumnSpan` widen their rect. |
+| Tables — cell text flow | ✅ per-cell paragraph composition with cell insets + per-cell vertical justification. |
+| Tables — cell strokes / fills | ✅ per-edge stroke overrides, alternating-row fills via TableStyle, diagonal cell strokes, outer table border. |
+| Tables — fidelity | ✅ generated `tables` fixture gated in CI at meanΔE ≤ 1.10 / p99 ≤ 13.0 / SSIM ≥ 0.96; worst measured meanΔE 0.886 / p99 10.827 / SSIM 0.967 (p3). |
+| Tables — header/footer duplication across frame splits | ❌ `T3.1` TODO in `emit_table_into_chain`. Requires a sample IDML where a table breaks across the frame chain (none in the corpus today). |
+| Tables — content-driven row growth (`MinimumHeight`) | ❌ rows size to `SingleRowHeight` only; cells with overflow get clipped instead of growing their row. |
+| Anchored objects | ✅ inline-anchored TextFrame / Rectangle / Group with image-link + per-edge attribute capture. |
+| CJK (vertical writing, kinsoku, Mojikumi) | ❌ |
+| Table of contents resolution | ❌ |
 
 ## Subsystem snapshot
 
@@ -138,8 +149,9 @@ Tables, CJK, anchored objects, table-of-contents resolution.
 
 ### Tier 4 — defer
 
-15. **Tables** — `<Table>` parsing + grid layout + cell text flow + cross-cell threading.
-16. **CJK** — vertical writing mode, kinsoku line-break rules, Mojikumi, mid-line emphasis marks. `rustybuzz` already shapes CJK; layout + writing-mode work is the lift.
+15. **Tables — header/footer duplication across frame splits** (`T3.1`). When a tall table overflows to the next chain frame, IDML repeats the header rows at the top of the new frame and the footer rows at the bottom of the prior frame. Today `emit_table_into_chain` carries the TODO but skips the duplication. Trigger needs a sample IDML where a table actually breaks across the frame chain — none in `corpus/generated` today; queue alongside the next corpus expansion.
+16. **Tables — content-driven row growth** (`MinimumHeight`). Rows currently size to `SingleRowHeight`; cells with content overflow get clipped. Real-world tables rely on this regularly (header rows expand to fit wrapped text). Wants a per-cell pre-measure pass before the row-basis loop in `emit_table_into_chain`.
+17. **CJK** — vertical writing mode, kinsoku line-break rules, Mojikumi, mid-line emphasis marks. `rustybuzz` already shapes CJK; layout + writing-mode work is the lift.
 
 ## Deferred (with rationale)
 
@@ -194,7 +206,7 @@ a8d3d90 Per-run mid-paragraph font switching
 
 ## Test counts (last green run)
 
-- `idml-parse`: 67 unit + 3 integration (`roundtrip`)
+- `idml-parse`: 70 unit + 3 integration (`roundtrip`) — Tables coverage extended (+2) with `parses_table_with_header_body_footer_and_corner_cells` (3×3 grid, all four corners, header/body/footer counts) and `parses_multi_paragraph_cell_content` (multiple `<ParagraphStyleRange>` per cell); plus `tab_stop_leader_preserves_multichar_and_whitespace`.
 - `idml-scene`: 1 unit
 - `idml-text`: 44 unit
 - `idml-compose`: 22 unit
@@ -204,7 +216,7 @@ a8d3d90 Per-run mid-paragraph font switching
 - `idml-fidelity`: 8 unit + 3 integration (`cli_smoke`)
 - `idml-gen`: 9 unit + 25 integration (`snapshot`)
 - Spikes: 0 (composer-calibration / vello-eval / wasm-size)
-- **Total: 327 across the workspace** (CPU default features). Tier-1 #3 (justification enum) added 2 parse unit tests; Tier-1 #4 + #5 (numbering-polish) added 3 parse + 7 renderer + 3 `text_glyph_level` tests; Tier-2 #9 (bullet character style) added 1 `text_glyph_level` test; Tier-2 #10 (decimal-tab leader characters) added 1 parse unit test + 1 `text_glyph_level` test.
+- **Total: 333 across the workspace** (CPU default features). Accumulated additions: justification enum (+2 parse), numbering-polish (+3 parse, +7 renderer unit, +3 `text_glyph_level`), bullet character style (+1 `text_glyph_level`), decimal-tab leaders (+1 parse, +1 `text_glyph_level`), drop-shadow-blur (+3 `idml-gpu`), tables-parser (+2 parse).
 
 ## Recommended order for the next 3 batches
 
