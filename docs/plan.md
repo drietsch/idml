@@ -120,7 +120,7 @@ Tables, CJK, anchored objects, table-of-contents resolution.
 3. **Justification enum promotion** — last stringly-typed surface. Used in 5+ places (Paragraph, ParagraphStyleDef, ResolvedParagraph, ResolvedParagraphAttrs, map_justification). Mechanical but multi-touch.
 4. **NumberingExpression substitution** — IDML allows `^#` + custom prefixes/suffixes per style ("Step ^# of 5"); current emit is hardcoded `<n>.\t`.
 5. **NumberingStartAt + NumberingContinue** — explicit overrides on top of the auto-reset.
-6. **Test font** — drop a permissive TTF (DejaVu / Noto subset) into `corpus/fonts/`. Glyph-level integration tests for per-run fonts, threading, underline, vertical justify, lists. Without it, most text-path tests stop at "command emitted, glyph count = 0".
+6. **Test font** ✅ — license-clear TTFs landed in `corpus/fonts/` (Open Sans, Inter, Lora, Roboto, Cormorant Garamond, Source Serif 4, Roboto Slab). Pixel-level coverage lives in `real_ttf.rs` + `real_ttf_features.rs`. Glyph-level (`DisplayList`-inspecting) coverage for per-run fonts / threading / underline / strikethrough / vertical justify / bulleted lists / numbered lists lives in `text_glyph_level.rs`.
 
 ### Tier 2 — medium, real fidelity wins
 
@@ -145,7 +145,7 @@ Tables, CJK, anchored objects, table-of-contents resolution.
 ## Deferred (with rationale)
 
 - **`self_cell` / `ouroboros`-based `Face` cache** — both crates unavailable in the offline cargo cache. Per-paragraph dedup landed instead; full per-render cache waits for one of the crates to become available or for a carefully-reviewed unsafe transmute.
-- **Test font embedding** — no way to fetch a permissive TTF in this environment. Highest-leverage pending item; unblocks regression coverage for everything text-related.
+- **Test font embedding** ✅ — license-clear TTFs (Open Sans, Inter, Lora, Roboto family, Cormorant Garamond, Source Serif 4, Roboto Slab) now live under `corpus/fonts/`. Pixel-level coverage in `real_ttf*.rs`; glyph-level (DisplayList) coverage in `text_glyph_level.rs`.
 - **Justification + FontStyle enum promotion** — Justification surface is large (5+ touch points) for moderate ROI. FontStyle is free-form in IDML ("Bold Italic Caption" etc.), genuinely not enumerable.
 - **`compose_matrix` dedup vs `Transform::compose`** — would force a parse → compose dependency we don't want to add.
 - **Frame-chain page-bake** — page routing is renderer-private (centre-point containment); scene shouldn't know about it.
@@ -194,21 +194,22 @@ a8d3d90 Per-run mid-paragraph font switching
 
 ## Test counts (last green run)
 
-- `idml-parse`: 25 unit + 3 integration
+- `idml-parse`: 61 unit + 3 integration (`roundtrip`)
 - `idml-scene`: 1 unit
-- `idml-text`: 31 unit
-- `idml-compose`: 25 unit (22 + 3 cpu-flagged)
-- `idml-gpu` (cpu features): 5 unit
-- `idml-gpu` (vello-backend features): 2 unit
-- `idml-renderer`: 17 lib + 11 integration + 3 seed
-- `idml-fidelity`: 8 unit + 2 integration
-- Spikes: 4 + 3 + 1
-- **Total: 177 across the workspace** (CPU default features), 178 with `vello-backend` enabled.
+- `idml-text`: 44 unit
+- `idml-compose`: 22 unit
+- `idml-edit`: 25 unit + 18 integration (`seed_hello`)
+- `idml-gpu`: 17 unit (CPU default; +vello-backend adds 0 today)
+- `idml-renderer`: 31 lib + 3 inspect bin + 11 `pipeline_lib` + 4 `inspect_e2e` + 3 `real_ttf` + 8 `real_ttf_features` + 7 `text_glyph_level` + 4 `seed_hello`
+- `idml-fidelity`: 8 unit + 3 integration (`cli_smoke`)
+- `idml-gen`: 9 unit + 25 integration (`snapshot`)
+- Spikes: 0 (composer-calibration / vello-eval / wasm-size)
+- **Total: 307 across the workspace** (CPU default features). `text_glyph_level` (the new file landed for Tier-1 #6) contributes 7 to that total.
 
 ## Recommended order for the next 3 batches
 
 | # | Batch | Why |
 |---|---|---|
-| 1 | Image dedup metrics ✅ + Stroke gradient endpoints | Two trivial Tier 1 wins; closes the gradient-direction gap and adds long-flagged observability. |
-| 2 | Test font + glyph-level integration tests | Highest leverage missing piece. Once a TTF lands, every text-path test grows real assertions. |
+| 1 | Image dedup metrics ✅ + Stroke gradient endpoints ✅ | Two trivial Tier 1 wins; closes the gradient-direction gap and adds long-flagged observability. |
+| 2 | Test font + glyph-level integration tests ✅ | Done — fonts in `corpus/fonts/`, glyph-level coverage in `text_glyph_level.rs` (per-run fonts, threading, underline + strikethrough, vertical justify, bullets, numbered list). |
 | 3 | Justify-vertical mode | Vertical justification is mostly there; this completes the typography surface for body copy. |
