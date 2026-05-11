@@ -117,7 +117,7 @@ Tables, CJK, anchored objects, table-of-contents resolution.
 
 1. **Image dedup metrics** in `PipelineStats` ✅ — `decoded_images` field surfaces the renderer-scoped `DecodedImage` cache size at the end of each render; also wired into `idml-inspect`'s JSON totals.
 2. **Stroke gradient endpoints** from `<Gradient>` `Angle` + `Length` — currently hardcoded `(0,0)→(0,1)`. Means rotated gradients render at 90°.
-3. **Justification enum promotion** — last stringly-typed surface. Used in 5+ places (Paragraph, ParagraphStyleDef, ResolvedParagraph, ResolvedParagraphAttrs, map_justification). Mechanical but multi-touch.
+3. **Justification enum promotion** ✅ — `idml_parse::Justification` enum (9 variants: LeftAlign / CenterAlign / RightAlign / LeftJustified / CenterJustified / RightJustified / FullyJustified / ToBindingSide / AwayFromBindingSide) replaces `Option<String>` on `Paragraph`, `ParagraphStyleDef`, `ResolvedParagraph`, `ResolvedParagraphAttrs`, the rope's `ParagraphAttrs`, and `ParagraphAttrPatch`. `from_idml` parses at XML-read time (unknown values → `None` → renderer falls back to Left, matching the prior stringly-typed wildcard). `map_justification` now takes `Option<Justification>`. Custom `Serialize`/`Deserialize` keeps the wasm bridge's JSON wire format byte-identical to the pre-enum world (still serialises as `"LeftAlign"` etc.).
 4. **NumberingExpression substitution** — IDML allows `^#` + custom prefixes/suffixes per style ("Step ^# of 5"); current emit is hardcoded `<n>.\t`.
 5. **NumberingStartAt + NumberingContinue** — explicit overrides on top of the auto-reset.
 6. **Test font** ✅ — license-clear TTFs landed in `corpus/fonts/` (Open Sans, Inter, Lora, Roboto, Cormorant Garamond, Source Serif 4, Roboto Slab). Pixel-level coverage lives in `real_ttf.rs` + `real_ttf_features.rs`. Glyph-level (`DisplayList`-inspecting) coverage for per-run fonts / threading / underline / strikethrough / vertical justify / bulleted lists / numbered lists lives in `text_glyph_level.rs`.
@@ -145,7 +145,8 @@ Tables, CJK, anchored objects, table-of-contents resolution.
 
 - **`self_cell` / `ouroboros`-based `Face` cache** — both crates unavailable in the offline cargo cache. Per-paragraph dedup landed instead; full per-render cache waits for one of the crates to become available or for a carefully-reviewed unsafe transmute.
 - **Test font embedding** ✅ — license-clear TTFs (Open Sans, Inter, Lora, Roboto family, Cormorant Garamond, Source Serif 4, Roboto Slab) now live under `corpus/fonts/`. Pixel-level coverage in `real_ttf*.rs`; glyph-level (DisplayList) coverage in `text_glyph_level.rs`.
-- **Justification + FontStyle enum promotion** — Justification surface is large (5+ touch points) for moderate ROI. FontStyle is free-form in IDML ("Bold Italic Caption" etc.), genuinely not enumerable.
+- **Justification enum promotion** ✅ — done. `idml_parse::Justification` enum lands in `crates/idml-parse/src/story.rs` (next to `Paragraph`); touch points: `Paragraph`, `ParagraphStyleDef`, `ResolvedParagraph`, `ResolvedParagraphAttrs`, the rope's `ParagraphAttrs`, `ParagraphAttrPatch`, `map_justification`. Custom serde keeps the JSON wire format ("LeftAlign" strings) unchanged.
+- **FontStyle enum promotion** — free-form in IDML ("Bold Italic Caption" etc.), genuinely not enumerable. Staying as `String` is correct.
 - **`compose_matrix` dedup vs `Transform::compose`** — would force a parse → compose dependency we don't want to add.
 - **Frame-chain page-bake** — page routing is renderer-private (centre-point containment); scene shouldn't know about it.
 - **`StoryEmitter` extracted** ✅ — done in commit `7447ee4`.
@@ -193,7 +194,7 @@ a8d3d90 Per-run mid-paragraph font switching
 
 ## Test counts (last green run)
 
-- `idml-parse`: 61 unit + 3 integration (`roundtrip`)
+- `idml-parse`: 63 unit + 3 integration (`roundtrip`)
 - `idml-scene`: 1 unit
 - `idml-text`: 44 unit
 - `idml-compose`: 22 unit
@@ -203,7 +204,7 @@ a8d3d90 Per-run mid-paragraph font switching
 - `idml-fidelity`: 8 unit + 3 integration (`cli_smoke`)
 - `idml-gen`: 9 unit + 25 integration (`snapshot`)
 - Spikes: 0 (composer-calibration / vello-eval / wasm-size)
-- **Total: 307 across the workspace** (CPU default features). `text_glyph_level` (the new file landed for Tier-1 #6) contributes 7 to that total.
+- **Total: 309 across the workspace** (CPU default features). `text_glyph_level` (the new file landed for Tier-1 #6) contributes 7 to that total.
 
 ## Recommended order for the next 3 batches
 
