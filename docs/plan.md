@@ -127,7 +127,7 @@ Tables, CJK, anchored objects, table-of-contents resolution.
 7. **Composer calibration** — drive `spikes/composer-calibration` against InDesign-PDF references. Tune `tolerance`, `hyphen_penalty`, `stretch_ratio` toward parity. Spike B in the original plan.
 8. **`rustybuzz::Face` cache in `FontTable`** — currently per-paragraph dedup only. Per-render cache wants self-referential `Face<'static>`-over-`Bytes`. Needs `self_cell` / `ouroboros` (offline-unavailable in this environment) or a carefully-reviewed `unsafe` transmute.
 9. **Bullets character formatting** ✅ — parser captures `BulletsCharacterStyle` + `BulletsAndNumberingDigitsCharacterStyle` on `ParagraphStyleDef` / `ResolvedParagraph` (cascade via BasedOn); `ResolvedParagraphAttrs` carries them through to the renderer. Pipeline resolves the marker style via the standard `CharacterStyle` cascade and threads the resolved `FillColor` into `build_run_paint_picker_resolved` as a leading bullet paint band so the bullet glyph emits with a distinct `FillPath` paint from the content runs. Bullet-vs-numbered-list lookup follows IDML's two-field convention — `NumberedList` reads the digits-style ref; `BulletList` reads `BulletsCharacterStyle` and falls back to the digits-style ref (InDesign's UI exposes a single "Character Style" picker per paragraph style regardless of list kind). Glyph-level coverage: `text_glyph_level::bullet_character_style_paints_bullet_differently_from_content`. Font/size override through the same character style is queued (parser fields already land; pipeline keeps inheriting run 0's face/size today).
-10. **Decimal-tab leader characters** — `<TabStop Leader="...">` lets you put dots between a label and a number; not yet rendered.
+10. **Decimal-tab leader characters** ✅ — `<TabStop Leader="...">` strings (e.g. `"."`, `". "`, `"…"`) round-trip through the parser as `Option<String>` (preserving trailing whitespace — `". "` is meaningfully different from `"."`). `idml-text::layout::apply_tab_stops_with_leaders` takes an optional `LeaderContext` that wraps the paragraph's `&[StyledRun]`; each snapped `\t` whose stop has a non-empty leader gets the leader shaped with the run that owns the tab's cluster and tiled across the widened gap. Tiling strategy: whole copies only (`floor(gap / leader_width)`) — a leader strictly wider than the gap emits zero copies (matches InDesign's "drop the leader rather than overflow into the snapped text" behaviour), and any partial trailing space is left empty so the dots stay visually uniform. The synthesised leader glyphs sit at absolute x inside the already-widened tab span, so they don't contribute further advance and they share the tab's `font_id` (which means the `glyph_id`-bucketed emit loop and the `(font_id, glyph_id)` outline interner pick them up cleanly — every `.` glyph reuses one `PathId`). Leaders inherit the surrounding run's `FillColor` / `point_size`; no separate style. Coverage: `idml_parse::story::tests::tab_stop_leader_preserves_multichar_and_whitespace` (parser) + `text_glyph_level::tab_stop_leader_dots_tile_across_the_gap` (renderer, asserts >5 dots tile a TOC-style line with `Leader="."` and zero dots without).
 11. **Vello DropShadow** — depends on offscreen-layer plumbing (#12).
 
 ### Tier 3 — large
@@ -194,17 +194,17 @@ a8d3d90 Per-run mid-paragraph font switching
 
 ## Test counts (last green run)
 
-- `idml-parse`: 66 unit + 3 integration (`roundtrip`)
+- `idml-parse`: 67 unit + 3 integration (`roundtrip`)
 - `idml-scene`: 1 unit
 - `idml-text`: 44 unit
 - `idml-compose`: 22 unit
 - `idml-edit`: 25 unit + 18 integration (`seed_hello`)
 - `idml-gpu`: 17 unit (CPU default; +vello-backend adds 0 today)
-- `idml-renderer`: 36 lib + 3 inspect bin + 11 `pipeline_lib` + 4 `inspect_e2e` + 3 `real_ttf` + 8 `real_ttf_features` + 11 `text_glyph_level` + 4 `seed_hello`
+- `idml-renderer`: 36 lib + 3 inspect bin + 11 `pipeline_lib` + 4 `inspect_e2e` + 3 `real_ttf` + 8 `real_ttf_features` + 12 `text_glyph_level` + 4 `seed_hello`
 - `idml-fidelity`: 8 unit + 3 integration (`cli_smoke`)
 - `idml-gen`: 9 unit + 25 integration (`snapshot`)
 - Spikes: 0 (composer-calibration / vello-eval / wasm-size)
-- **Total: 325 across the workspace** (CPU default features). Tier-1 #3 (justification enum) added 2 parse unit tests; Tier-1 #4 + #5 (numbering-polish) added 3 parse + 7 renderer + 3 `text_glyph_level` tests; Tier-2 #9 (bullet character style) added 1 `text_glyph_level` test.
+- **Total: 327 across the workspace** (CPU default features). Tier-1 #3 (justification enum) added 2 parse unit tests; Tier-1 #4 + #5 (numbering-polish) added 3 parse + 7 renderer + 3 `text_glyph_level` tests; Tier-2 #9 (bullet character style) added 1 `text_glyph_level` test; Tier-2 #10 (decimal-tab leader characters) added 1 parse unit test + 1 `text_glyph_level` test.
 
 ## Recommended order for the next 3 batches
 
