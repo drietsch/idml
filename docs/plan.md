@@ -104,8 +104,8 @@ Mapped to idea.md's Phase 0–4 plus the pre-0 spikes from the original plan.
 | Tables — cell text flow | ✅ per-cell paragraph composition with cell insets + per-cell vertical justification. |
 | Tables — cell strokes / fills | ✅ per-edge stroke overrides, alternating-row fills via TableStyle, diagonal cell strokes, outer table border. |
 | Tables — fidelity | ✅ generated `tables` fixture gated in CI at meanΔE ≤ 1.10 / p99 ≤ 13.0 / SSIM ≥ 0.96; worst measured meanΔE 0.886 / p99 10.827 / SSIM 0.967 (p3). |
-| Tables — header/footer duplication across frame splits | ❌ `T3.1` TODO in `emit_table_into_chain`. Requires a sample IDML where a table breaks across the frame chain (none in the corpus today). |
-| Tables — content-driven row growth (`MinimumHeight`) | ❌ rows size to `SingleRowHeight` only; cells with overflow get clipped instead of growing their row. |
+| Tables — header/footer duplication across frame splits | ✅ `RepeatingHeader` / `RepeatingFooter` parsed on `<Table>` (default true when absent). `emit_table_into_chain` now builds a per-frame physical-row sequence: when the body overflows the head frame, footer rows replay at the bottom of the prior frame (when `repeating_footer`) and header rows prepend at the top of the new frame (when `repeating_header`). Per-row cells / alternating fills / dividers iterate that physical-row list keyed off the original template index, so the visual cycle stays coherent across continuation frames. Glyph-level coverage: `text_glyph_level::threaded_table_replays_header_row_at_top_of_each_frame`. |
+| Tables — content-driven row growth (`MinimumHeight`) | ✅ `MaximumHeight` lands on `TableRow` (None = unbounded). `emit_table_into_chain` runs a top-down pre-measure pass via `measure_cell_paragraph` (a side-effect-free counterpart to `emit_cell_paragraph` that shapes + lays out but skips outline emission), summing cell content heights and clamping `max(SingleRowHeight, MinimumHeight, content_height)` to `MaximumHeight`. RowSpan > 1 cells distribute via the LAST-row heuristic: prior rows of the span keep their declared height; the trailing row grows to absorb the shortfall. Coverage: `text_glyph_level::table_row_grows_to_fit_content_when_single_row_height_too_small`. |
 | Anchored objects | ✅ inline-anchored TextFrame / Rectangle / Group with image-link + per-edge attribute capture. |
 | CJK (vertical writing, kinsoku, Mojikumi) | ❌ |
 | Table of contents resolution | ❌ |
@@ -149,8 +149,8 @@ Mapped to idea.md's Phase 0–4 plus the pre-0 spikes from the original plan.
 
 ### Tier 4 — defer
 
-15. **Tables — header/footer duplication across frame splits** (`T3.1`). When a tall table overflows to the next chain frame, IDML repeats the header rows at the top of the new frame and the footer rows at the bottom of the prior frame. Today `emit_table_into_chain` carries the TODO but skips the duplication. Trigger needs a sample IDML where a table actually breaks across the frame chain — none in `corpus/generated` today; queue alongside the next corpus expansion.
-16. **Tables — content-driven row growth** (`MinimumHeight`). Rows currently size to `SingleRowHeight`; cells with content overflow get clipped. Real-world tables rely on this regularly (header rows expand to fit wrapped text). Wants a per-cell pre-measure pass before the row-basis loop in `emit_table_into_chain`.
+15. **Tables — header/footer duplication across frame splits** (`T3.1`) ✅ — `RepeatingHeader` / `RepeatingFooter` plumbed through the parser, `emit_table_into_chain` builds an explicit physical-row sequence interleaving body rows with replayed headers / footers at frame splits, all downstream emission (alternating fills, cell content, row dividers, borders) iterates that sequence. Coverage in `text_glyph_level::threaded_table_replays_header_row_at_top_of_each_frame`.
+16. **Tables — content-driven row growth** (`MinimumHeight` / `MaximumHeight`) ✅ — top-down pre-measure pass via `measure_cell_paragraph` (factored alongside `emit_cell_paragraph`); per-row growth = `max(SingleRowHeight, MinimumHeight, content)` clamped to `MaximumHeight`. RowSpan > 1: LAST-row absorbs the shortfall, earlier spanned rows keep their declared height (simpler heuristic; smarter proportional distribution is queued). Coverage in `text_glyph_level::table_row_grows_to_fit_content_when_single_row_height_too_small`.
 17. **CJK** — vertical writing mode, kinsoku line-break rules, Mojikumi, mid-line emphasis marks. `rustybuzz` already shapes CJK; layout + writing-mode work is the lift.
 
 ## Deferred (with rationale)
@@ -207,17 +207,17 @@ a8d3d90 Per-run mid-paragraph font switching
 
 ## Test counts (last green run)
 
-- `idml-parse`: 70 unit + 3 integration (`roundtrip`) — Tables coverage extended (+2) with `parses_table_with_header_body_footer_and_corner_cells` (3×3 grid, all four corners, header/body/footer counts) and `parses_multi_paragraph_cell_content` (multiple `<ParagraphStyleRange>` per cell); plus `tab_stop_leader_preserves_multichar_and_whitespace`.
+- `idml-parse`: 72 unit + 3 integration (`roundtrip`) — Tables coverage extended (+3) with `parses_table_with_header_body_footer_and_corner_cells` (3×3 grid, all four corners, header/body/footer counts), `parses_multi_paragraph_cell_content` (multiple `<ParagraphStyleRange>` per cell), and `parses_table_repeating_header_footer_and_row_max_min_height` (`RepeatingHeader` / `RepeatingFooter` booleans + `MaximumHeight` on rows); plus `tab_stop_leader_preserves_multichar_and_whitespace`.
 - `idml-scene`: 1 unit
 - `idml-text`: 44 unit
 - `idml-compose`: 22 unit
 - `idml-edit`: 25 unit + 18 integration (`seed_hello`)
 - `idml-gpu`: 17 unit (CPU default; +vello-backend adds 0 today)
-- `idml-renderer`: 36 lib + 3 inspect bin + 11 `pipeline_lib` + 4 `inspect_e2e` + 3 `real_ttf` + 8 `real_ttf_features` + 12 `text_glyph_level` + 4 `seed_hello`
+- `idml-renderer`: 36 lib + 3 inspect bin + 11 `pipeline_lib` + 4 `inspect_e2e` + 3 `real_ttf` + 8 `real_ttf_features` + 14 `text_glyph_level` + 4 `seed_hello`
 - `idml-fidelity`: 8 unit + 3 integration (`cli_smoke`)
 - `idml-gen`: 9 unit + 25 integration (`snapshot`)
 - Spikes: 0 (composer-calibration / vello-eval / wasm-size)
-- **Total: 333 across the workspace** (CPU default features). Accumulated additions: justification enum (+2 parse), numbering-polish (+3 parse, +7 renderer unit, +3 `text_glyph_level`), bullet character style (+1 `text_glyph_level`), decimal-tab leaders (+1 parse, +1 `text_glyph_level`), drop-shadow-blur (+3 `idml-gpu`), tables-parser (+2 parse).
+- **Total: 336 across the workspace** (CPU default features). Accumulated additions: justification enum (+2 parse), numbering-polish (+3 parse, +7 renderer unit, +3 `text_glyph_level`), bullet character style (+1 `text_glyph_level`), decimal-tab leaders (+1 parse, +1 `text_glyph_level`), drop-shadow-blur (+3 `idml-gpu`), tables-parser (+2 parse), tables-flow-polish (+1 parse, +2 `text_glyph_level`).
 
 ## Recommended order for the next 3 batches
 
