@@ -34,7 +34,7 @@ Mapped to idea.md's Phase 0–4 plus the pre-0 spikes from the original plan.
 ### Pre-0 spikes — done
 
 - **Spike A (Vello eval)**: harness scaffolded; backend now production-ready for FillPath / StrokePath / Image / LinearGradient. DropShadow stays stubbed (needs offscreen layer).
-- **Spike B (composer calibration)**: harness scaffolded; not yet driven against InDesign reference paragraphs. Tuning is queued.
+- **Spike B (composer calibration)**: ✅ done. Calibrated to Adobe-aligned WordSpacing defaults; verified at 100% line-break parity on the 6-entry corpus (28/28 lines). Commits `0242e32` + `863d397`.
 - **Spike C (WASM size)**: harness scaffolded.
 - **Fidelity harness**: ΔE2000 + SSIM diff implementation lives in `idml-fidelity`. Corpus expansion (more seed IDMLs + reference PDFs) is queued.
 
@@ -80,7 +80,7 @@ Mapped to idea.md's Phase 0–4 plus the pre-0 spikes from the original plan.
 | FirstBaselineOffset (Ascent / Cap / X / EmBox / Fixed / Leading) | ✅ from OS/2 + hhea |
 | TextFramePreference inset spacing | ✅ |
 | Story threading (NextTextFrame chain + line distribution) | ✅ |
-| NumberingExpression substitution / NumberingStartAt overrides | ❌ |
+| NumberingExpression substitution / NumberingStartAt overrides | ✅ tokens `^#` / `^.` / `^t` + `^^` escape; StartAt + Continue plumbed through `StoryEmitter` |
 
 ### Phase 3 — Color & effects — partial
 
@@ -118,8 +118,8 @@ Tables, CJK, anchored objects, table-of-contents resolution.
 1. **Image dedup metrics** in `PipelineStats` ✅ — `decoded_images` field surfaces the renderer-scoped `DecodedImage` cache size at the end of each render; also wired into `idml-inspect`'s JSON totals.
 2. **Stroke gradient endpoints** from `<Gradient>` `Angle` + `Length` — currently hardcoded `(0,0)→(0,1)`. Means rotated gradients render at 90°.
 3. **Justification enum promotion** — last stringly-typed surface. Used in 5+ places (Paragraph, ParagraphStyleDef, ResolvedParagraph, ResolvedParagraphAttrs, map_justification). Mechanical but multi-touch.
-4. **NumberingExpression substitution** — IDML allows `^#` + custom prefixes/suffixes per style ("Step ^# of 5"); current emit is hardcoded `<n>.\t`.
-5. **NumberingStartAt + NumberingContinue** — explicit overrides on top of the auto-reset.
+4. **NumberingExpression substitution** ✅ — `^#` / `^.` / `^t` tokens (plus `^^` literal-caret escape) substitute into the marker; default expression `^#.^t` matches IDML. Cascade-aware via `ResolvedParagraph` / `ResolvedParagraphAttrs`.
+5. **NumberingStartAt + NumberingContinue** ✅ — `NumberingStartAt` jumps the counter on paragraph entry; `NumberingContinue` suppresses the auto-reset that otherwise fires when the prior paragraph wasn't a NumberedList. Counter now persists across BulletList / NoList intermissions on the `StoryEmitter`.
 6. **Test font** ✅ — license-clear TTFs landed in `corpus/fonts/` (Open Sans, Inter, Lora, Roboto, Cormorant Garamond, Source Serif 4, Roboto Slab). Pixel-level coverage lives in `real_ttf.rs` + `real_ttf_features.rs`. Glyph-level (`DisplayList`-inspecting) coverage for per-run fonts / threading / underline / strikethrough / vertical justify / bulleted lists / numbered lists lives in `text_glyph_level.rs`.
 
 ### Tier 2 — medium, real fidelity wins
@@ -193,17 +193,17 @@ a8d3d90 Per-run mid-paragraph font switching
 
 ## Test counts (last green run)
 
-- `idml-parse`: 61 unit + 3 integration (`roundtrip`)
+- `idml-parse`: 64 unit + 3 integration (`roundtrip`)
 - `idml-scene`: 1 unit
 - `idml-text`: 44 unit
 - `idml-compose`: 22 unit
 - `idml-edit`: 25 unit + 18 integration (`seed_hello`)
 - `idml-gpu`: 17 unit (CPU default; +vello-backend adds 0 today)
-- `idml-renderer`: 31 lib + 3 inspect bin + 11 `pipeline_lib` + 4 `inspect_e2e` + 3 `real_ttf` + 8 `real_ttf_features` + 7 `text_glyph_level` + 4 `seed_hello`
+- `idml-renderer`: 36 lib + 3 inspect bin + 11 `pipeline_lib` + 4 `inspect_e2e` + 3 `real_ttf` + 8 `real_ttf_features` + 10 `text_glyph_level` + 4 `seed_hello`
 - `idml-fidelity`: 8 unit + 3 integration (`cli_smoke`)
 - `idml-gen`: 9 unit + 25 integration (`snapshot`)
 - Spikes: 0 (composer-calibration / vello-eval / wasm-size)
-- **Total: 307 across the workspace** (CPU default features). `text_glyph_level` (the new file landed for Tier-1 #6) contributes 7 to that total.
+- **Total: 320 across the workspace** (CPU default features). Tier-1 #4 + #5 (numbering-polish) added 3 parse unit tests, 7 renderer unit tests, and 3 `text_glyph_level` integration tests.
 
 ## Recommended order for the next 3 batches
 
