@@ -168,6 +168,7 @@ Mapped to idea.md's Phase 0–4 plus the pre-0 spikes from the original plan.
 - **Vello upstream**: features like advanced shadow/blur lag behind rendering needs. The `PathRasterizer` trait + tiny-skia fallback insulate us; multiple commits show the pattern works.
 - **Composer parity**: Spike B's pass criterion (≥95% line-break parity vs. InDesign) is unverified. Calibration corpus expansion is the unblock.
 - **Self-referential lifetimes**: `Face<'static>`-over-`Bytes` and similar patterns keep recurring. Picking a single solution (`self_cell` vs. controlled `unsafe`) before the third occurrence will pay back.
+- **`text-advanced` font-vs-PDF mismatch**: the fixture's reference PDF was exported on a host without Open Sans installed — InDesign baked its bundled serif (Minion Pro) into the PDF. Per CLAUDE.md's "reference PDFs are baked" convention, `corpus/generated/text-advanced.fonts.sh` substitutes Open Sans → CormorantGaramond in the renderer so the gate compares apples to apples (without that mapping, page 1's drop-cap variant trips both `mean_de` 0.71 > 0.70 and `p99_de` 28.5 > 19.0 because the carved drop-cap width and per-line wrap diverge from the baked serif's). The substitute path is the temporary measure; re-exporting the PDF on a host that has Open Sans installed would let us flip the mapping back to the real face, drop the multi-paragraph comment in `text-advanced.fonts.sh`, and recalibrate thresholds.
 
 ## Recent commits (most recent first)
 
