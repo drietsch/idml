@@ -73,7 +73,7 @@ Mapped to idea.md's Phase 0–4 plus the pre-0 spikes from the original plan.
 | BasedOn chain following | ✅ depth-bounded |
 | Tab stops parsing + Left / Right / Center / Decimal layout | ✅ |
 | Vertical justification (Top / Center / Bottom) | ✅ |
-| Vertical justify mode (distribute slack) | ❌ falls through to Top |
+| Vertical justify mode (distribute slack) | ✅ per-paragraph distribution; per-frame for threaded stories |
 | Underline / strikethrough | ✅ |
 | Bullets render | ✅ |
 | Numbered lists (Arabic / Roman / alpha / zero-padded) | ✅ |
@@ -124,23 +124,22 @@ Tables, CJK, anchored objects, table-of-contents resolution.
 
 ### Tier 2 — medium, real fidelity wins
 
-7. **Justify-vertical mode** — distribute slack between paragraphs (currently falls through to Top). Plumbing is in place; needs a per-paragraph spacing pass.
-8. **Composer calibration** — drive `spikes/composer-calibration` against InDesign-PDF references. Tune `tolerance`, `hyphen_penalty`, `stretch_ratio` toward parity. Spike B in the original plan.
-9. **`rustybuzz::Face` cache in `FontTable`** — currently per-paragraph dedup only. Per-render cache wants self-referential `Face<'static>`-over-`Bytes`. Needs `self_cell` / `ouroboros` (offline-unavailable in this environment) or a carefully-reviewed `unsafe` transmute.
-10. **Bullets character formatting** — the bullet inherits the first run's font / size / colour today. IDML allows a separate character style for the bullet.
-11. **Decimal-tab leader characters** — `<TabStop Leader="...">` lets you put dots between a label and a number; not yet rendered.
-12. **Vello DropShadow** — depends on offscreen-layer plumbing (#13).
+7. **Composer calibration** — drive `spikes/composer-calibration` against InDesign-PDF references. Tune `tolerance`, `hyphen_penalty`, `stretch_ratio` toward parity. Spike B in the original plan.
+8. **`rustybuzz::Face` cache in `FontTable`** — currently per-paragraph dedup only. Per-render cache wants self-referential `Face<'static>`-over-`Bytes`. Needs `self_cell` / `ouroboros` (offline-unavailable in this environment) or a carefully-reviewed `unsafe` transmute.
+9. **Bullets character formatting** — the bullet inherits the first run's font / size / colour today. IDML allows a separate character style for the bullet.
+10. **Decimal-tab leader characters** — `<TabStop Leader="...">` lets you put dots between a label and a number; not yet rendered.
+11. **Vello DropShadow** — depends on offscreen-layer plumbing (#12).
 
 ### Tier 3 — large
 
-13. **Gaussian blur on drop shadow** — `PushLayer` / `PopLayer` display commands + offscreen pixmap stack in the rasterizer. Once layers exist, separable Gaussian on the shadow stamp + `DisplayCommand::transform_mut` slot in cleanly.
-14. **Fidelity harness expansion** ✅ — `corpus/generated/diff.sh` runs every paired `*.idml + *.pdf` fixture through `idml-inspect` + `pdftoppm` + `idml-diff` and gates per-page mean ΔE / p99 ΔE / SSIM against `corpus/generated/fidelity-thresholds.json`. Wired into `.github/workflows/fidelity.yml` as a hard step (with poppler-utils install + `actions/upload-artifact@v4` for heatmaps on failure). Current per-fixture worst-page numbers (mean ΔE / p99 ΔE / SSIM): geometry 0.108 / 0.000 / 0.994, geometry-groups 0.973 / 47.289 / 0.982, strokes-fills 0.440 / 9.381 / 0.987, text 0.534 / 8.771 / 0.973, text-advanced 0.562 / 15.963 / 0.968, effects 0.334 / 5.349 / 0.993, gradients 0.158 / 1.027 / 0.994, tables 0.886 / 10.827 / 0.967, images 0.104 / 0.000 / 0.995. Thresholds were sized worst-page + ~15-25% headroom; the long-term goal stays the idea.md §13.2 budget (mean ≤ 1.0, p99 ≤ 2.5, SSIM ≥ 0.99 for *every* page). `tables` is gated to 7 pages and `images` to 5 because their reference PDFs predate the latest IDML page additions.
-15. **Overprint simulation** — per-channel CMYK compositing, not per-pixel RGB. Significant rasterizer rework; depends on routing CMYK through to the rasterizer instead of resolving to RGB at compose time.
+12. **Gaussian blur on drop shadow** — `PushLayer` / `PopLayer` display commands + offscreen pixmap stack in the rasterizer. Once layers exist, separable Gaussian on the shadow stamp + `DisplayCommand::transform_mut` slot in cleanly.
+13. **Fidelity harness expansion** ✅ — `corpus/generated/diff.sh` runs every paired `*.idml + *.pdf` fixture through `idml-inspect` + `pdftoppm` + `idml-diff` and gates per-page mean ΔE / p99 ΔE / SSIM against `corpus/generated/fidelity-thresholds.json`. Wired into `.github/workflows/fidelity.yml` as a hard step (with poppler-utils install + `actions/upload-artifact@v4` for heatmaps on failure). Current per-fixture worst-page numbers (mean ΔE / p99 ΔE / SSIM): geometry 0.108 / 0.000 / 0.994, geometry-groups 0.973 / 47.289 / 0.982, strokes-fills 0.440 / 9.381 / 0.987, text 0.534 / 8.771 / 0.973, text-advanced 0.562 / 15.963 / 0.968, effects 0.334 / 5.349 / 0.993, gradients 0.158 / 1.027 / 0.994, tables 0.886 / 10.827 / 0.967, images 0.104 / 0.000 / 0.995. Thresholds were sized worst-page + ~15-25% headroom; the long-term goal stays the idea.md §13.2 budget (mean ≤ 1.0, p99 ≤ 2.5, SSIM ≥ 0.99 for *every* page). `tables` is gated to 7 pages and `images` to 5 because their reference PDFs predate the latest IDML page additions.
+14. **Overprint simulation** — per-channel CMYK compositing, not per-pixel RGB. Significant rasterizer rework; depends on routing CMYK through to the rasterizer instead of resolving to RGB at compose time.
 
 ### Tier 4 — defer
 
-16. **Tables** — `<Table>` parsing + grid layout + cell text flow + cross-cell threading.
-17. **CJK** — vertical writing mode, kinsoku line-break rules, Mojikumi, mid-line emphasis marks. `rustybuzz` already shapes CJK; layout + writing-mode work is the lift.
+15. **Tables** — `<Table>` parsing + grid layout + cell text flow + cross-cell threading.
+16. **CJK** — vertical writing mode, kinsoku line-break rules, Mojikumi, mid-line emphasis marks. `rustybuzz` already shapes CJK; layout + writing-mode work is the lift.
 
 ## Deferred (with rationale)
 
@@ -211,4 +210,4 @@ a8d3d90 Per-run mid-paragraph font switching
 |---|---|---|
 | 1 | Image dedup metrics + Stroke gradient endpoints | Two trivial Tier 1 wins; closes the gradient-direction gap and adds long-flagged observability. |
 | 2 | Test font + glyph-level integration tests | Highest leverage missing piece. Once a TTF lands, every text-path test grows real assertions. |
-| 3 | Justify-vertical mode | Vertical justification is mostly there; this completes the typography surface for body copy. |
+| 3 | Composer calibration | Drive Spike B against InDesign-PDF references; tune Knuth-Plass knobs toward parity. |
