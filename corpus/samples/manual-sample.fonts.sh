@@ -36,14 +36,20 @@ FONT_FLAGS=(
     --font-family "Gilroy=$FONTS/Roboto-Bold.ttf"
     --font-family "Gilroy/Black=$FONTS/Roboto-Bold.ttf"
     --font-family "Gilroy/Black Italic=$FONTS/Roboto-BoldItalic.ttf"
-    # Note: a `--font-metrics "Arial=…"` override is intentionally not
-    # set here. Empirically the reference PDF was rendered with
-    # Roboto (or a Roboto-shape font) directly — its baseline math
-    # already matches what our renderer produces with Roboto's natural
-    # metrics. Pinning Arial's em-fractions here moves baselines away
-    # from the reference, not toward it. Keep the override available
-    # for any future sample where the reference was actually
-    # Arial-rendered.
+    # Pin Arial's typographic ascender (0.728 em from OS/2.sTypoAscender)
+    # for first-baseline math. The reference PDF was rendered with real
+    # Arial (confirmed via `pdffonts manual-sample.pdf` — ArialMT is
+    # subsetted in), so InDesign's "Ascent" first-baseline-offset uses
+    # Arial's sTypoAscender = 1491/2048 = 0.728. Without this override
+    # the renderer's per-family metrics map has no entry for "Arial"
+    # and falls back to the `0.8 × pt` heuristic in
+    # `LayoutOptions::new` — close, but ~1 pt low at 12pt (and worse
+    # at larger sizes), which left a systemic baseline drift across
+    # pages 1 + 2. Cap- and x-height (0.716 / 0.518) are included so
+    # CapHeight / XHeight first-baseline modes also resolve against
+    # Arial's geometry rather than the substitute's, even though this
+    # sample doesn't exercise those modes today.
+    --font-metrics "Arial=0.728,0.716,0.518"
 )
 # Manual sample's placed images live in `corpus/samples/media/`,
 # referenced by absolute file URIs in the IDML. The resolver looks
