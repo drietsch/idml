@@ -1,14 +1,10 @@
 #!/usr/bin/env bash
-# web/build-wasm.sh — build the wasm crates for browser use.
+# web/build-wasm.sh — build the wasm crate for browser use.
 #
-# Outputs (per crate):
+# Outputs:
 #   web/src/wasm/idml_wasm.js        viewer loader (ES module, --target web)
 #   web/src/wasm/idml_wasm_bg.wasm   viewer binary
 #   web/src/wasm/idml_wasm.d.ts      viewer types
-#
-#   web/src/wasm/idml_edit_wasm.js        editor loader
-#   web/src/wasm/idml_edit_wasm_bg.wasm   editor binary
-#   web/src/wasm/idml_edit_wasm.d.ts      editor types
 #
 # Requirements:
 #   * rustup target add wasm32-unknown-unknown   (one-time)
@@ -60,9 +56,6 @@ build_crate() {
 
 # Build the read-only viewer surface.
 build_crate idml-wasm idml_wasm
-
-# Build the editor surface (Project, command bus, wgpu Surface presenter).
-build_crate idml-edit-wasm idml_edit_wasm
 
 if ! command -v wasm-opt >/dev/null; then
     echo "note: wasm-opt not found; skipping size pass (install binaryen for ~30% smaller bundles)"
