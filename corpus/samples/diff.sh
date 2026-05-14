@@ -73,12 +73,24 @@ if [ -f "$SAMPLE_DIR/$NAME.fonts.sh" ]; then
     . "$SAMPLE_DIR/$NAME.fonts.sh"
 fi
 
+# Synthetic generator fixtures under corpus/generated/ were exported
+# without InDesign's missing-image placeholder visible (the fixtures
+# test geometry/effects, not broken-link visuals). Suppress the
+# renderer's placeholder for those; real-world packs keep it on so
+# template scaffolding (broken-link "Your Image Here" frames) match
+# their reference PDFs.
+PLACEHOLDER_FLAG=""
+if [ "$SAMPLE_DIR" = "$GENERATED_DIR" ]; then
+    PLACEHOLDER_FLAG="--no-missing-image-placeholder"
+fi
+
 (cd "$ROOT" && cargo run -q --release -p idml-renderer --bin idml-inspect -- \
     "$IDML" \
     --render "$OUT/cand.png" \
     --default-font "$DEFAULT_FONT" \
     "${FONT_FLAGS[@]}" \
     $LINKS_FLAG \
+    $PLACEHOLDER_FLAG \
     --dpi "$DPI" >/dev/null)
 
 if [ "$HAVE_PDF" -eq 1 ]; then
