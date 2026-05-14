@@ -1,0 +1,9 @@
+node_modules/
+dist/
+src/wasm/*
+# Keep the placeholder type declaration so `tsc` passes on a fresh
+# checkout. `build-wasm.sh` regenerates this file (and the runtime
+# artefacts beside it) on its first run.
+!src/wasm/idml_introspect_wasm.d.ts
+tsconfig.tsbuildinfo
+*.local
