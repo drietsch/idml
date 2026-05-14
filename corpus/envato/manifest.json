@@ -1,0 +1,718 @@
+{
+  "_comment": [
+    "One entry per Envato pack zip in corpus/envato/.",
+    "Regenerate with: python3 corpus/envato/gen-manifest.py",
+    "",
+    "Fields:",
+    "  name             \u2014 pack identifier (kebab-case slug from zip filename)",
+    "  zip              \u2014 basename inside corpus/envato/",
+    "  idml_in_zip      \u2014 path inside the zip to the IDML to render, or null",
+    "  indd_in_zip      \u2014 set only when no IDML ships; unpack.sh exports it via InDesign",
+    "  readme_in_zip    \u2014 path inside the zip to the font-listing readme, or null",
+    "  declared_fonts   \u2014 parsed from readme; advisory, see overrides/<pack>/fonts.* for canonical",
+    "  stage            \u2014 'smoke' (render only), 'gated' (fidelity-thresholds.json applies), 'skip'",
+    "  skip_reason      \u2014 required when stage == 'skip' so future humans know why"
+  ],
+  "packs": [
+    {
+      "name": "ancient-building-magazine",
+      "zip": "ancient-building-magazine-2025-10-31-23-54-32-utc.zip",
+      "idml_in_zip": "Main Files/Ancient Building Magazine.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "Main Files/Read Me.txt",
+      "declared_fonts": [
+        "Poppins",
+        "DM Sans",
+        "Instrument Serif"
+      ],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "annual-report",
+      "zip": "annual-report-2024-09-23-20-02-00-utc.zip",
+      "idml_in_zip": "01 - Adobe indesign/2 - Annual Report (idml).idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "Fonts download link.txt",
+      "declared_fonts": [
+        "Yantramanav",
+        "Entypo"
+      ],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "annual-report-template",
+      "zip": "annual-report-template-2025-06-12-18-58-11-utc.zip",
+      "idml_in_zip": "Letter.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "Canva Link.txt",
+      "declared_fonts": [],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "annual-report-template-8b5d40",
+      "zip": "annual-report-template-2025-06-12-19-00-11-utc.zip",
+      "idml_in_zip": "Letter.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "Canva Link.txt",
+      "declared_fonts": [],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "book-template-design",
+      "zip": "book-template-design-2024-06-18-18-18-06-utc.zip",
+      "idml_in_zip": null,
+      "indd_in_zip": "01_Main File/02_Source File/01_InDesign (INDD)/Book Template Design.indd",
+      "readme_in_zip": null,
+      "declared_fonts": [],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "brand-guideline-template",
+      "zip": "brand-guideline-template-2023-11-27-05-17-24-utc.zip",
+      "idml_in_zip": null,
+      "indd_in_zip": "01_Main File/02_Source File/01_InDesign (INDD)/Brand Guideline.indd",
+      "readme_in_zip": null,
+      "declared_fonts": [],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "brand-guidelines",
+      "zip": "brand-guidelines-2025-11-26-21-45-03-utc.zip",
+      "idml_in_zip": "InDesign Files/Brand Guideline.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "Read Me.txt",
+      "declared_fonts": [],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "brochure",
+      "zip": "brochure-2023-11-27-05-18-03-utc.zip",
+      "idml_in_zip": "BR 6/Brochure.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "BR 6/Font.txt",
+      "declared_fonts": [
+        "Montserrat"
+      ],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "brown-fashion-brochure",
+      "zip": "brown-fashion-brochure-2023-11-27-05-13-26-utc.zip",
+      "idml_in_zip": "Brown Fashion Brochure/Indesign/Brown Fashion Brochure.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "Brown Fashion Brochure/Read Me.txt",
+      "declared_fonts": [
+        "Vollkorn SC",
+        "Montserrat",
+        "Sail"
+      ],
+      "stage": "smoke",
+      "skip_reason": null,
+      "note": "Reference PDF was re-themed pre-export; cand renders IDML-specified colours correctly. Do not promote to gated."
+    },
+    {
+      "name": "business-magazine-template",
+      "zip": "business-magazine-template-2025-04-24-20-48-47-utc.zip",
+      "idml_in_zip": "A4.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "Canva Link.txt",
+      "declared_fonts": [],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "business-proposal",
+      "zip": "business-proposal-2024-09-24-21-21-30-utc.zip",
+      "idml_in_zip": "BPR22/BPR22.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": null,
+      "declared_fonts": [],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "business-proposal-template",
+      "zip": "business-proposal-template-2024-06-03-19-51-33-utc.zip",
+      "idml_in_zip": null,
+      "indd_in_zip": "01_Main File/02_Source File/01_InDesign (INDD)/Business Proposal Template.indd",
+      "readme_in_zip": null,
+      "declared_fonts": [],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "capability-statement-brochure",
+      "zip": "capability-statement-brochure-2025-11-18-19-09-43-utc.zip",
+      "idml_in_zip": "01 - Adobe indesign/2 - Capability Statement Brochure (idml).idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "Fonts download link.txt",
+      "declared_fonts": [
+        "Nunito"
+      ],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "catalog",
+      "zip": "catalog-2023-11-27-05-28-05-utc.zip",
+      "idml_in_zip": "Catalog 3.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "Fonts.txt",
+      "declared_fonts": [
+        "Playfair Display",
+        "Montserrat"
+      ],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "catalog-brochure-template",
+      "zip": "catalog-brochure-template-2024-07-26-21-42-11-utc.zip",
+      "idml_in_zip": null,
+      "indd_in_zip": "Catalog Brochure Template/Adobe Indesign/A4 - Catalog Brochure Template.indd",
+      "readme_in_zip": "Catalog Brochure Template/Readme.txt",
+      "declared_fonts": [
+        "Kalnia",
+        "Montserrat"
+      ],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "charity-ebook-digital-magazine-template",
+      "zip": "charity-ebook-digital-magazine-template-2025-01-20-23-37-20-utc.zip",
+      "idml_in_zip": "A4.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "Canva Link.txt",
+      "declared_fonts": [],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "church-newsletter-template",
+      "zip": "church-newsletter-template-2023-11-27-04-53-54-utc.zip",
+      "idml_in_zip": null,
+      "indd_in_zip": "church-newsletter-template/INDD/A4.indd",
+      "readme_in_zip": "church-newsletter-template/Documentation.rtf",
+      "declared_fonts": [],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "company-profile-canva-docx-id-psd",
+      "zip": "company-profile-canva-docx-id-psd-2024-11-06-14-41-41-utc.zip",
+      "idml_in_zip": "02.Adobe InDesign/A4_Company Profile Template.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "Help Guide.txt",
+      "declared_fonts": [
+        "Source Sans 3"
+      ],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "company-profile-template",
+      "zip": "company-profile-template-2026-04-23-17-38-20-utc.zip",
+      "idml_in_zip": "Upload 2426/Letter.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "Upload 2426/Canva Link.txt",
+      "declared_fonts": [],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "cultured-business-newsletter",
+      "zip": "cultured-business-newsletter-2023-11-27-05-16-56-utc.zip",
+      "idml_in_zip": "Main Files/Cultured Business Newsletter.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "Main Files/Read Me.txt",
+      "declared_fonts": [
+        "Noto Sans JP",
+        "Poppins"
+      ],
+      "stage": "smoke",
+      "skip_reason": null,
+      "note": "Reference PDF was re-themed pre-export; cand renders IDML-specified colours correctly. Do not promote to gated."
+    },
+    {
+      "name": "digital-bridesmaid-planner-template",
+      "zip": "digital-bridesmaid-planner-template-2025-03-11-16-07-54-utc.zip",
+      "idml_in_zip": "digital-bridesmaid-planner-template/A5.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "digital-bridesmaid-planner-template/Canva Link.txt",
+      "declared_fonts": [],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "employment-application",
+      "zip": "employment-application-2024-07-20-08-41-11-utc.zip",
+      "idml_in_zip": "01 - Adobe indesign/2 - Employment application (idml).idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "Fonts download link.txt",
+      "declared_fonts": [
+        "Muli"
+      ],
+      "stage": "smoke",
+      "skip_reason": null,
+      "note": "Reference PDF was re-themed pre-export; cand renders IDML-specified colours correctly. Do not promote to gated."
+    },
+    {
+      "name": "event-program-brochure",
+      "zip": "event-program-brochure-2025-07-15-00-29-51-utc.zip",
+      "idml_in_zip": "01 - Adobe indesign/2 - Event Program Brochure (idml).idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "Fonts download link.txt",
+      "declared_fonts": [
+        "Arsenal",
+        "Corinthia"
+      ],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "fitness-protein-powder-business-card-templates",
+      "zip": "fitness-protein-powder-business-card-templates-2025-11-13-16-21-42-utc.zip",
+      "idml_in_zip": "01_whey_design_folder/01_whey_design_indd/01_whey_design.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "HELP.txt",
+      "declared_fonts": [
+        "Alfa Slab One"
+      ],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "food-cooking-magazine-template",
+      "zip": "food-cooking-magazine-template-2023-11-27-05-10-40-utc.zip",
+      "idml_in_zip": "food-cooking-template/Letter.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "food-cooking-template/Documentation.rtf",
+      "declared_fonts": [],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "furniture-product-catalog",
+      "zip": "furniture-product-catalog-2025-10-03-21-29-12-utc.zip",
+      "idml_in_zip": "PC25.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": null,
+      "declared_fonts": [],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "green-energy-newsletter",
+      "zip": "green-energy-newsletter-2023-11-27-05-17-38-utc.zip",
+      "idml_in_zip": "Main Files/Green Energy Newsletter.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "Main Files/Read Me.txt",
+      "declared_fonts": [
+        "Lora",
+        "Noto Sans JP",
+        "Marcellus SC"
+      ],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "gridtastic-grid-kit",
+      "zip": "gridtastic-grid-kit-2023-11-27-05-29-00-utc.zip",
+      "idml_in_zip": "gridtastic/IDML/6x9/01.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": null,
+      "declared_fonts": [],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "hair-stylist-brochure-vol-3",
+      "zip": "hair-stylist-brochure-vol-3-2023-11-27-04-55-14-utc.zip",
+      "idml_in_zip": "IDML/Hair Stylist Brochure Vol.3.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "Readme.txt",
+      "declared_fonts": [
+        "Montserrat"
+      ],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "high-quality-brand-guideline-template",
+      "zip": "high-quality-brand-guideline-template-2026-04-17-04-41-12-utc.zip",
+      "idml_in_zip": "Brand Book 09/Indesign/Brand Book 09.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "Brand Book 09/Indesign/Fonts/Fonts.txt",
+      "declared_fonts": [],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "hr-employee-handbook",
+      "zip": "hr-employee-handbook-2025-01-29-17-36-55-utc.zip",
+      "idml_in_zip": "01 - Adobe indesign/2 - Employee Handbook (idml).idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "Fonts download link.txt",
+      "declared_fonts": [
+        "Nunito",
+        "Entypo"
+      ],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "indesign-magazine",
+      "zip": "indesign-magazine-2023-11-27-05-29-30-utc.zip",
+      "idml_in_zip": "Magazine Template/InDesign Magazine.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": null,
+      "declared_fonts": [],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "interior-brochure-design",
+      "zip": "interior-brochure-design-2024-10-21-18-45-07-utc.zip",
+      "idml_in_zip": "Main File/Interior Brochure Template.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": null,
+      "declared_fonts": [],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "interior-design-catalog",
+      "zip": "interior-design-catalog-2023-11-27-05-19-37-utc.zip",
+      "idml_in_zip": "Main File/A 4/Catalog CS 4+.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "++ Font Links.rtf",
+      "declared_fonts": [],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "lifestyle-magazine-layout",
+      "zip": "lifestyle-magazine-layout-2023-11-27-05-35-57-utc.zip",
+      "idml_in_zip": "Main Files/MAGAZINE.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "Main Files/fonts.txt",
+      "declared_fonts": [
+        "Arimo",
+        "Abril Fatface"
+      ],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "magazine",
+      "zip": "magazine-2023-11-27-05-31-55-utc.zip",
+      "idml_in_zip": "Main File/Magazine Templatet.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": null,
+      "declared_fonts": [],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "magazine-e72797",
+      "zip": "magazine-2023-11-28-18-23-17-utc.zip",
+      "idml_in_zip": "A4 Size Template/Magazine.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": null,
+      "declared_fonts": [],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "magazine-editorial-layout",
+      "zip": "magazine-editorial-layout-2025-11-04-18-41-58-utc.zip",
+      "idml_in_zip": "01 - Adobe indesign/2 - Magazine Template (idml).idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "Fonts download link.txt",
+      "declared_fonts": [
+        "Merriweather",
+        "Allison"
+      ],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "minimal-furniture-brochure",
+      "zip": "minimal-furniture-brochure-2025-11-18-18-20-59-utc.zip",
+      "idml_in_zip": null,
+      "indd_in_zip": "Main File KH20251115/Catalogue.indd",
+      "readme_in_zip": "Main File KH20251115/Read Me .txt",
+      "declared_fonts": [
+        "Montserrat",
+        "1. Cocogoose"
+      ],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "minimal-interior-design-catalog",
+      "zip": "minimal-interior-design-catalog-2026-03-24-15-25-34-utc.zip",
+      "idml_in_zip": "Main Files_Minimal Interior Design Catalog/InDesign/Minimal_Interior_Design_Catalog.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": null,
+      "declared_fonts": [],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "modern-architecture-portfolio-template",
+      "zip": "modern-architecture-portfolio-template-2024-12-23-21-27-17-utc.zip",
+      "idml_in_zip": null,
+      "indd_in_zip": "01_Main File/02_Source File/01_InDesign (INDD)/Modern Architecture Portfolio Template.indd",
+      "readme_in_zip": null,
+      "declared_fonts": [],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "modern-resume-reference-job-application-template",
+      "zip": "modern-resume-reference-job-application-template-2024-03-19-18-28-23-utc.zip",
+      "idml_in_zip": "Cv Resume Template 19/Indesign/Cv Resume.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "Cv Resume Template 19/Fonts.txt",
+      "declared_fonts": [
+        "Montserrat Alternates",
+        "Poppins",
+        "Abuget"
+      ],
+      "stage": "smoke",
+      "skip_reason": null,
+      "note": "Reference PDF was re-themed pre-export; cand renders IDML-specified colours correctly. Do not promote to gated."
+    },
+    {
+      "name": "newspaper",
+      "zip": "newspaper-2025-01-07-21-52-50-utc.zip",
+      "idml_in_zip": "Tabloid.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "Canva Link.txt",
+      "declared_fonts": [],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "newspaper-newsletter-layout",
+      "zip": "newspaper-newsletter-layout-2023-11-27-05-14-44-utc.zip",
+      "idml_in_zip": null,
+      "indd_in_zip": "newspaper-newsletter-layout/INDD/A4.indd",
+      "readme_in_zip": "newspaper-newsletter-layout/Documentation.rtf",
+      "declared_fonts": [],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "newspaper-template",
+      "zip": "newspaper-template-2025-07-07-20-09-55-utc.zip",
+      "idml_in_zip": "Letter.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "Canva Link.txt",
+      "declared_fonts": [],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "photography-portfolio-vol-16",
+      "zip": "photography-portfolio-vol-16-2025-10-31-23-36-25-utc.zip",
+      "idml_in_zip": "IDML/Photography Portfolio Vol.16.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "Help File.txt",
+      "declared_fonts": [
+        "Inter"
+      ],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "project-case-study-template",
+      "zip": "project-case-study-template-2024-11-25-21-27-05-utc.zip",
+      "idml_in_zip": "02.Clean Slide/Idml.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "02.Clean Slide/Fonts.txt",
+      "declared_fonts": [
+        "Inter",
+        "Kumbh Sans"
+      ],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "project-competitor-analysis-template",
+      "zip": "project-competitor-analysis-template-2025-01-15-23-42-53-utc.zip",
+      "idml_in_zip": "Competitor Analysis Report/Indesign/Competitor Analysis Report.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "Competitor Analysis Report/Fonts.txt",
+      "declared_fonts": [
+        "Montserrat",
+        "Lato"
+      ],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "real-estate-brochure",
+      "zip": "real-estate-brochure-2023-11-27-05-12-09-utc.zip",
+      "idml_in_zip": "Adobe InDesign/A4 Size/A4 Brochure CS4.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "help link font.txt",
+      "declared_fonts": [
+        "Montserrat"
+      ],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "resume-template-teacher",
+      "zip": "resume-template-teacher-2023-11-27-05-12-41-utc.zip",
+      "idml_in_zip": "Resume_Template_Teacher/IDML/Resume_Letter.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "Resume_Template_Teacher/helpfile.txt",
+      "declared_fonts": [
+        "Lato"
+      ],
+      "stage": "smoke",
+      "skip_reason": null,
+      "note": "Reference PDF was re-themed pre-export; cand renders IDML-specified colours correctly. Do not promote to gated."
+    },
+    {
+      "name": "saas-product-launch-annual-report-brochure",
+      "zip": "saas-product-launch-annual-report-brochure-2025-11-07-23-29-56-utc.zip",
+      "idml_in_zip": "Annual Report Tech Brochure Template V1/Adobe InDesign/IDML/Annual Report Tech Brochure Template V1.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "Annual Report Tech Brochure Template V1/Readme.txt",
+      "declared_fonts": [
+        "Barlow",
+        "Poppins"
+      ],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "soccer-career-flyer-templates",
+      "zip": "soccer-career-flyer-templates-2023-11-27-04-51-52-utc.zip",
+      "idml_in_zip": "01_soccer_design_folder/01_soccer_design_indd/01_soccer_design.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "HELP.txt",
+      "declared_fonts": [
+        "Roboto"
+      ],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "sport-magazine",
+      "zip": "sport-magazine-2023-11-27-05-00-24-utc.zip",
+      "idml_in_zip": "A4 Sizes/Magazine Template.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "Help.txt",
+      "declared_fonts": [
+        "Roboto",
+        "Raleway"
+      ],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "square-catalog-brochure-template",
+      "zip": "square-catalog-brochure-template-2025-02-25-17-07-20-utc.zip",
+      "idml_in_zip": "21x21cm.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "Canva Link.txt",
+      "declared_fonts": [],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "square-company-profile",
+      "zip": "square-company-profile-2023-11-27-05-23-41-utc.zip",
+      "idml_in_zip": "Main File/Square Company Profile.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "Main File/font link.txt",
+      "declared_fonts": [
+        "Montserrat",
+        "Open Sans",
+        "Playfair Display"
+      ],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "the-brochure",
+      "zip": "the-brochure-2024-04-29-16-22-12-utc.zip",
+      "idml_in_zip": "Brochure Template_A4 International.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "Font Links.txt",
+      "declared_fonts": [
+        "Roboto"
+      ],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "travel-guide-brochure-template-indd-canva",
+      "zip": "travel-guide-brochure-template-indd-canva-2025-10-03-22-57-10-utc.zip",
+      "idml_in_zip": "InDesign File/A4_Travel Guide Brochure Template.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "Canva File/A4 & Us Letter  Travel Guide Brochure Template.txt",
+      "declared_fonts": [],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "wedding-newspaper",
+      "zip": "wedding-newspaper-2025-02-10-16-30-49-utc.zip",
+      "idml_in_zip": "Tabloid.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "Canva Link.txt",
+      "declared_fonts": [],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "welcome-guide-template",
+      "zip": "welcome-guide-template-2024-10-10-20-20-05-utc.zip",
+      "idml_in_zip": "Main Files/02_Welcome Guide Template.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": null,
+      "declared_fonts": [],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "white-blue-modern-company-annual-report",
+      "zip": "white-blue-modern-company-annual-report-2025-11-26-21-22-30-utc.zip",
+      "idml_in_zip": "Main Files/Indesign Files/White Blue Modern Company Annual Report.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "Main Files/Read me.txt",
+      "declared_fonts": [
+        "Inter"
+      ],
+      "stage": "smoke",
+      "skip_reason": null
+    },
+    {
+      "name": "white-clean-clothing-brand-guideline-document",
+      "zip": "white-clean-clothing-brand-guideline-document-2025-11-14-06-08-37-utc.zip",
+      "idml_in_zip": "Main File/Indesign File/Red White Minimalist Clothing Brand Guideline.idml",
+      "indd_in_zip": null,
+      "readme_in_zip": "Main File/Read me.txt",
+      "declared_fonts": [
+        "Inter"
+      ],
+      "stage": "smoke",
+      "skip_reason": null
+    }
+  ]
+}
