@@ -32,6 +32,13 @@ corpus/samples/*.pdf
 # Adobe-copyrighted reference material kept locally only.
 idml-specification.pdf
 
+# Envato pack corpus: zips + unpacked artefacts are large + carry
+# their own licensing terms (preview-and-render only). Track only the
+# harness scripts, the manifest, overrides, and the README.
+corpus/envato/*.zip
+corpus/envato/packs/
+corpus/envato/reports/
+
 # Editor/OS
 .DS_Store
 .vscode/

@@ -1,0 +1,19 @@
+{
+  "_comment": [
+    "Per-pack ΔE / SSIM budgets for envato packs marked stage=\"gated\" in",
+    "manifest.json. Same shape as corpus/generated/fidelity-thresholds.json.",
+    "",
+    "A gated pack passes iff every page with a matching reference satisfies:",
+    "  mean_de <= max_mean_de  AND  p99_de <= max_p99_de  AND  ssim >= min_ssim.",
+    "",
+    "Calibration: start from the worst-page metrics emitted in",
+    "reports/<pack>/report.json after a clean run, add ~20% headroom, and",
+    "tighten over time. Never *loosen* a threshold to mask a regression — fix",
+    "the regression, then re-measure.",
+    "",
+    "Adding a pack to this list requires its manifest entry's `stage` field",
+    "to also flip to \"gated\". Without that flip, test.sh will not call out",
+    "to this file for the pack."
+  ],
+  "fixtures": []
+}
