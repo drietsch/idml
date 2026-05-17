@@ -669,7 +669,7 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 | Q-18  | Real `<Table>` / `<Row>` / `<Cell>` IDML element family unparsed                   | Tables    | Major    |  2+/61   | L      | open   |
 | Q-19  | `<PatternColor>` / pattern fills render as flat colour                             | Color     | Major    |  2+/61   | M      | open   |
 | Q-20  | Composer wrap drift extension — soft-hyphen + min/max spacing (P-07 follow-up)     | Text      | Major    | 12+/61   | L      | open   |
-| Q-21  | AllCaps headline cascade audit — paragraph-style vs character-style FillColor      | Text      | Minor    |  3+/61   | S      | open   |
+| Q-21  | AllCaps headline cascade audit — paragraph-style vs character-style FillColor      | Text      | Minor    |  3+/61   | S      | cascade pinned green; residual brochure symptom past this layer |
 | Q-22  | Placeholder grey vs InDesign reference — recalibrate fill % + diagonal weight      | Images    | Minor    |  5+/61   | S      | open   |
 | Q-23  | Soft-hyphen glyph dropped at auto-hyphenation line break                           | Text      | Minor    |  2+/61   | S      | hyphenator + emit paths already implemented; contract pinned this cycle. Residual envato symptom traced past this layer. |
 | Q-24  | BlendMode formulae audit (HardLight / Overlay / SoftLight / ColorBurn) post-Q-05   | Effects   | Minor    |  1+/61   | M      | open   |
@@ -947,6 +947,7 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Effort**: L (P-07-scale calibration track)
 
 ### Q-21: AllCaps headline cascade audit
+- **Status**: cascade pinned green. Cycle-2 test `idml_scene::tests::character_style_fill_color_wins_over_paragraph_style` exercises a paragraph style FillColor=Black + character style FillColor=Paper run with no direct fill and asserts the cascade resolves to Paper. The residual brochure cover symptom must therefore trace past this layer — most plausibly the parser losing AllCaps' AppliedCharacterStyle reference at the CharacterStyleRange → CharacterRun threading, or a downstream override (object-style cascade, run-paint picker fallback). Queued for re-audit if the brochure pack still regresses post envato re-render.
 - **Category**: Text
 - **Severity**: Minor
 - **Frequency**: 3+/61 packs (project-case-study-template, brochure, indesign-magazine)
