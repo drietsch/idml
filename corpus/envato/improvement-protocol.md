@@ -671,7 +671,7 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 | Q-20  | Composer wrap drift extension — soft-hyphen + min/max spacing (P-07 follow-up)     | Text      | Major    | 12+/61   | L      | open   |
 | Q-21  | AllCaps headline cascade audit — paragraph-style vs character-style FillColor      | Text      | Minor    |  3+/61   | S      | open   |
 | Q-22  | Placeholder grey vs InDesign reference — recalibrate fill % + diagonal weight      | Images    | Minor    |  5+/61   | S      | open   |
-| Q-23  | Soft-hyphen glyph dropped at auto-hyphenation line break                           | Text      | Minor    |  2+/61   | S      | open   |
+| Q-23  | Soft-hyphen glyph dropped at auto-hyphenation line break                           | Text      | Minor    |  2+/61   | S      | hyphenator + emit paths already implemented; contract pinned this cycle. Residual envato symptom traced past this layer. |
 | Q-24  | BlendMode formulae audit (HardLight / Overlay / SoftLight / ColorBurn) post-Q-05   | Effects   | Minor    |  1+/61   | M      | open   |
 | Q-25  | Font weight drift Light/Thin → Regular (INF-1 follow-up)                           | Fonts     | Minor    |  2+/61   | S      | open   |
 
@@ -980,7 +980,8 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Symptom**: When Knuth-Plass selects a mid-word hyphenation point, the trailing hyphen glyph isn't emitted.
 - **Root cause (hypothesis)**: Line-emit path doesn't append the hyphen glyph for flagged Penalty breaks.
 - **Suggested fix**: When `paragraph_breaker` reports a Penalty break with `flagged=true`, append U+002D at the line's terminal x-position using the breaking word's face. Add `text_glyph_level.rs` regression for "CONTRIBUTORS" in a narrow column.
-- **Effort**: S
+- **Resolution**: Both layers were already implemented before cycle 2 — `compose::compose_paragraph` flags `ends_with_hyphen` on flagged Penalty breaks, `layout::layout_paragraph:140-156` shapes the line as `slice + "-"`, and `layout::layout_runs:722-744` appends a synthetic hyphen glyph with the breaking run's face. Cycle 2 pinned the hyphenator + compose contract with two regression tests (`compose::tests::q23_hypher_pattern_trie_is_case_insensitive`, `q23_all_caps_word_flags_hyphen_break`). The remaining lifestyle-magazine-layout symptom must therefore trace past the emit layer — most plausibly a column-width-vs-segment-feasibility mismatch (compose lacks layout_runs' per-Box P-17 fallback so a too-narrow column drops the paragraph rather than emitting partial lines), or an AllCaps capitalization path that runs after hyphenation. Re-audit those two paths if the cited packs still regress after a full envato re-render.
+- **Effort**: S (was already done; residual investigation queued)
 - **Cross-link**: subset of Q-20 calibration track.
 
 ### Q-24: BlendMode formulae audit post-Q-05
