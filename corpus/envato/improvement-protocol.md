@@ -57,8 +57,8 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 | P-06  | Variable-font `wght` axis silently no-ops on single-weight TTFs (Bold→Regular)         | Fonts     | Major    |  8+/61    | S      | fixed (1567602) |
 | P-07  | Body-text wrap drifts ±1 line vs InDesign on every paragraph (composer calibration)    | Text      | Major    | 10+/61    | M      | fixed (50dd457) |
 | P-08  | `HorizontalScale` (and `Skew`) parsed but never applied                                | Text      | Major    |  6+/61    | M      | fixed (a68be60) |
-| P-09  | `<GradientFeatherSetting>` (transparency feather) ignored                              | Effects   | Major    |  6+/61    | M      | deferred — already wired for Rectangle, extending to Polygon/Oval/TextFrame is its own batch |
-| P-10  | `ParagraphShading` / `RuleAbove` / `RuleBelow` / `ParagraphBorder` not parsed          | Text      | Major    |  5+/61    | M      | deferred — 4 feature families × 4-layer plumbing > sized effort, own batch |
+| P-09  | `<GradientFeatherSetting>` (transparency feather) ignored                              | Effects   | Major    |  6+/61    | M      | reopened in cycle 2 as Q-04 (Rectangle path landed cycle 1; non-Rect extension still needed) |
+| P-10  | `ParagraphShading` / `RuleAbove` / `RuleBelow` / `ParagraphBorder` not parsed          | Text      | Major    |  5+/61    | M      | reopened in cycle 2 as Q-09 (still deferred; resized L after audit confirmed scope) |
 | P-11  | Gradient-painted glyphs flatten to blank or single fallback color                      | Text      | Major    |  5+/61    | M      | fixed (53bc983) |
 | P-12  | `Capitalization=SmallCaps` falls back to AllCaps shape (wrong glyph heights)           | Text      | Major    |  4+/61    | M      | fixed (2b878ee) |
 | P-13  | Long body text overflows when font-substitute is wider than original                   | Text      | Major    |  4+/61    | M      | fixed (3c6bf8d) |
@@ -71,14 +71,14 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 | P-20  | Multi-glyph cluster fallback: `▶` and similar marker glyphs drop after first instance  | Text      | Major    |  1+/61    | M      | fixed (a60384b) |
 | P-21  | Decimal-tab leader characters: collapses to 1 tile when substitute font is wider       | Text      | Minor    |  1+/61    | S      | deferred — no TabStop Leader= attributes in any envato pack; cited symptom unrelated to leader tiling |
 | P-22  | Stroke alignment: `Inside` / `Center` ½-px nudge vs reference                          | Path      | Minor    |  2+/61    | S      | fixed (80eb915) |
-| P-23  | Corner radius cascade from applied object style not honoured                           | Path      | Minor    |  1+/61    | S      | deferred — root cause is per-corner radius support, not cascade; cascade works as designed |
+| P-23  | Corner radius cascade from applied object style not honoured                           | Path      | Minor    |  1+/61    | S      | reopened in cycle 2 as Q-16 (per-corner radius scope clarified; promoted to Major) |
 | P-24  | `<GraphicLine>` strokes render as tapered triangle instead of constant-width line      | Path      | Minor    |  2+/61    | S      | deferred — symptom is open-polygon stroke (not GraphicLine); arrowhead LineEnd unsupported |
 | P-25  | Trailing-newline phantom paragraph emits second numbered marker                        | Text      | Minor    |  1+/61    | S      | fixed (dbe9318) |
 | P-26  | Page dimensions of candidate vs reference don't match (off by DPI / page-box)          | Layout    | Minor    |  1+/61    | S      | verified — pixel dimensions match across all 61 packs |
 | P-27  | BlendMode `Multiply` on tinted-fill polygons — re-test after P-01 lands                | Effects   | Minor    |  3+/61    | S      | verified — closed by P-01 |
 | P-28  | Vertical-rotated text inside small frames drops glyphs with negative tracking          | Text      | Minor    |  2+/61    | S      | open   |
 | P-29  | Frame-rotated bounding box should not always rotate text contents (`StoryOrientation`) | Text      | Minor    |  3+/61    | S      | open   |
-| P-30  | Z-order: white "Paper" knockout rectangles not punching through underlying colour      | Layout    | Minor    |  1+/61    | M      | open   |
+| P-30  | Z-order: white "Paper" knockout rectangles not punching through underlying colour      | Layout    | Minor    |  1+/61    | M      | reopened in cycle 2 as Q-10 (ItemLayer stack-index ordering — broader scope confirmed) |
 | INF-1 | Font-substitution drift: per-pack `fonts.{sh,jsx}` calibration not a renderer fix      | Fonts     | Info     | all       | L      | open   |
 | INF-2 | Page-level theme/background colour mismatch — reference PDFs were re-themed pre-export | Color     | Info     |  5+/61    | S      | open   |
 
@@ -625,3 +625,432 @@ To regenerate the per-tier audit, re-bucket packs (the strata shift
 as fixes land), then re-launch the three audit agents with updated
 bucket lists. See `corpus/envato/README.md` § "Improvement audit"
 for the agent prompt skeleton.
+
+---
+
+# Cycle 2 (audited 2026-05-15)
+
+Second audit pass after the 22 cycle-1 P-* commits landed and the
+corpus was re-rendered. Sources:
+`corpus/envato/findings-cycle2/{clean,moderate,rough}.md`.
+
+The cycle-2 strata shifted dramatically: clean grew 10→13, most
+cycle-1 rough packs moved to moderate (25→10), and 8 packs
+**regressed** (cycle-1 fixes painted previously-invisible content
+on top of still-missing backgrounds — net visual coverage up,
+per-pixel ΔE up). Cycle 2 explicitly investigates those regressions
+and adds new findings.
+
+`Q-NN` IDs distinguish cycle-2 entries from cycle-1's `P-NN`.
+
+## Cycle 2 priority table
+
+Sorted by (Severity desc, Frequency desc, Effort asc).
+
+| ID    | Title                                                                              | Cat       | Sev      | Freq     | Effort | Status |
+|-------|------------------------------------------------------------------------------------|-----------|----------|----------|--------|--------|
+| Q-01  | ObjectStyle FillTint cascade gap — placeholder rects render at 100% strength       | Color     | Blocker  |  9+/61   | S      | fixed (9bd0353) |
+| Q-02  | `<TextFramePreference AutoSizingType=...>` ignored — display headlines clipped     | Text      | Blocker  | 13+/61   | M      | open   |
+| Q-03  | Embedded image bytes in `<Image>/<Contents>` CDATA never decoded                   | Images    | Blocker  |  8+/61   | M      | open   |
+| Q-04  | `<GradientFeatherSetting>` extension to Polygon / Oval / TextFrame / GraphicLine   | Effects   | Blocker  |  5+/61   | M      | open   |
+| Q-05  | BlendMode (Multiply, ColorBurn, …) composites against transparent paper as α=0     | Effects   | Blocker  |  4+/61   | S      | fixed (bd601f6) |
+| Q-06  | Inline `<PDF>` content treated as missing image; placeholder stamps over content   | Images    | Blocker  |  3+/61   | S      | fixed (82531be) |
+| Q-07  | `Tracking` (em-units) under-applied — display words render at natural spacing      | Text      | Major    |  3+/61   | S      | deferred — tracking is already wired end-to-end; evidence is table content (gates on Q-18) |
+| Q-08  | Gradient `FillColor` on Polygon / Oval renders as flat fallback (ItemTransform)    | Color     | Major    |  5+/61   | M      | open   |
+| Q-09  | `ParagraphShading` / `RuleAbove` / `RuleBelow` / `ParagraphBorder` (P-10 redux)    | Text      | Major    |  5+/61   | L      | open   |
+| Q-10  | ItemLayer stack-index ignored for z-ordering (subsumes P-30)                       | Layout    | Major    |  4+/61   | M      | open   |
+| Q-11  | `<Rectangle>` with multi-anchor `<PathGeometry>` collapses to AABB                 | Path      | Major    |  3+/61   | S      | open   |
+| Q-12  | TextFrame fill colour dropped on full-bleed coloured text frames                   | Color     | Major    |  2+/61   | S      | open   |
+| Q-13  | Phantom paragraph leak past P-25 — duplicate rendered paragraphs on some pages     | Text      | Major    |  2+/61   | M      | open   |
+| Q-14  | Decode-failed-but-link-resolved vs link-missing: misapplied placeholder            | Images    | Major    |  4+/61   | S      | open   |
+| Q-15  | Single-word-per-line wrap on wide TextFrames (likely word-spacing units bug)       | Text      | Major    |  4+/61   | S      | open   |
+| Q-16  | Per-corner `CornerOption` (asymmetric radii) ignored (promoted from P-23)          | Path      | Major    |  3+/61   | M      | open   |
+| Q-17  | `<Layer Printable="false">` not honoured                                           | Layout    | Major    |  4+/61   | S      | already implemented; regression test pinned this cycle |
+| Q-18  | Real `<Table>` / `<Row>` / `<Cell>` IDML element family unparsed                   | Tables    | Major    |  2+/61   | L      | open   |
+| Q-19  | `<PatternColor>` / pattern fills render as flat colour                             | Color     | Major    |  2+/61   | M      | open   |
+| Q-20  | Composer wrap drift extension — soft-hyphen + min/max spacing (P-07 follow-up)     | Text      | Major    | 12+/61   | L      | open   |
+| Q-21  | AllCaps headline cascade audit — paragraph-style vs character-style FillColor      | Text      | Minor    |  3+/61   | S      | open   |
+| Q-22  | Placeholder grey vs InDesign reference — recalibrate fill % + diagonal weight      | Images    | Minor    |  5+/61   | S      | open   |
+| Q-23  | Soft-hyphen glyph dropped at auto-hyphenation line break                           | Text      | Minor    |  2+/61   | S      | open   |
+| Q-24  | BlendMode formulae audit (HardLight / Overlay / SoftLight / ColorBurn) post-Q-05   | Effects   | Minor    |  1+/61   | M      | open   |
+| Q-25  | Font weight drift Light/Thin → Regular (INF-1 follow-up)                           | Fonts     | Minor    |  2+/61   | S      | open   |
+
+## Cycle 2 findings
+
+### Q-01: ObjectStyle FillTint cascade gap
+- **Category**: Color
+- **Severity**: Blocker
+- **Frequency**: 9+/61 packs (interior-design-catalog, ancient-building-magazine, business-proposal-template, brown-fashion-brochure, welcome-guide-template, wedding-newspaper, travel-guide-brochure-template-indd-canva, annual-report-template-8b5d40)
+- **Crate(s)**: idml-parse, idml-renderer
+- **Evidence**:
+  - `corpus/envato/reports/welcome-guide-template/heat-002.png` (placeholder rects → solid black; should be 15% grey)
+  - `corpus/envato/reports/wedding-newspaper/heat-001.png` (tiled "YOUR IMAGE GOES HERE" → solid black)
+  - `corpus/envato/reports/travel-guide-brochure-template-indd-canva/heat-001.png` (central panel solid black; ref 15% grey)
+  - `corpus/envato/reports/interior-design-catalog/heat-016.png` (bottom-page placeholder: solid black; ref 15% grey)
+- **Symptom**: Image-placeholder rectangles + decorative panels that cascade their fill from an `<ObjectStyle>` carrying `FillColor="…" FillTint="N"` paint at 100% strength. The frame omits FillTint inline; the cascade drops the tint floor. Dominant driver of the welcome-guide / wedding-newspaper / travel-guide regressions.
+- **Root cause (hypothesis)**: `ResolvedObject` at `crates/idml-parse/src/styles.rs:152` lists five fields (`fill_color`, `stroke_color`, `stroke_weight`, `corner_radius`, `corner_option`) — no `fill_tint`. `object_style_cascade` at `crates/idml-renderer/src/module/object_style.rs:42` consequently can't propagate it.
+- **Suggested fix**: Add `pub fill_tint: Option<f32>` (and `pub stroke_tint: Option<f32>` for symmetry) to `ResolvedObject` at `crates/idml-parse/src/styles.rs:152`; populate from `<ObjectStyle FillTint="…">` in the parser; cascade in `object_style_cascade` at `crates/idml-renderer/src/module/object_style.rs:42` next to `fill_color`.
+- **Effort**: S
+- **Resolution**: 9bd0353 — added `fill_tint` + `stroke_tint` to ObjectStyleDef + ResolvedObject; populated from `<ObjectStyle FillTint="…"/StrokeTint="…">`; cascaded `fill_tint` into ResolvedFrame in `object_style_cascade`.
+
+### Q-02: `AutoSizingTextFrame` ignored — display headlines clipped
+- **Category**: Text
+- **Severity**: Blocker
+- **Frequency**: 13+/61 packs (business-proposal-template, resume-template-teacher, book-template-design, brand-guidelines, catalog-brochure-template, interior-design-catalog, indesign-magazine, brochure, church-newsletter-template, project-case-study-template, lifestyle-magazine-layout, real-estate-brochure, hr-employee-handbook)
+- **Crate(s)**: idml-parse, idml-renderer
+- **Evidence**:
+  - `corpus/envato/reports/indesign-magazine/heat-001.png` ("MAGAZINE" → "MAG")
+  - `corpus/envato/reports/business-proposal-template/heat-001.png` ("BUSINESS PROPOSAL" → "BUSI / PRO")
+  - `corpus/envato/reports/brochure/cand-001.png` vs `ref-001.png` ("Product Design" → "Prod / uct")
+  - `corpus/envato/reports/church-newsletter-template/cand-002.png` vs `ref-002.png` ("THE MESSENGER" → "THE")
+  - `corpus/envato/reports/project-case-study-template/cand-015.png` ("MARKETING PROJECT" → "MAR / KET")
+- **Symptom**: Display headlines clip to the first 3-6 characters or 1-2 words because the IDML stores the frame undersized expecting composition-time growth. P-17's frame-clip then drops anything past the original edge.
+- **Root cause (hypothesis)**: Workspace grep for `AutoSizingType` / `AutoSizingReferencePoint` / `MinimumWidthForAutoSizing` / `UseMinimumHeightForAutoSizing` in `idml-parse` returns zero hits. The IDML attaches these as `<TextFramePreference>` attributes; our parser drops them.
+- **Suggested fix**: Parse the four `AutoSizing*` attributes in `crates/idml-parse/src/spread.rs` near the existing `<TextFramePreference>` block (~line 2110). Plumb through to `TextFrame::auto_sizing: Option<AutoSizingType>`. In `crates/idml-renderer/src/pipeline.rs` near text-frame width calc (~`:1900-2000`), when `auto_sizing == WidthOnly | WidthAndHeight`, expand column width to fit the longest token's measured advance, pinned to the IDML's `MinimumWidth*` floor, before invoking Knuth-Plass.
+- **Effort**: M
+
+### Q-03: Embedded image bytes in `<Image>/<Contents>` CDATA never decoded
+- **Category**: Images
+- **Severity**: Blocker
+- **Frequency**: 8+/61 packs (newspaper, newspaper-template, food-cooking-magazine-template, church-newsletter-template, magazine-editorial-layout, indesign-magazine, hr-employee-handbook, project-case-study-template)
+- **Crate(s)**: idml-parse, idml-renderer
+- **Evidence**:
+  - `corpus/envato/reports/newspaper-template/heat-005.png` (30+ embedded JPEG tiles → nothing)
+  - `corpus/envato/reports/church-newsletter-template/heat-002.png` (tiled placeholders → empty)
+  - `corpus/envato/reports/food-cooking-magazine-template/heat-009.png` (full-page tile → blank)
+  - `corpus/envato/reports/newspaper/heat-002.png` (data-table cells of embedded JPEGs)
+- **Symptom**: Pages with placed JPEGs that ship inline in the IDML (rather than as external files) render as blank rectangles or P-02 placeholders. The `<Image>` element's `<Properties><Contents><![CDATA[base64 …]]></Contents></Properties>` payload is ignored end-to-end.
+- **Root cause (hypothesis)**: `crates/idml-parse/src/spread.rs:2009-2036` captures only `LinkResourceURI` / `href`. No code path parses `<Contents>`. The asset-resolver lookup in `crates/idml-renderer/src/pipeline.rs:7775-7796` returns `None`, P-02 placeholder fires.
+- **Suggested fix**: (1) In `crates/idml-parse/src/spread.rs` `<Image>` parser (~`:2009`), when the element has a `<Contents>` child, base64-decode the CDATA into `Vec<u8>` and stash on the parent shape (new `Rectangle::image_bytes: Option<Vec<u8>>`, similarly for Oval / Polygon / TextFrame). (2) In `crates/idml-renderer/src/pipeline.rs:7775`, extend `page_image_cache` lookup: if the asset resolver returns `None` but the frame carries `image_bytes`, decode via existing `decode_image_bytes` helper.
+- **Effort**: M
+
+### Q-04: `<GradientFeatherSetting>` extension to Polygon / Oval / TextFrame / GraphicLine
+- **Category**: Effects
+- **Severity**: Blocker
+- **Frequency**: 5+/61 packs (hair-stylist-brochure-vol-3, soccer-career-flyer-templates, fitness-protein-powder-business-card-templates, the-brochure, annual-report-template-8b5d40)
+- **Crate(s)**: idml-parse, idml-compose, idml-renderer
+- **Evidence**:
+  - `corpus/envato/reports/hair-stylist-brochure-vol-3/heat-001.png` (gradient-feathered backdrop missing on cover)
+  - `corpus/envato/reports/soccer-career-flyer-templates/heat-001.png` (orange page bg with multiple gradient-feathered Polygons → blank)
+  - `corpus/envato/reports/fitness-protein-powder-business-card-templates/heat-001.png` (gradient-feathered Rectangle backgrounds gone; ties to Q-05 Multiply-on-transparent)
+- **Symptom**: Decorative gradient-feathered backdrops on non-Rectangle shapes paint as flat fill (or nothing when frame.fill_color is None). Cycle 1's `PushLayer { GradientFeather }` plumbing for Rectangle was never extended.
+- **Root cause (hypothesis)**: `effects: Option<FrameEffects>` lives only on `Rectangle` (`crates/idml-parse/src/spread.rs:470`). `Polygon` (`:881`), `Oval` (`:707`), `TextFrame` (`:443`), `GraphicLine` (`:750`) lack the field and the matching `emit_effects_pre_fill` / `emit_effects_post_fill` calls in their per-shape emit paths in `pipeline.rs`.
+- **Suggested fix**: Mechanical extension of cycle 1's Rectangle path. Add `pub effects: Option<FrameEffects>` to the four parser structs, populate from the same parse arm. Mirror Rectangle emit hooks at `pipeline.rs:7038-7058` into `emit_polygon_into`, `emit_oval_into`, `emit_text_frame_into`, the GraphicLine emit site. Compose-side `DisplayCommand::GradientFeather` + CPU `render_gradient_feather` are already shape-agnostic — no rasterizer changes needed.
+- **Effort**: M
+- **Cross-link**: cycle-1 P-09 (deferred there).
+
+### Q-05: BlendMode composites against transparent paper as α=0
+- **Category**: Effects
+- **Severity**: Blocker
+- **Frequency**: 4+/61 packs (fitness-protein-powder-business-card-templates, soccer-career-flyer-templates, business-proposal-template, hair-stylist-brochure-vol-3)
+- **Crate(s)**: idml-renderer, idml-gpu
+- **Evidence**:
+  - `corpus/envato/reports/fitness-protein-powder-business-card-templates/heat-001.png` (Multiply Rectangle → transparent over white instead of red over paper; primary driver of the +63% regression)
+  - `corpus/envato/reports/soccer-career-flyer-templates/heat-001.png` (HardLight / Overlay / ColorBurn stack composes to nothing)
+- **Symptom**: When a frame uses a non-Normal BlendMode and the spread doesn't draw an explicit Paper rectangle behind it, the blend group composites against α=0 backdrop and the frame's contribution annihilates (Multiply×0=0).
+- **Root cause (hypothesis)**: `BeginBlendGroup` at `crates/idml-gpu/src/cpu.rs:1513` snapshots the parent's existing pixels for the non-isolated semantic, but the parent pixmap is cleared transparent rather than to opaque paper-white. InDesign treats the page as opaque white paper; we treat it as PDF's transparent device.
+- **Suggested fix**: (a) Quick win (S): when the snapshot region is fully α=0 at `crates/idml-gpu/src/cpu.rs:1541`, substitute opaque white. (b) Correct fix (M): paint an opaque Paper rect at page bbox before any spread items in `crates/idml-renderer/src/pipeline.rs::render` page-init.
+- **Effort**: S (snapshot patch) / M (paper init)
+- **Resolution**: bd601f6 — S-path landed. When the `BeginBlendGroup` snapshot is fully α=0, substitute it with opaque paper before the bypass; the existing `near_paper`-driven SrcOver-on-paper pass then runs normally. Unit test `q05_multiply_group_over_transparent_paper_renders_as_multiply_on_white` guards.
+
+### Q-06: Inline `<PDF>` content treated as missing image
+- **Category**: Images
+- **Severity**: Blocker
+- **Frequency**: 3+/61 packs (soccer-career-flyer-templates, annual-report-template, the-brochure)
+- **Crate(s)**: idml-parse, idml-renderer
+- **Evidence**:
+  - `corpus/envato/reports/soccer-career-flyer-templates/heat-001.png` (Rectangle u6aa3 hosts a `<PDF>` element with inline base64 — placeholder grey-X stamps over the player silhouette + textured backdrop)
+  - `corpus/envato/reports/annual-report-template/heat-001.png` (cover Rectangle ua055: 35MB embedded `<Image>` undecodable; placeholder X over what should be blue gradient cover)
+- **Symptom**: Pages whose hero artwork is a placed PDF render as InDesign's missing-image placeholder. Where the placeholder lands on a transparent backdrop, white-on-color text from above reads as light-grey-on-grey (much worse ΔE).
+- **Root cause (hypothesis)**: `crates/idml-parse/src/spread.rs:2007` treats `<PDF>` like `<Image>` — flips `has_image_element=true` so P-02 placeholder fires, but never extracts the inline `<Contents>` CDATA. `decode_image_bytes` at `crates/idml-renderer/src/pipeline.rs:7967` sniffs `%!PS` (P-14 EPS triage) and would similarly bail on `%PDF-`.
+- **Suggested fix**: Triage (S): in the parser, when `<PDF>` carries `<Contents>` but no `LinkResourceURI`, set `has_inline_pdf: bool` distinct from `has_image_element`. In the missing-image-placeholder emit, special-case inline-PDF rectangles to emit Paper fill rather than grey + X-cross (matches InDesign's "placed PDF can't render → frame fill shows"). Defer full Ghostscript/pdfium decode (L).
+- **Effort**: S triage / L full decode
+- **Resolution**: 82531be — S-triage landed. `has_inline_pdf` flag set during `<PDF>` parse when no LinkResourceURI; placeholder emit short-circuits so the frame's intrinsic FillColor (already emitted upstream) shows through. Full decode deferred.
+
+### Q-07: `Tracking` under-applied — display words render at natural spacing
+- **Category**: Text
+- **Severity**: Major
+- **Frequency**: 3+/61 packs (employment-application, interior-design-catalog, ancient-building-magazine)
+- **Crate(s)**: idml-text, idml-renderer
+- **Evidence**:
+  - `corpus/envato/reports/employment-application/cand-001.png` vs `ref-001.png` ("LFLV" in cand vs "L F L V" in ref)
+  - `corpus/envato/reports/interior-design-catalog/heat-016.png` ("LAUDRY" hero: cand natural spacing, ref wide tracking)
+  - `corpus/envato/reports/interior-design-catalog/heat-010.png` ("BATHROOM" hero: same pattern)
+- **Symptom**: Display headlines authored with a large positive `Tracking` value (typical Envato section titles tracked 400-1000 thousandths-of-em) render with natural inter-letter advance.
+- **Root cause (hypothesis)**: `Tracking` likely parsed at `<CharacterStyleRange Tracking="…">` but not propagated to per-glyph advance in `shape_run` or `compose_paragraph`. Sibling gap to cycle 1's P-08 (HorizontalScale/Skew).
+- **Suggested fix**: Grep `crates/idml-text/src/` for `tracking`. If `shape_run` doesn't apply it, thread the per-run tracking (`tracking * font_size_pt / 1000.0` extra advance per cluster) into the advance accumulator in the shaping loop.
+- **Effort**: S
+- **Deferred**: Tracking is already plumbed end-to-end: parser → cascade (`ResolvedRunAttrs.tracking`, both character and paragraph fold-in) → `StyledRun.tracking` → `apply_tracking` in `layout_runs`. The cited evidence (employment-application "REFERENCES" table cells, interior-design-catalog "LAUDRY" pricing table) is text inside `<Table>` IDML elements that our parser drops entirely (Q-18). Re-audit after Q-18 lands; if the regression is still visible on non-table headlines, file as a new Q.
+
+### Q-08: Gradient `FillColor` on Polygon / Oval flattens (ItemTransform projection)
+- **Category**: Color, Effects
+- **Severity**: Major
+- **Frequency**: 5+/61 packs (brochure, food-cooking-magazine-template, lifestyle-magazine-layout, modern-architecture-portfolio-template, magazine)
+- **Crate(s)**: idml-renderer
+- **Evidence**:
+  - `corpus/envato/reports/brochure/cand-001.png` vs `ref-001.png` (page bg gradient + 3 gradient circles missing; IDML has `<Polygon FillColor="Gradient/…" GradientFillAngle="90">` for page bg and `<Oval ... ItemTransform="0 1 -1 0 …">` for rotated gradient circles)
+- **Symptom**: Polygons + Ovals with `FillColor="Gradient/…"` render as solid fallback. Rectangle gradients work; the bug is shape-specific to non-Rect.
+- **Root cause (hypothesis)**: `color_id_to_paint_with_list_dir` at `crates/idml-renderer/src/pipeline.rs:8615` projects gradient endpoints from `GradientFillAngle` + `GradientFillLength` + `path_dims` but never consults the shape's `ItemTransform`. For rotated shapes the gradient line lands wrong relative to the post-transform geometry.
+- **Suggested fix**: Add an `ItemTransform` parameter to the gradient-line projection at `pipeline.rs:8615` and apply the inverse before the unit-rect mapping.
+- **Effort**: M
+
+### Q-09: `ParagraphShading` / `RuleAbove` / `RuleBelow` / `ParagraphBorder` (P-10 redux)
+- **Category**: Text
+- **Severity**: Major
+- **Frequency**: 5+/61 packs (fitness-protein-powder-business-card-templates, soccer-career-flyer-templates, real-estate-brochure, saas-product-launch-annual-report-brochure)
+- **Crate(s)**: idml-parse, idml-text, idml-renderer
+- **Evidence**: see cycle-1 P-10 evidence section.
+- **Symptom**: Headlines + callouts depending on paragraph-level decorative bands / borders / rules render without them.
+- **Root cause (hypothesis)**: Workspace grep zero hits across `idml-parse/src/styles.rs` and `story.rs`.
+- **Suggested fix**: As cycle-1 P-10. Re-sized as L given 4 feature families × cascade × emit machinery.
+- **Effort**: L
+
+### Q-10: ItemLayer stack-index ignored for z-ordering (subsumes P-30)
+- **Category**: Layout
+- **Severity**: Major
+- **Frequency**: 4+/61 packs (the-brochure, white-blue-modern-company-annual-report, plus 2 others sampled)
+- **Crate(s)**: idml-renderer
+- **Evidence**:
+  - `corpus/envato/reports/the-brochure/heat-022.png` (blue strip on upper layer renders behind red column on lower layer)
+  - `corpus/envato/reports/the-brochure/heat-016.png` (similar)
+  - `corpus/envato/reports/white-blue-modern-company-annual-report/cand-024.png` (Paper-coloured rect doesn't punch through Blue rect — P-30 cause)
+- **Symptom**: Frames in upper `ItemLayer` render *behind* frames in lower layers when XML order disagrees with layer stack order.
+- **Root cause (hypothesis)**: `crates/idml-renderer/src/pipeline.rs:548-564` uses ItemLayer for visibility only, never for z-order. The per-spread emit loop iterates `text_frames` / `rectangles` / `polygons` lists in XML order.
+- **Suggested fix**: Build `layer_stack_index: HashMap<&str, usize>` from `document.container.designmap.layers`. In the per-spread emit loop at `pipeline.rs:581-824`, build a combined `Vec<FrameRef>` across shape kinds, sort by `(layer_stack_index, xml_order_within_layer)`, iterate.
+- **Effort**: M
+
+### Q-11: `<Rectangle>` multi-anchor `<PathGeometry>` collapses to AABB
+- **Category**: Path
+- **Severity**: Major
+- **Frequency**: 3+/61 packs (fitness-protein-powder-business-card-templates, soccer-career-flyer-templates, hair-stylist-brochure-vol-3)
+- **Crate(s)**: idml-renderer
+- **Evidence**:
+  - `corpus/envato/reports/fitness-protein-powder-business-card-templates/heat-001.png` (Rectangle ube48 — 241-anchor torn-paper shape → plain rectangle in cand)
+- **Symptom**: A Rectangle whose `<PathGeometry>` declares a non-rectangular outline renders as the AABB. P-15 fixed the analogous Polygon bug; Rectangle wasn't addressed.
+- **Root cause (hypothesis)**: `ResolvedFrame::from_rectangle` at `crates/idml-renderer/src/module/frame.rs:201` hardcodes `geometry: Geometry::Rect`. Polygon's adapter at `:238-251` already routes to `Geometry::Polygon` when anchors are non-empty.
+- **Suggested fix**: Mirror the Polygon adapter in `from_rectangle`: when `rect.anchors.len() > 4`, emit `Geometry::Polygon { … }` instead.
+- **Effort**: S
+
+### Q-12: TextFrame fill colour dropped on full-bleed coloured text frames
+- **Category**: Color, Layout
+- **Severity**: Major
+- **Frequency**: 2+/61 packs (event-program-brochure, likely more)
+- **Crate(s)**: idml-renderer
+- **Evidence**:
+  - `corpus/envato/reports/event-program-brochure/heat-002.png` (TextFrame `FillColor="Color/Color 2c"` deep blue; cand renders white; text "TABLE OF CONTENTS" reads black instead of white-on-blue)
+- **Symptom**: A TextFrame that doubles as a page-bg colour panel renders text correctly but loses its frame fill. White text designed to land on coloured frame lands on white paper.
+- **Root cause (hypothesis)**: Possibly `Geometry::TextFrameRect` short-circuits in `fill_paint_module`, or centroid routing misses pages despite P-04. Need investigation.
+- **Suggested fix**: Unit test for "TextFrame with non-None FillColor renders a fill"; confirm `fill_paint_module` handles `Geometry::TextFrameRect` identically to `Geometry::Rect`. If centroid routing is the cause, ensure overlap-pages is used in the text-frame emit dispatch.
+- **Effort**: S investigation / S-M fix
+
+### Q-13: Phantom paragraph leak past P-25
+- **Category**: Text
+- **Severity**: Major
+- **Frequency**: 2+/61 packs (welcome-guide-template)
+- **Crate(s)**: idml-renderer
+- **Evidence**:
+  - `corpus/envato/reports/welcome-guide-template/heat-002.png` ("Linda Brown" renders as overlapping "LinedaBrown"; body paragraph + "Page No: 2" double-rendered)
+- **Symptom**: Some text frames produce duplicate overlapping render passes despite P-25's trailing-`\n` guard.
+- **Root cause (hypothesis)**: P-25 only catches fully-empty trailing sub-paragraphs. Welcome-guide case has non-empty phantoms; could be threaded-frame `NextTextFrame` chasing or `StoryEmitter` pen-y bookkeeping.
+- **Suggested fix**: Capture `StoryEmitter::paragraph_command_ranges` for affected pages; confirm whether a single source paragraph produces two render passes. Audit per-paragraph `pen_y` advance after `split_paragraph_at_breaks`. Potentially extend P-25's tail-guard.
+- **Effort**: S investigation / S-M fix
+
+### Q-14: Decode-failed vs link-missing — misapplied placeholder
+- **Category**: Images
+- **Severity**: Major
+- **Frequency**: 4+/61 packs (annual-report-template, fitness-protein-powder-business-card-templates, hair-stylist-brochure-vol-3, the-brochure)
+- **Crate(s)**: idml-renderer
+- **Evidence**:
+  - `corpus/envato/reports/annual-report-template/heat-001.png` (Rectangle ua055: link resolved but decode fails on 35MB payload → placeholder grey + X stamps over what should be deep-blue gradient cover; white "ANNUAL" headline now light grey on grey)
+- **Symptom**: A frame whose `<Image>` link resolves to a payload our decoder can't handle gets the missing-link placeholder. White text on the original colorful background reads light-grey-on-grey — much worse ΔE than the pre-fix "background missing, text matches paper" baseline.
+- **Root cause (hypothesis)**: `crates/idml-renderer/src/pipeline.rs::resolve_image_id` at `:7311` doesn't distinguish "link missing" from "link resolved but decode failed". InDesign would render the actual content for the latter.
+- **Suggested fix**: Distinguish the two cases. For decode-failed, emit the frame's intrinsic `FillColor` rather than the InDesign-style grey-X placeholder. Alternatively broaden the decoder (streaming JPEG for oversized payloads).
+- **Effort**: S triage / M decoder broadening
+
+### Q-15: Single-word-per-line wrap on wide TextFrames
+- **Category**: Text
+- **Severity**: Major
+- **Frequency**: 4+/61 packs (real-estate-brochure, business-proposal, newspaper, indesign-magazine)
+- **Crate(s)**: idml-renderer, idml-text
+- **Evidence**:
+  - `corpus/envato/reports/real-estate-brochure/cand-019.png` ("To be a world-class property company that..." renders 7 single-word lines on a 487pt-wide frame; ref shows 2 lines of 5-6 words each)
+  - `corpus/envato/reports/business-proposal/cand-003.png` (right-column quote stacked one short word per line)
+- **Symptom**: A subset of `<TextFrame>` paragraphs wrap dramatically narrower than the actual frame width — every word lands on its own line.
+- **Root cause (hypothesis)**: Suspect units bug. Verified for real-estate-brochure p19: frame `u7688` has correct width 487.56pt, `TextColumnCount=1`. Paragraph style cascades `MaximumWordSpacing="100" MinimumWordSpacing="90"` (percentages). Likely those percentages interpreted as absolute pt in the breaker, so each space-glyph advances 100pt.
+- **Suggested fix**: Add `RUST_LOG=trace` dump of `column_width_pt` + the breaker's `word_spacing`. Likely a `/ 100.0` fix in `crates/idml-text/src/layout.rs` where word/letter spacing percentages enter the breaker.
+- **Effort**: S → M worst case
+
+### Q-16: Per-corner `CornerOption` (asymmetric radii) ignored
+- **Category**: Path
+- **Severity**: Major
+- **Frequency**: 3+/61 packs (resume-template-teacher, modern-resume-reference-job-application-template, brown-fashion-brochure)
+- **Crate(s)**: idml-parse, idml-renderer
+- **Evidence**:
+  - `corpus/envato/reports/resume-template-teacher/cand-001.png` vs `ref-001.png` (yellow accent rect: ref rounded bottom-left only; cand sharp all corners)
+  - `corpus/envato/reports/modern-resume-reference-job-application-template/ref-001.png` (large grey placeholder centre-left: ref rounded bottom-left only)
+- **Symptom**: Rectangles authored with per-corner overrides (`<TopLeftCornerOption>`, `<BottomLeftCornerOption>`, etc.) render with all four corners flat.
+- **Root cause (hypothesis)**: `Rectangle::corner_radius: f32` is scalar; IDML carries per-corner children. Renderer applies one radius to all four corners.
+- **Suggested fix**: Promote `corner_radius` to `[Option<(CornerOption, f32)>; 4]` in `crates/idml-parse/src/spread.rs <Rectangle>` parser; parse the four per-corner children; update `crates/idml-renderer/src/pipeline.rs` rect-emit to call a 4-corner path builder.
+- **Effort**: M
+- **Cross-link**: cycle-1 P-23 (deferred there as cascade-bug; cycle-2 audit clarified the root cause is missing per-corner support).
+
+### Q-17: `<Layer Printable="false">` not honoured
+- **Category**: Layout
+- **Severity**: Major
+- **Frequency**: 4+/61 packs (gridtastic-grid-kit, hr-employee-handbook, project-case-study-template, real-estate-brochure)
+- **Crate(s)**: idml-parse, idml-renderer
+- **Evidence**:
+  - `corpus/envato/reports/gridtastic-grid-kit/cand-001.png` (master-page guide rectangles render at full saturation; ref suppresses them — they're on a layer marked `Printable="false"`)
+  - `corpus/envato/reports/project-case-study-template/cand-015.png` (right-side master rectangle visible in cand, absent in ref)
+- **Symptom**: Items on layers marked `Printable="false"` render. InDesign's PDF export suppresses them.
+- **Root cause (hypothesis)**: `idml-parse/src/designmap.rs` reads `Visible` + `Name` but not `Printable`. The renderer's per-frame emit skips on `!layer_visible` but never checks printability.
+- **Suggested fix**: Parse `<Layer Printable="...">` in `designmap.rs`; add a `layer_printable` check at frame-emit time in `crates/idml-renderer/src/pipeline.rs`.
+- **Resolution**: Both halves were already implemented before cycle 2. `designmap.rs:131` parses `Printable` (default true); `pipeline.rs:557` folds it into the `layer_renders` map as `visible && printable` so the canonical `layer_visible` closure (despite its name) honours both attributes. Cycle 2 pinned the parser contract with a regression test in `designmap::tests::q17_layer_printable_attribute_round_trips`. If symptoms persist in the cited packs the root cause is *not* Printable — likely guide-layer items reaching the renderer through a different path.
+- **Effort**: S (was already done)
+
+### Q-18: Real `<Table>` / `<Row>` / `<Cell>` IDML element family unparsed
+- **Category**: Tables
+- **Severity**: Major
+- **Frequency**: 2+/61 packs sampled; unknown ceiling
+- **Crate(s)**: idml-parse, idml-renderer
+- **Evidence**: workspace grep across `idml-parse/src/` for `b"Table"\|<Cell\|<Row\|TableStyle` returns zero functional hits (only TOC strings).
+- **Symptom**: Reference renders multi-row, multi-column data grids that the candidate leaves blank.
+- **Root cause (hypothesis)**: `<Table>` lives inside `<CharacterStyleRange>` in IDMLs; `crates/idml-parse/src/story.rs` recognises only `<ParagraphStyleRange>` / `<CharacterStyleRange>` / `<Content>` / `<Br/>`. We silently drop the entire subtree.
+- **Suggested fix**: (1) `<Table>` parsing in `story.rs` — table dimensions, per-cell text, `AppliedTableStyle` ref. (2) Add `DisplayCommand::Table { cells, transform }` to `idml-compose` + renderer pass at `pipeline.rs` that places each cell via the per-paragraph composer + strokes cell borders. Large feature; tables have their own typographic concept.
+- **Effort**: L
+
+### Q-19: `<PatternColor>` / pattern fills render as flat colour
+- **Category**: Color
+- **Severity**: Major
+- **Frequency**: 2+/61 packs (business-proposal-template, brown-fashion-brochure)
+- **Crate(s)**: idml-parse, idml-renderer
+- **Evidence**:
+  - `corpus/envato/reports/business-proposal-template/cand-001.png` vs `ref-001.png` (ref full-page bg has subtle gray diagonal-stripe texture; cand flat white)
+  - `corpus/envato/reports/brown-fashion-brochure/heat-002.png` (page-level dark band missing)
+- **Symptom**: Pages with full-bleed pattern fills (diagonal stripes, dot grids, watermarks) render flat.
+- **Root cause (hypothesis)**: Either `<PatternColor>` swatches we don't resolve, or `<Image>` whose `<Contents>` is base64-embedded (cross-link Q-03).
+- **Suggested fix**: First confirm whether it's a `PatternColor` swatch or an embedded image. If pattern: parse `<PatternColor>` in `crates/idml-parse/src/` and map to a `Paint::Pattern` variant tiled by `idml-gpu`'s image pool. If embedded image: closes via Q-03.
+- **Effort**: S if subsumed by Q-03 / M if pattern parse
+
+### Q-20: Composer wrap drift — soft-hyphen + min/max spacing (P-07 follow-up)
+- **Category**: Text
+- **Severity**: Major
+- **Frequency**: 12+/61 packs (universal across magazine + columned layouts)
+- **Crate(s)**: idml-text, idml-renderer
+- **Evidence**:
+  - `corpus/envato/reports/magazine/heat-014.png` (justified body two columns; every line shifted ~5px)
+  - `corpus/envato/reports/modern-architecture-portfolio-template/cand-005.png` ("venimin-vende" hyphenated differently from ref)
+  - `corpus/envato/reports/minimal-furniture-brochure/heat-014.png` ("Sustainability" wraps differently)
+- **Symptom**: Body text wraps at different word/line boundaries than reference. Subtle cases ±1 line per paragraph; severe cases drop the inserted hyphen.
+- **Root cause (hypothesis)**: Cycle-1 P-07 follow-up. (a) `MinimumWordSpacing` / `MaximumWordSpacing` / `MinimumLetterSpacing` / `MaximumGlyphScaling` parsed at `crates/idml-parse/src/styles.rs:407-416` but possibly not consulted by the breaker. (b) Soft-hyphen glyph at break point not emitted into the glyph stream.
+- **Suggested fix**: (1) Plumb all five spacing/scaling params from `ResolvedParagraphAttrs` → `LayoutOptions` → breaker. (2) When breaker emits a flagged-Penalty break, append soft-hyphen glyph at line terminal x.
+- **Effort**: L (P-07-scale calibration track)
+
+### Q-21: AllCaps headline cascade audit
+- **Category**: Text
+- **Severity**: Minor
+- **Frequency**: 3+/61 packs (project-case-study-template, brochure, indesign-magazine)
+- **Crate(s)**: idml-renderer, idml-scene
+- **Evidence**:
+  - `corpus/envato/reports/brochure/cand-001.png` ("Product Design" black in cand vs white in ref — per-run FillColor=Paper from character style not winning over paragraph-style FillColor=Black)
+- **Symptom**: When character style sets FillColor=Paper and paragraph style sets FillColor=Black, the precedence may be inverted for AllCaps headlines.
+- **Root cause (hypothesis)**: `crates/idml-scene/src/lib.rs:529-580` `merge_below_character` / `merge_below_paragraph` cascade. P-18 closed the direct-run case; this is character-style-vs-paragraph-style precedence.
+- **Suggested fix**: Glyph-level regression test mirroring brochure cover (paragraph style FillColor=Black + character style FillColor=Paper, no run-direct colour). Fix cascade ordering if it fails.
+- **Effort**: S
+
+### Q-22: Placeholder grey calibration
+- **Category**: Images
+- **Severity**: Minor
+- **Frequency**: 5+/61 packs (magazine-editorial-layout, modern-architecture-portfolio-template, minimal-furniture-brochure, catalog, project-case-study-template)
+- **Crate(s)**: idml-renderer
+- **Evidence**:
+  - `corpus/envato/reports/magazine-editorial-layout/cand-015.png` vs `ref-015.png` (placeholder rects: cand 20% tint; ref 50% tint with heavier diagonal X)
+- **Symptom**: P-02's 30%-grey + thin-X placeholder doesn't match InDesign's reference uniformly. Better match would be ~50% grey + heavier 1.5pt black X.
+- **Root cause (hypothesis)**: P-02's calibration was a first-pass guess.
+- **Suggested fix**: Histogram reference-PDF placeholder greys across 3-4 packs; pick a canonical grey + line weight; adjust the constants in the P-02 helper at `crates/idml-renderer/src/pipeline.rs`.
+- **Effort**: S
+
+### Q-23: Soft-hyphen glyph dropped at auto-hyphenation line break
+- **Category**: Text
+- **Severity**: Minor
+- **Frequency**: 2+/61 packs (lifestyle-magazine-layout, green-energy-newsletter)
+- **Crate(s)**: idml-text
+- **Evidence**:
+  - `corpus/envato/reports/lifestyle-magazine-layout/cand-006.png` vs `ref-006.png` ("CONTRIBUTORS" wraps to "CON / TRIB" in cand; ref shows "CON- / TRIBU-" with trailing hyphens)
+- **Symptom**: When Knuth-Plass selects a mid-word hyphenation point, the trailing hyphen glyph isn't emitted.
+- **Root cause (hypothesis)**: Line-emit path doesn't append the hyphen glyph for flagged Penalty breaks.
+- **Suggested fix**: When `paragraph_breaker` reports a Penalty break with `flagged=true`, append U+002D at the line's terminal x-position using the breaking word's face. Add `text_glyph_level.rs` regression for "CONTRIBUTORS" in a narrow column.
+- **Effort**: S
+- **Cross-link**: subset of Q-20 calibration track.
+
+### Q-24: BlendMode formulae audit post-Q-05
+- **Category**: Effects
+- **Severity**: Minor
+- **Frequency**: 1+/61 packs (soccer-career-flyer-templates uses HardLight + Overlay + ColorBurn + SoftLight + Darken)
+- **Crate(s)**: idml-gpu
+- **Evidence**: deferred until Q-05 lands so the underlying composites work.
+- **Symptom**: After Q-05 fixes Multiply-on-paper, subtle differences in HardLight / Overlay / SoftLight / ColorBurn may emerge — tiny-skia matches W3C Compositing/Blending L1, which differs from PDF 1.7 Annex H in edge cases.
+- **Root cause (hypothesis)**: `blend_mode_to_ts` at `crates/idml-gpu/src/cpu.rs:2675-2693` maps every BlendMode to tiny-skia equivalents. Edge-case formulae (SoftLight, ColorBurn over transparency) may differ.
+- **Suggested fix**: Per-blend-mode unit tests after Q-05; tweak formulae if needed.
+- **Effort**: S audit / M per-mode tweaks
+
+### Q-25: Font weight drift Light/Thin → Regular (INF-1 follow-up)
+- **Category**: Fonts
+- **Severity**: Minor
+- **Frequency**: 2+/61 packs (catalog-brochure-template, brand-guidelines)
+- **Crate(s)**: idml-renderer, corpus calibration
+- **Evidence**:
+  - `corpus/envato/reports/catalog-brochure-template/cand-001.png` vs `ref-001.png` ("Catalog" hero ~30% thicker in cand)
+- **Symptom**: Display headlines authored at `FontStyle="Light"` / `"Thin"` render at Regular weight when the bundled font lacks lighter weights.
+- **Root cause (hypothesis)**: Inverse of cycle-1 P-06 (Bold→Regular silent no-op). Same family-only substitution, opposite direction.
+- **Suggested fix**: (a) Curation: per-pack `fonts.{sh,jsx}` overrides pinning Light family resolution. (b) Renderer: when matched font's wght axis can't drop below request, log a substitute-weight penalty.
+- **Effort**: S curation / M renderer telemetry
+
+---
+
+## Cross-cycle observations
+
+1. **Q-01 (ObjectStyle FillTint cascade)** is the single biggest cycle-2 win: `S` effort, 9+ packs, closes most of the welcome-guide / wedding-newspaper / travel-guide regressions.
+2. **Q-04 (GradientFeather non-Rect) + Q-05 (BlendMode on transparent paper)** together close the fitness-protein-powder regression and unlock hair-stylist + soccer-flyer.
+3. **Q-02 (AutoSizingTextFrame)** is the most visible cycle-2 finding — "MAGAZINE" → "MAG" is a one-glance failure across 13+ packs; M-effort but huge UX payoff.
+4. **Q-03 (embedded image bytes)** is the gateway for many magazine/newsletter packs whose placed JPEGs ship inline.
+5. **Q-20 (composer wrap drift)** is the long-term calibration track — touches every body-text paragraph in the corpus. Sized L; budget across multiple cycles.
+6. **Q-18 (real `<Table>` parser)** is the lone L-effort entry that wasn't on cycle 1's radar; defer until the higher-priority blockers land.
+
+## Cycle 2 recommended execution order
+
+Tight S-effort batch (single agent, sequential):
+
+1. Q-01 (ObjectStyle FillTint) — S, 9+ packs
+2. Q-05 (BlendMode paper init, snapshot patch S path) — S, 4+ packs
+3. Q-06 (inline PDF triage) — S, 3+ packs
+4. Q-07 (Tracking) — S, 3+ packs
+5. Q-11 (Rectangle multi-anchor) — S, 3+ packs
+6. Q-12 (TextFrame fill) — S, 2+ packs
+7. Q-15 (single-word-per-line units bug) — S, 4+ packs
+8. Q-17 (Layer Printable) — S, 4+ packs
+9. Q-21 (AllCaps cascade) — S, 3+ packs
+10. Q-22 (placeholder grey recalibration) — S, 5+ packs
+11. Q-23 (soft-hyphen glyph) — S, 2+ packs
+12. Q-25 (font weight curation) — S, 2+ packs
+
+Then a M-effort batch:
+
+13. Q-02 (AutoSizingTextFrame) — M, 13+ packs
+14. Q-03 (embedded image bytes) — M, 8+ packs
+15. Q-04 (GradientFeather non-Rect) — M, 5+ packs
+16. Q-08 (gradient on Polygon/Oval) — M, 5+ packs
+17. Q-10 (ItemLayer z-order) — M, 4+ packs
+18. Q-13 (phantom paragraph) — M, 2+ packs
+19. Q-14 (decode-failed placeholder) — M, 4+ packs
+20. Q-16 (per-corner radii) — M, 3+ packs
+21. Q-19 (pattern fill — investigation may show Q-03 covers it) — M, 2+ packs
+
+Then L-effort, individually scoped:
+
+22. Q-09 (paragraph shading) — L
+23. Q-20 (composer calibration extension) — L
+24. Q-18 (real `<Table>` parser) — L
+
+Q-24 (blend formulae audit) gates on Q-05 landing first.
+
