@@ -667,12 +667,12 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 | Q-16  | Per-corner `CornerOption` (asymmetric radii) ignored (promoted from P-23)          | Path      | Major    |  3+/61   | M      | open   |
 | Q-17  | `<Layer Printable="false">` not honoured                                           | Layout    | Major    |  4+/61   | S      | already implemented; regression test pinned this cycle |
 | Q-18  | Real `<Table>` / `<Row>` / `<Cell>` IDML element family unparsed                   | Tables    | Major    |  2+/61   | L      | open   |
-| Q-19  | `<PatternColor>` / pattern fills render as flat colour                             | Color     | Major    |  2+/61   | M      | open   |
+| Q-19  | `<PatternColor>` / pattern fills render as flat colour                             | Color     | Major    |  2+/61   | M      | confirmed not subsumed by Q-03 (business-proposal-template still flat); deferred |
 | Q-20  | Composer wrap drift extension — soft-hyphen + min/max spacing (P-07 follow-up)     | Text      | Major    | 12+/61   | L      | open   |
 | Q-21  | AllCaps headline cascade audit — paragraph-style vs character-style FillColor      | Text      | Minor    |  3+/61   | S      | cascade pinned green; residual brochure symptom past this layer |
 | Q-22  | Placeholder grey vs InDesign reference — recalibrate fill % + diagonal weight      | Images    | Minor    |  5+/61   | S      | open   |
 | Q-23  | Soft-hyphen glyph dropped at auto-hyphenation line break                           | Text      | Minor    |  2+/61   | S      | hyphenator + emit paths already implemented; contract pinned this cycle. Residual envato symptom traced past this layer. |
-| Q-24  | BlendMode formulae audit (HardLight / Overlay / SoftLight / ColorBurn) post-Q-05   | Effects   | Minor    |  1+/61   | M      | open   |
+| Q-24  | BlendMode formulae audit (HardLight / Overlay / SoftLight / ColorBurn) post-Q-05   | Effects   | Minor    |  1+/61   | M      | renderer documented to follow W3C Compositing/Blending L1 (tiny-skia); PDF 1.7 Annex H reconciliation deferred — needs per-mode pixel tests against specific fail cases |
 | Q-25  | Font weight drift Light/Thin → Regular (INF-1 follow-up)                           | Fonts     | Minor    |  2+/61   | S      | renderer telemetry landed; per-pack curation deferred |
 
 ## Cycle 2 findings
