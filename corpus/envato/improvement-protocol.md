@@ -844,6 +844,7 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Effort**: S investigation / S-M fix
 
 ### Q-13: Phantom paragraph leak past P-25
+- **Status**: still visible on welcome-guide-template heat-002 post-Wave-A. The pattern is "every text frame renders twice" — body lorem paragraphs, byline ("Linda Brown"), footer ("Welcome Guide Template"), and auto-page-number ("Page No: 2") all appear at the same x/y twice with a few-px offset. The pattern is consistent with master-spread overrides not suppressing the master copy (or the master pass + body pass both emitting the same frame). NextTextFrame chasing alone wouldn't double the running footer. Re-audit `crates/idml-renderer/src/pipeline.rs` master-spread frame routing — likely the override_set captured at master-emit time isn't filtering the master items that the body overrides.
 - **Category**: Text
 - **Severity**: Major
 - **Frequency**: 2+/61 packs (welcome-guide-template)
