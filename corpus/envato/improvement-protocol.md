@@ -673,7 +673,7 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 | Q-22  | Placeholder grey vs InDesign reference — recalibrate fill % + diagonal weight      | Images    | Minor    |  5+/61   | S      | open   |
 | Q-23  | Soft-hyphen glyph dropped at auto-hyphenation line break                           | Text      | Minor    |  2+/61   | S      | hyphenator + emit paths already implemented; contract pinned this cycle. Residual envato symptom traced past this layer. |
 | Q-24  | BlendMode formulae audit (HardLight / Overlay / SoftLight / ColorBurn) post-Q-05   | Effects   | Minor    |  1+/61   | M      | open   |
-| Q-25  | Font weight drift Light/Thin → Regular (INF-1 follow-up)                           | Fonts     | Minor    |  2+/61   | S      | open   |
+| Q-25  | Font weight drift Light/Thin → Regular (INF-1 follow-up)                           | Fonts     | Minor    |  2+/61   | S      | renderer telemetry landed; per-pack curation deferred |
 
 ## Cycle 2 findings
 
@@ -997,6 +997,7 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Effort**: S audit / M per-mode tweaks
 
 ### Q-25: Font weight drift Light/Thin → Regular (INF-1 follow-up)
+- **Status**: renderer telemetry added — when an IDML run requests a non-Regular weight and the matched font has no wght variation axis, the renderer logs a warning (`tracing::warn` at `pipeline.rs::wght_axis` sites). The behaviour fix is now purely curation: route catalog-brochure-template / brand-guidelines through a variable-axis substitute (Inter / RobotoSlab / CormorantGaramond — all already in `corpus/fonts/`) via the per-pack `overrides/<pack>/fonts.sh`. Deferred until per-pack font diagnosis is run with the new warning enabled.
 - **Category**: Fonts
 - **Severity**: Minor
 - **Frequency**: 2+/61 packs (catalog-brochure-template, brand-guidelines)
