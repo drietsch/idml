@@ -27,6 +27,18 @@ FONT_FLAGS=(
     --font-family "Arial/Italic=$FONTS/OpenSans-Italic.ttf"
     --font-family "Myriad Pro=$FONTS/Inter.ttf"
     --font-family "Myriad Pro/Bold=$FONTS/Roboto-Bold.ttf"
+    --font-family "Muli=$FONTS/Inter.ttf"
+    --font-family "Muli/Bold=$FONTS/Roboto-Bold.ttf"
+    --font-family "Muli/Italic=$FONTS/OpenSans-Italic.ttf"
+    --font-family "Mulish=$FONTS/Inter.ttf"
+    --font-family "Mulish/Bold=$FONTS/Roboto-Bold.ttf"
+    # Kozuka Mincho is Adobe's Japanese serif; we don't ship a CJK
+    # face yet so substitute the closest Latin serif (SourceSerif4).
+    # ASCII characters render plausibly; CJK fall back to .notdef
+    # rectangles — the same behaviour the renderer takes for any
+    # unmappable codepoint today.
+    --font-family "Kozuka Mincho Pro=$FONTS/SourceSerif4.ttf"
+    --font-family "Kozuka Mincho Pro/Bold=$FONTS/Roboto-Bold.ttf"
     --font-family "Open Sans=$FONTS/OpenSans.ttf"
     --font-family "Open Sans/Bold=$FONTS/Roboto-Bold.ttf"
     --font-family "Open Sans/Italic=$FONTS/OpenSans-Italic.ttf"
