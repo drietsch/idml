@@ -650,7 +650,7 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 | ID    | Title                                                                              | Cat       | Sev      | Freq     | Effort | Status |
 |-------|------------------------------------------------------------------------------------|-----------|----------|----------|--------|--------|
 | Q-01  | ObjectStyle FillTint cascade gap — placeholder rects render at 100% strength       | Color     | Blocker  |  9+/61   | S      | fixed (9bd0353) |
-| Q-02  | `<TextFramePreference AutoSizingType=...>` ignored — display headlines clipped     | Text      | Blocker  | 13+/61   | M      | open   |
+| Q-02  | `<TextFramePreference AutoSizingType=...>` ignored — display headlines clipped     | Text      | Blocker  | 13+/61   | M      | parser + renderer landed (longest-word estimator overrides column width when frame's AutoSizingType allows width growth). Only 3 of 12 cited packs actually carry AutoSizingType — the other 9 need a different audit. |
 | Q-03  | Embedded image bytes in `<Image>/<Contents>` CDATA never decoded                   | Images    | Blocker  |  8+/61   | M      | open   |
 | Q-04  | `<GradientFeatherSetting>` extension to Polygon / Oval / TextFrame / GraphicLine   | Effects   | Blocker  |  5+/61   | M      | TextFrame + Polygon + Oval emit hooks landed; GraphicLine has no fill so effects are no-ops there |
 | Q-05  | BlendMode (Multiply, ColorBurn, …) composites against transparent paper as α=0     | Effects   | Blocker  |  4+/61   | S      | fixed (bd601f6) |
@@ -667,7 +667,7 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 | Q-16  | Per-corner `CornerOption` (asymmetric radii) ignored (promoted from P-23)          | Path      | Major    |  3+/61   | M      | landed — per-corner `(option, radius)` plumbed through Rectangle + `rounded_rect_path_per_corner` |
 | Q-17  | `<Layer Printable="false">` not honoured                                           | Layout    | Major    |  4+/61   | S      | already implemented; regression test pinned this cycle |
 | Q-18  | Real `<Table>` / `<Row>` / `<Cell>` IDML element family unparsed                   | Tables    | Major    |  2+/61   | L      | open   |
-| Q-19  | `<PatternColor>` / pattern fills render as flat colour                             | Color     | Major    |  2+/61   | M      | confirmed not subsumed by Q-03 (business-proposal-template still flat); deferred |
+| Q-19  | `<PatternColor>` / pattern fills render as flat colour                             | Color     | Major    |  2+/61   | M      | misdiagnosed — neither business-proposal-template nor brown-fashion-brochure has `<PatternColor>` swatches (both carry `<PastedSmoothShade>` instead). The diagonal-stripe pattern likely comes from a custom `<StrokeStyle>` dash; cycle 3 should re-audit what's actually authoring it. |
 | Q-20  | Composer wrap drift extension — soft-hyphen + min/max spacing (P-07 follow-up)     | Text      | Major    | 12+/61   | L      | open   |
 | Q-21  | AllCaps headline cascade audit — paragraph-style vs character-style FillColor      | Text      | Minor    |  3+/61   | S      | cascade pinned green; residual brochure symptom past this layer |
 | Q-22  | Placeholder grey vs InDesign reference — recalibrate fill % + diagonal weight      | Images    | Minor    |  5+/61   | S      | open   |
