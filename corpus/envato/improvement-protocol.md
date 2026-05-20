@@ -652,7 +652,7 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 | Q-01  | ObjectStyle FillTint cascade gap — placeholder rects render at 100% strength       | Color     | Blocker  |  9+/61   | S      | fixed (9bd0353) |
 | Q-02  | `<TextFramePreference AutoSizingType=...>` ignored — display headlines clipped     | Text      | Blocker  | 13+/61   | M      | open   |
 | Q-03  | Embedded image bytes in `<Image>/<Contents>` CDATA never decoded                   | Images    | Blocker  |  8+/61   | M      | open   |
-| Q-04  | `<GradientFeatherSetting>` extension to Polygon / Oval / TextFrame / GraphicLine   | Effects   | Blocker  |  5+/61   | M      | TextFrame + Polygon emit hooks landed; Oval needs ellipse path interning; GraphicLine has no fill |
+| Q-04  | `<GradientFeatherSetting>` extension to Polygon / Oval / TextFrame / GraphicLine   | Effects   | Blocker  |  5+/61   | M      | TextFrame + Polygon + Oval emit hooks landed; GraphicLine has no fill so effects are no-ops there |
 | Q-05  | BlendMode (Multiply, ColorBurn, …) composites against transparent paper as α=0     | Effects   | Blocker  |  4+/61   | S      | fixed (bd601f6) |
 | Q-06  | Inline `<PDF>` content treated as missing image; placeholder stamps over content   | Images    | Blocker  |  3+/61   | S      | fixed (82531be) |
 | Q-07  | `Tracking` (em-units) under-applied — display words render at natural spacing      | Text      | Major    |  3+/61   | S      | deferred — tracking is already wired end-to-end; evidence is table content (gates on Q-18) |
