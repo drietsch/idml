@@ -657,7 +657,7 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 | Q-06  | Inline `<PDF>` content treated as missing image; placeholder stamps over content   | Images    | Blocker  |  3+/61   | S      | fixed (82531be) |
 | Q-07  | `Tracking` (em-units) under-applied — display words render at natural spacing      | Text      | Major    |  3+/61   | S      | deferred — tracking is already wired end-to-end; evidence is table content (gates on Q-18) |
 | Q-08  | Gradient `FillColor` on Polygon / Oval renders as flat fallback (ItemTransform)    | Color     | Major    |  5+/61   | M      | open   |
-| Q-09  | `ParagraphShading` / `RuleAbove` / `RuleBelow` / `ParagraphBorder` (P-10 redux)    | Text      | Major    |  5+/61   | L      | open   |
+| Q-09  | `ParagraphShading` / `RuleAbove` / `RuleBelow` / `ParagraphBorder` (P-10 redux)    | Text      | Major    |  5+/61   | L      | ParagraphShading parser + cascade landed; renderer emit + RuleAbove/RuleBelow/Border deferred |
 | Q-10  | ItemLayer stack-index ignored for z-ordering (subsumes P-30)                       | Layout    | Major    |  4+/61   | M      | open   |
 | Q-11  | `<Rectangle>` with multi-anchor `<PathGeometry>` collapses to AABB                 | Path      | Major    |  3+/61   | S      | open   |
 | Q-12  | TextFrame fill colour dropped on full-bleed coloured text frames                   | Color     | Major    |  2+/61   | S      | open   |
