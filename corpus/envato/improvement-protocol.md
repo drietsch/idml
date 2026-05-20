@@ -664,7 +664,7 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 | Q-13  | Phantom paragraph leak past P-25 — duplicate rendered paragraphs on some pages     | Text      | Major    |  2+/61   | M      | misdiagnosed; actual symptom is text-sizing drift covered by Q-02 / Q-15 |
 | Q-14  | Decode-failed-but-link-resolved vs link-missing: misapplied placeholder            | Images    | Major    |  4+/61   | S      | open   |
 | Q-15  | Single-word-per-line wrap on wide TextFrames (likely word-spacing units bug)       | Text      | Major    |  4+/61   | S      | open   |
-| Q-16  | Per-corner `CornerOption` (asymmetric radii) ignored (promoted from P-23)          | Path      | Major    |  3+/61   | M      | open   |
+| Q-16  | Per-corner `CornerOption` (asymmetric radii) ignored (promoted from P-23)          | Path      | Major    |  3+/61   | M      | landed — per-corner `(option, radius)` plumbed through Rectangle + `rounded_rect_path_per_corner` |
 | Q-17  | `<Layer Printable="false">` not honoured                                           | Layout    | Major    |  4+/61   | S      | already implemented; regression test pinned this cycle |
 | Q-18  | Real `<Table>` / `<Row>` / `<Cell>` IDML element family unparsed                   | Tables    | Major    |  2+/61   | L      | open   |
 | Q-19  | `<PatternColor>` / pattern fills render as flat colour                             | Color     | Major    |  2+/61   | M      | confirmed not subsumed by Q-03 (business-proposal-template still flat); deferred |
