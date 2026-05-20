@@ -661,7 +661,7 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 | Q-10  | ItemLayer stack-index ignored for z-ordering (subsumes P-30)                       | Layout    | Major    |  4+/61   | M      | open   |
 | Q-11  | `<Rectangle>` with multi-anchor `<PathGeometry>` collapses to AABB                 | Path      | Major    |  3+/61   | S      | open   |
 | Q-12  | TextFrame fill colour dropped on full-bleed coloured text frames                   | Color     | Major    |  2+/61   | S      | open   |
-| Q-13  | Phantom paragraph leak past P-25 — duplicate rendered paragraphs on some pages     | Text      | Major    |  2+/61   | M      | open   |
+| Q-13  | Phantom paragraph leak past P-25 — duplicate rendered paragraphs on some pages     | Text      | Major    |  2+/61   | M      | misdiagnosed; actual symptom is text-sizing drift covered by Q-02 / Q-15 |
 | Q-14  | Decode-failed-but-link-resolved vs link-missing: misapplied placeholder            | Images    | Major    |  4+/61   | S      | open   |
 | Q-15  | Single-word-per-line wrap on wide TextFrames (likely word-spacing units bug)       | Text      | Major    |  4+/61   | S      | open   |
 | Q-16  | Per-corner `CornerOption` (asymmetric radii) ignored (promoted from P-23)          | Path      | Major    |  3+/61   | M      | open   |
@@ -844,7 +844,7 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Effort**: S investigation / S-M fix
 
 ### Q-13: Phantom paragraph leak past P-25
-- **Status**: still visible on welcome-guide-template heat-002 post-Wave-A. Pattern is "every text frame renders twice" — body lorem paragraphs, byline ("Linda Brown"), footer ("Welcome Guide Template"), and auto-page-number ("Page No: 2") all appear at the same x/y twice with a few-px offset. **Root cause identified**: the master spread (`MasterSpreads/MasterSpread_uba.xml`) carries 4 footer TextFrames — u14d at x≈-381 (left master page) and u165 at x≈213 (right master page) BOTH hosting stories whose content is the same string "Welcome Guide Template" (Story_u139 and Story_u151). When a body page applies this master, the master-pass routing in `pipeline.rs::build_document` line 384's `item_belongs` test is letting BOTH master frames through onto the same body page instead of only the matching same-ordinal master page. Either `item_belongs` (line 384) or `master_page_for` (line 352) is too permissive on this layout. Suggested next step: instrument the master pass to print which master frames it routes per body page, run on welcome-guide-template, and tighten the centroid + intersection tests.
+- **Status**: ORIGINAL DIAGNOSIS WAS WRONG. Side-by-side inspection of cand-002.png vs ref-002.png on welcome-guide-template shows the cand renders each frame ONCE — there is no in-cand double-render. The heatmap appearance of "every text frame renders twice" is the diff between cand's smaller / mis-positioned text and ref's larger / correctly-positioned text overlapping in the diff visualisation. Actual symptom is text-sizing + wrap drift, which falls under Q-02 renderer (AutoSizingTextFrame headlines), Q-15 follow-up (word-spacing budget), and general font-size cascade audit. Reclassified as a duplicate of those tracks rather than a master-spread routing bug.
 - **Category**: Text
 - **Severity**: Major
 - **Frequency**: 2+/61 packs (welcome-guide-template)
