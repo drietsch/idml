@@ -236,22 +236,26 @@ wide stroke that visually reads as a pattern. The parser reads
 **Files:** `crates/idml-parse/src/styles.rs`, `crates/idml-renderer/src/pipeline.rs::stroke_for`.
 **Effort:** S (2-3 days).
 
-### 4b. `<PastedSmoothShade>` gradient mesh
+### 4b. `<PastedSmoothShade>` gradient mesh — *deferred, no corpus impact*
 
-`brown-fashion-brochure` and `business-proposal-template` carry
-`<PastedSmoothShade>` swatches — multi-stop gradient meshes (radial
-or bilinear) authored in Illustrator and pasted into InDesign. We
-currently fall through to flat fallback.
+Investigated and skipped during cycle-3 execution. The
+`<PastedSmoothShade>` entries in `brown-fashion-brochure`,
+`business-proposal-template`, `brochure`, and
+`catalog-brochure-template` all serialise as
+`Visible="false"` swatch declarations in `Resources/Graphic.xml`
+and **zero spread page items reference them as fill paint** (grep
+across every `Spreads/*.xml` returns 0 hits). They are vestigial
+Illustrator paste artifacts attached to the document's swatch
+table, not active mesh fills the renderer would draw.
 
-- Parse the swatch definition (control point grid + per-point
-  colour).
-- Emit as a series of `DisplayCommand::LinearGradient` strips
-  tessellated across the mesh, or implement a proper mesh shader
-  in the rasterizer.
+Decoding the binary CDATA payload (an Illustrator-proprietary
+gradient mesh serialisation) would be ~M effort with no
+measurable corpus delta until an IDML actually references one as
+a paint. Reopen if/when that happens.
 
-**Files:** `crates/idml-parse/src/graphic.rs`, `crates/idml-renderer/src/pipeline.rs`,
-possibly `crates/idml-gpu/src/cpu.rs`.
-**Effort:** M (4-5 days). Mesh tessellation is the bulk.
+**Files (when revisited):** `crates/idml-parse/src/graphic.rs`,
+`crates/idml-renderer/src/pipeline.rs`, possibly
+`crates/idml-gpu/src/cpu.rs`.
 
 ### 4c. Q-08 radial-on-polygon gradient
 
