@@ -1,0 +1,41 @@
+{
+  "_doc": "Cycle 4 Track 2c: per-fixture break-decision regression thresholds. Each entry pins the worst-case-acceptable metric observed at cycle-4 end + ~25% headroom. Future composer / shaper changes must keep their numbers at-or-below these. Loosening a threshold to chase a passing run is a regression in disguise — fix the change or revert.",
+  "fixtures": [
+    {
+      "name": "text",
+      "candidate_idml": "corpus/generated/text.idml",
+      "reference_pdf": "corpus/generated/text.pdf",
+      "font": "corpus/fonts/OpenSans.ttf",
+      "baseline_observed": {
+        "total_cand_lines": 19,
+        "total_ref_lines": 16,
+        "line_count_delta_sum": 3,
+        "word_match_rate_mean": 0.938,
+        "baseline_drift_pt_p99": 0.009
+      },
+      "thresholds": {
+        "max_line_count_delta_sum": 4,
+        "min_word_match_rate_mean": 0.80,
+        "max_baseline_drift_pt_p99": 0.50
+      }
+    },
+    {
+      "name": "text-advanced",
+      "candidate_idml": "corpus/generated/text-advanced.idml",
+      "reference_pdf": "corpus/generated/text-advanced.pdf",
+      "font": "corpus/fonts/OpenSans.ttf",
+      "baseline_observed": {
+        "total_cand_lines": 27,
+        "total_ref_lines": 23,
+        "line_count_delta_sum": 6,
+        "word_match_rate_mean": 0.682,
+        "baseline_drift_pt_p99": 14.406
+      },
+      "thresholds": {
+        "max_line_count_delta_sum": 8,
+        "min_word_match_rate_mean": 0.55,
+        "max_baseline_drift_pt_p99": 18.0
+      }
+    }
+  ]
+}
