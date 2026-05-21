@@ -285,16 +285,23 @@ per-corner radii).
 
 Three lower-leverage but real items. Each unlocks specific IDMLs.
 
-### 5a. Conditional text
+### 5a. Conditional text — *deferred, no corpus impact*
 
-`<ConditionalTextSetting>` declares conditions (e.g. "Translation
-A", "Translation B"); cells / paragraphs / runs carry
-`AppliedConditions="…"` attribute. Renderer should filter content by
-the document's active condition set.
+Investigated and skipped during cycle-3 execution. Zero
+`<Condition>` declarations and zero `AppliedConditions=` attributes
+across all 60+ Envato packs (Envato is dominated by marketing
+brochures; conditional text is a localisation/technical-doc
+feature these packs don't use). Implementing the parser + filter
+would add untested code paths with no measurable corpus delta.
 
-**Files:** `crates/idml-parse/src/designmap.rs`, `crates/idml-parse/src/story.rs`,
+Reopen if/when an IDML appears in the corpus that uses conditions.
+The plan's sketch (parse `<Condition Visible="…">` into a table;
+filter spread / story runs by their `AppliedConditions` against
+the visible set) still applies.
+
+**Files (when revisited):** `crates/idml-parse/src/designmap.rs`,
+`crates/idml-parse/src/story.rs`,
 `crates/idml-renderer/src/pipeline.rs`.
-**Effort:** S-M (3 days).
 
 ### 5b. Cross-references
 
