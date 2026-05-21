@@ -106,7 +106,26 @@ Aggregate target: −1.5 to −2.5 mean ΔE corpus-wide.
 
 ---
 
-## Track 2 — Calibration A/B harness
+## Track 2 — Calibration A/B harness — *deferred to next cycle*
+
+Investigated and deferred during cycle-3 execution. The candidate
+side (instrument the composer to emit per-line
+`(page_idx, first_byte, last_byte, baseline_y, width)` records)
+is straightforward but multi-day; the reference side
+(`pdftotext -layout`-based line geometry reconstruction) is the
+real risk the plan flagged. Building only the candidate side
+ships a half-harness whose output we can't validate against the
+reference PDFs that drive the existing pixel-ΔE gate.
+
+The harness's only immediate beneficiary — Q-20 calibration —
+also defers, since calibration needs A/B measurement to converge.
+The corpus-wide pixel-ΔE gate (`corpus/generated/diff.sh`)
+remains the regression net in the meantime; future text-only
+calibration cycles can pick up the harness work.
+
+Original plan retained below for reference.
+
+### Original goal + sub-tracks
 
 **Goal:** build the infrastructure that lets composer / shaper changes
 land safely without coin-flipping against 61 packs. Q-20 already
