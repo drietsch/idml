@@ -161,7 +161,25 @@ The harness itself is metric-neutral. It unlocks:
 
 ---
 
-## Track 3 — Anchored object positioning
+## Track 3 — Anchored object positioning — *deferred, no corpus impact*
+
+Investigated and skipped during cycle-3 execution. A precise count
+of `<TextFrame>` / `<Rectangle>` / `<Polygon>` / `<Group>` declared
+inside a `<CharacterStyleRange>` (the IDML serialisation of a true
+inline anchored frame) across all 60+ Envato packs returned **1
+match**. The 442 `AnchoredObjectSetting` hits in spread XML are
+the default serialisation InDesign attaches to every frame, not
+actual anchored references.
+
+A 5-7-day breaker change + post-pass emission for a single
+inline anchored frame in the entire corpus is the wrong order of
+priorities. Reopen if a body of corpus material appears where
+inline anchored figures matter (typically: editorial /
+technical-illustration packs we haven't yet ingested).
+
+Original plan retained below for reference.
+
+### Original goal + sub-tracks
 
 **Goal:** anchored `<TextFrame>` / `<Rectangle>` / `<Polygon>` /
 `<Group>` declared inside a `<CharacterStyleRange>` render at the
@@ -303,15 +321,24 @@ the visible set) still applies.
 `crates/idml-parse/src/story.rs`,
 `crates/idml-renderer/src/pipeline.rs`.
 
-### 5b. Cross-references
+### 5b. Cross-references — *deferred, no corpus impact*
 
-`<CrossReferenceSource>` + `<CrossReferenceFormat>` resolve to
-formatted text strings (e.g. "see page 12" or "Section 3.2"). Today
-we render `^X` / `^B` placeholder markers verbatim.
+Investigated and skipped during cycle-3 execution. The 549
+`CrossReference*` matches across the corpus are all
+`<CrossReferenceFormat>` declarations in `Resources/Preferences.xml`
+(the 9 default templates InDesign ships, present in every IDML).
+Zero packs contain a `<CrossReferenceSource>` element — no story
+actually inserts a cross-reference. Implementing the
+formatter would add untested code paths with no measurable corpus
+delta.
 
-**Files:** `crates/idml-parse/src/story.rs`, `crates/idml-scene/src/lib.rs`
-(cross-ref resolver), `crates/idml-renderer/src/pipeline.rs`.
-**Effort:** M (4-5 days). The format strings are templated.
+The plan's sketch (parse `<CrossReferenceSource>` + format-token
+substitution like `<pageNumber/>` / `<chapter/>`) still applies
+when a real IDML uses one.
+
+**Files (when revisited):** `crates/idml-parse/src/story.rs`,
+`crates/idml-scene/src/lib.rs` (cross-ref resolver),
+`crates/idml-renderer/src/pipeline.rs`.
 
 ### 5c. Hidden cross-references + index entries
 
