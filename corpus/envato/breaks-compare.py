@@ -9,11 +9,15 @@ Loads a candidate-side break JSONL (produced by `idml-inspect
        Detects composer-level break-decision changes (a tightened
        letter-spacing budget that re-flows a paragraph from 4 lines
        to 3 shows up here).
-    2. word_match_rate            : per matched line, does the
-       candidate's `first_byte..last_byte` slice of the source text
-       (loaded via --source) align with the reference line's
-       first_word..last_word? Reports the rate of fully-matching
-       pairs; 1.0 = perfect, 0.0 = nothing aligns.
+    2. word_match_rate            : per matched line, do the
+       candidate's first/last words (extracted from its
+       `source_text`, populated since cycle-5 Track 1) equal the
+       reference's first/last words? Reports the rate of pairs
+       where both endpoints match (1.0 = perfect). Hyphenation
+       tolerance: if the candidate's last "word" ends in `-`, the
+       reference's next-line first word is allowed to be the
+       continuation. Pre-cycle-5 candidate JSONLs that lack
+       `source_text` fall back to the legacy byte-span heuristic.
     3. baseline_drift_pt          : per matched line, the |Δ| between
        candidate baseline (frame-local) and reference baseline (page-
        local). Anchored to a per-page offset (the first matched
@@ -67,6 +71,42 @@ def normalise_word(s: str) -> str:
     return re.sub(r"[^\w]", "", s.lower())
 
 
+def word_endpoints_match(
+    candidate_text: str,
+    ref_first: str,
+    ref_last: str,
+    next_line_ref_first: str | None,
+) -> int:
+    """Return 1 when the candidate line's first and last words match
+    the reference line's; 0 otherwise. Handles two flavours of
+    hyphenation:
+
+    - **Candidate hyphenated**: candidate's last token ends in `-`;
+      the reference's *next* line's first word is the continuation.
+      Treat as a last-word match.
+    - **Reference soft-break**: rare; not handled here (would need
+      symmetric look-ahead on the candidate side).
+
+    Empty input on either side returns 0 (no match)."""
+    cand_words = candidate_text.split()
+    if not cand_words:
+        return 0
+    cf = normalise_word(cand_words[0])
+    cl_raw = cand_words[-1]
+    cl = normalise_word(cl_raw)
+    rf = normalise_word(ref_first)
+    rl = normalise_word(ref_last)
+    first_ok = bool(cf) and cf == rf
+    last_ok = bool(cl) and cl == rl
+    # Hyphenated candidate continuation tolerance.
+    if not last_ok and cl_raw.endswith("-") and next_line_ref_first:
+        last_ok = bool(cl) and (
+            cl == next_line_ref_first
+            or next_line_ref_first.startswith(cl)
+        )
+    return 1 if (first_ok and last_ok) else 0
+
+
 def load_jsonl(path: Path) -> list[dict]:
     with path.open("r", encoding="utf-8") as f:
         return [json.loads(line) for line in f if line.strip()]
@@ -107,27 +147,36 @@ def compare(cand_path: Path, ref_path: Path) -> dict:
         drifts = []
         page_word_total = 0
         page_word_hits = 0
-        for c, r in pairs:
+        # Look-ahead over the reference line list so hyphenation
+        # continuations can match across line boundaries.
+        next_ref_first: dict[int, str] = {}
+        for i in range(len(rls) - 1):
+            words = (rls[i + 1].get("first_word") or "").split()
+            if words:
+                next_ref_first[i] = normalise_word(words[0])
+        for i, (c, r) in enumerate(pairs):
             adj = (c["baseline_y_pt"] - r["baseline_y_pt"]) - base_offset
             drifts.append(abs(adj))
-            # Candidate doesn't carry word text; without the IDML's
-            # source text we approximate word equality via length
-            # parity of `last_byte − first_byte` ≈ ref word_count.
-            # A more honest implementation would require streaming
-            # source bytes through inspect.rs (next iteration).
             page_word_total += 1
-            cand_byte_span = c["last_byte"] - c["first_byte"]
-            ref_char_span = r["x_max"] - r["x_min"]
-            # Very loose alignment: byte span should be within 2x of
-            # the ref's pt-width / 6 (heuristic glyph-per-pt ratio).
-            # The point is to flag wild divergence, not to be precise.
-            est_ref_byte_span = ref_char_span / 6.0
-            if (
-                cand_byte_span > 0
-                and est_ref_byte_span > 0
-                and 0.5 < cand_byte_span / est_ref_byte_span < 2.0
-            ):
-                page_word_hits += 1
+            if c.get("source_text") is not None:
+                # Cycle-5 path: real first/last-word matching.
+                page_word_hits += word_endpoints_match(
+                    c["source_text"],
+                    r.get("first_word", ""),
+                    r.get("last_word", ""),
+                    next_ref_first.get(i),
+                )
+            else:
+                # Legacy heuristic for pre-cycle-5 candidate JSONLs.
+                cand_byte_span = c["last_byte"] - c["first_byte"]
+                ref_char_span = r["x_max"] - r["x_min"]
+                est_ref_byte_span = ref_char_span / 6.0
+                if (
+                    cand_byte_span > 0
+                    and est_ref_byte_span > 0
+                    and 0.5 < cand_byte_span / est_ref_byte_span < 2.0
+                ):
+                    page_word_hits += 1
 
         word_match_total += page_word_total
         word_match_hits += page_word_hits

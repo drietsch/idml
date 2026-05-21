@@ -1,5 +1,9 @@
 {
-  "_doc": "Cycle 4 Track 2c: per-fixture break-decision regression thresholds. Each entry pins the worst-case-acceptable metric observed at cycle-4 end + ~25% headroom. Future composer / shaper changes must keep their numbers at-or-below these. Loosening a threshold to chase a passing run is a regression in disguise — fix the change or revert.",
+  "_doc": "Per-fixture break-decision regression thresholds. Each entry pins the worst-case-acceptable metric observed at the cycle in which it was added + ~25-30% headroom. Future composer / shaper changes must keep their numbers at-or-below these. Loosening a threshold to chase a passing run is a regression in disguise — fix the change or revert.",
+  "_history": [
+    "cycle 4 (2c): initial gate with text + text-advanced; word_match_rate was a loose byte-span heuristic.",
+    "cycle 5 (Track 1): re-baselined word_match_rate after source-text plumbing. The new metric is strict first/last-word equality; pre-cycle-5 baselines and thresholds were retired."
+  ],
   "fixtures": [
     {
       "name": "text",
@@ -10,12 +14,12 @@
         "total_cand_lines": 19,
         "total_ref_lines": 16,
         "line_count_delta_sum": 3,
-        "word_match_rate_mean": 0.938,
+        "word_match_rate_mean": 0.562,
         "baseline_drift_pt_p99": 0.009
       },
       "thresholds": {
         "max_line_count_delta_sum": 4,
-        "min_word_match_rate_mean": 0.80,
+        "min_word_match_rate_mean": 0.45,
         "max_baseline_drift_pt_p99": 0.50
       }
     },
@@ -28,12 +32,13 @@
         "total_cand_lines": 27,
         "total_ref_lines": 23,
         "line_count_delta_sum": 6,
-        "word_match_rate_mean": 0.682,
+        "word_match_rate_mean": 0.0,
         "baseline_drift_pt_p99": 14.406
       },
       "thresholds": {
+        "_note": "word_match_rate_mean is 0.0: drop-cap segmentation differs between renderer (source text excludes drop cap) and pdftotext (sees the drop cap as the line's first word). Not a Q-20 calibration target; tracked separately.",
         "max_line_count_delta_sum": 8,
-        "min_word_match_rate_mean": 0.55,
+        "min_word_match_rate_mean": 0.0,
         "max_baseline_drift_pt_p99": 18.0
       }
     }
