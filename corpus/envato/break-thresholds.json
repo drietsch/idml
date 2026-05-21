@@ -2,7 +2,8 @@
   "_doc": "Per-fixture break-decision regression thresholds. Each entry pins the worst-case-acceptable metric observed at the cycle in which it was added + ~25-30% headroom. Future composer / shaper changes must keep their numbers at-or-below these. Loosening a threshold to chase a passing run is a regression in disguise — fix the change or revert.",
   "_history": [
     "cycle 4 (2c): initial gate with text + text-advanced; word_match_rate was a loose byte-span heuristic.",
-    "cycle 5 (Track 1): re-baselined word_match_rate after source-text plumbing. The new metric is strict first/last-word equality; pre-cycle-5 baselines and thresholds were retired."
+    "cycle 5 (Track 1): re-baselined word_match_rate after source-text plumbing. The new metric is strict first/last-word equality; pre-cycle-5 baselines and thresholds were retired.",
+    "cycle 5 (Track 2): added 8 Envato pack fixtures using the per-pack font-sub convention. Per-pack baselines are noisy because pack-wide candidate-vs-reference page alignment is structurally divergent (image-bearing frames, master spreads, unrendered content). Thresholds sized as regression nets against catastrophic harness breakage; narrowing to per-story / per-page-range filtering is a future refinement."
   ],
   "fixtures": [
     {
@@ -40,6 +41,150 @@
         "max_line_count_delta_sum": 8,
         "min_word_match_rate_mean": 0.0,
         "max_baseline_drift_pt_p99": 18.0
+      }
+    },
+    {
+      "name": "newspaper",
+      "pack": "newspaper",
+      "baseline_observed": {
+        "total_cand_lines": 1077,
+        "total_ref_lines": 1558,
+        "line_count_delta_sum": 481,
+        "word_match_rate_mean": 0.001,
+        "baseline_drift_pt_p99": 795.861
+      },
+      "thresholds": {
+        "max_line_count_delta_sum": 600,
+        "min_word_match_rate_mean": 0.0,
+        "max_baseline_drift_pt_p99": 1000.0
+      }
+    },
+    {
+      "name": "newspaper-template",
+      "pack": "newspaper-template",
+      "baseline_observed": {
+        "total_cand_lines": 1667,
+        "total_ref_lines": 2155,
+        "line_count_delta_sum": 488,
+        "word_match_rate_mean": 0.009,
+        "baseline_drift_pt_p99": 662.776
+      },
+      "thresholds": {
+        "max_line_count_delta_sum": 620,
+        "min_word_match_rate_mean": 0.0,
+        "max_baseline_drift_pt_p99": 850.0
+      }
+    },
+    {
+      "name": "newspaper-newsletter-layout",
+      "pack": "newspaper-newsletter-layout",
+      "baseline_observed": {
+        "total_cand_lines": 396,
+        "total_ref_lines": 437,
+        "line_count_delta_sum": 41,
+        "word_match_rate_mean": 0.003,
+        "baseline_drift_pt_p99": 518.969
+      },
+      "thresholds": {
+        "max_line_count_delta_sum": 60,
+        "min_word_match_rate_mean": 0.0,
+        "max_baseline_drift_pt_p99": 700.0
+      }
+    },
+    {
+      "name": "wedding-newspaper",
+      "pack": "wedding-newspaper",
+      "baseline_observed": {
+        "total_cand_lines": 191,
+        "total_ref_lines": 266,
+        "line_count_delta_sum": 75,
+        "word_match_rate_mean": 0.005,
+        "baseline_drift_pt_p99": 806.947
+      },
+      "thresholds": {
+        "max_line_count_delta_sum": 100,
+        "min_word_match_rate_mean": 0.0,
+        "max_baseline_drift_pt_p99": 1050.0
+      }
+    },
+    {
+      "name": "annual-report-template-8b5d40",
+      "pack": "annual-report-template-8b5d40",
+      "baseline_observed": {
+        "total_cand_lines": 536,
+        "total_ref_lines": 703,
+        "line_count_delta_sum": 167,
+        "word_match_rate_mean": 0.021,
+        "baseline_drift_pt_p99": 505.071
+      },
+      "thresholds": {
+        "max_line_count_delta_sum": 220,
+        "min_word_match_rate_mean": 0.0,
+        "max_baseline_drift_pt_p99": 660.0
+      }
+    },
+    {
+      "name": "business-magazine-template",
+      "pack": "business-magazine-template",
+      "baseline_observed": {
+        "total_cand_lines": 929,
+        "total_ref_lines": 1344,
+        "line_count_delta_sum": 423,
+        "word_match_rate_mean": 0.003,
+        "baseline_drift_pt_p99": 439.290
+      },
+      "thresholds": {
+        "max_line_count_delta_sum": 540,
+        "min_word_match_rate_mean": 0.0,
+        "max_baseline_drift_pt_p99": 580.0
+      }
+    },
+    {
+      "name": "company-profile-template",
+      "pack": "company-profile-template",
+      "baseline_observed": {
+        "total_cand_lines": 722,
+        "total_ref_lines": 1034,
+        "line_count_delta_sum": 312,
+        "word_match_rate_mean": 0.008,
+        "baseline_drift_pt_p99": 532.667
+      },
+      "thresholds": {
+        "max_line_count_delta_sum": 400,
+        "min_word_match_rate_mean": 0.0,
+        "max_baseline_drift_pt_p99": 690.0
+      }
+    },
+    {
+      "name": "food-cooking-magazine-template",
+      "pack": "food-cooking-magazine-template",
+      "baseline_observed": {
+        "total_cand_lines": 510,
+        "total_ref_lines": 543,
+        "line_count_delta_sum": 63,
+        "word_match_rate_mean": 0.0,
+        "baseline_drift_pt_p99": 633.734
+      },
+      "thresholds": {
+        "max_line_count_delta_sum": 90,
+        "min_word_match_rate_mean": 0.0,
+        "max_baseline_drift_pt_p99": 820.0
+      }
+    },
+    {
+      "name": "square-catalog-brochure-template",
+      "pack": "square-catalog-brochure-template",
+      "baseline_observed": {
+        "total_cand_lines": 442,
+        "total_ref_lines": 523,
+        "line_count_delta_sum": 85,
+        "word_match_rate_mean": 0.093,
+        "baseline_drift_pt_p99": 468.059
+      },
+      "thresholds": {
+        "max_line_count_delta_sum": 120,
+        "min_word_match_rate_mean": 0.05,
+        "max_baseline_drift_pt_p99": 620.0
       }
     }
   ]
