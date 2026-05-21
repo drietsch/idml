@@ -25,6 +25,25 @@
       }
     },
     {
+      "name": "tables",
+      "candidate_idml": "corpus/generated/tables.idml",
+      "reference_pdf": "corpus/generated/tables.pdf",
+      "font": "corpus/fonts/OpenSans.ttf",
+      "baseline_observed": {
+        "total_cand_lines": 66,
+        "total_ref_lines": 53,
+        "line_count_delta_sum": 13,
+        "word_match_rate_mean": 0.943,
+        "baseline_drift_pt_p99": 160.971
+      },
+      "thresholds": {
+        "_note": "cycle-5 Track 4: tables fixture pinned after wiring emit_cell_paragraph to BreakRecord collection. Word match is high (0.94) because cell content first/last words align well with pdftotext. baseline_drift_p99 is large because cell-text y origins differ from body-paragraph y origins by frame inset.",
+        "max_line_count_delta_sum": 20,
+        "min_word_match_rate_mean": 0.80,
+        "max_baseline_drift_pt_p99": 200.0
+      }
+    },
+    {
       "name": "text-advanced",
       "candidate_idml": "corpus/generated/text-advanced.idml",
       "reference_pdf": "corpus/generated/text-advanced.pdf",
