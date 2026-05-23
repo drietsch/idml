@@ -111,6 +111,9 @@ else:
 # applies via --break-story-id; page-range via --break-page-range.
 print(f'FX_BREAK_STORY={json.dumps(entry.get("break_story_id", ""))}')
 print(f'FX_BREAK_PAGE_RANGE={json.dumps(entry.get("break_page_range", ""))}')
+# Cycle-6 Track 2: when true, pass --strict-pairs to the compare
+# step so un-aligned pair noise stays out of the drift metric.
+print(f'FX_STRICT_PAIRS={"1" if entry.get("strict_pairs", False) else ""}')
 PY
 }
 
@@ -194,7 +197,9 @@ for name in "${SELECTED[@]}"; do
         OVERALL_PASS=0
         continue
     }
-    python3 "$COMPARE" "$cand" "$ref" "$report" 2>/dev/null || {
+    COMPARE_FLAGS=()
+    [ -n "$FX_STRICT_PAIRS" ] && COMPARE_FLAGS+=(--strict-pairs)
+    python3 "$COMPARE" ${COMPARE_FLAGS[@]+"${COMPARE_FLAGS[@]}"} "$cand" "$ref" "$report" 2>/dev/null || {
         echo "[$name] FAIL: breaks-compare.py exited non-zero" >&2
         OVERALL_PASS=0
         continue

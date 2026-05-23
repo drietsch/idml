@@ -51,7 +51,14 @@ Output JSON shape:
     }
 
 Usage:
-    python3 breaks-compare.py CANDIDATE.jsonl REFERENCE.jsonl OUT.json
+    python3 breaks-compare.py [--strict-pairs] CANDIDATE.jsonl REFERENCE.jsonl OUT.json
+
+`--strict-pairs` (cycle 6 Track 2): exclude un-aligned cand-ref
+pairs from `baseline_drift` (and still count their word_match=0
+contributions). Useful when the candidate has been filtered via
+`--break-story-id` against a reference that contains additional
+unrelated lines on the same page — the structural-divergence noise
+no longer dominates the drift metric.
 """
 
 from __future__ import annotations
@@ -112,7 +119,7 @@ def load_jsonl(path: Path) -> list[dict]:
         return [json.loads(line) for line in f if line.strip()]
 
 
-def compare(cand_path: Path, ref_path: Path) -> dict:
+def compare(cand_path: Path, ref_path: Path, strict_pairs: bool = False) -> dict:
     cand = load_jsonl(cand_path)
     ref = load_jsonl(ref_path)
     cand_by_page: dict[int, list[dict]] = defaultdict(list)
@@ -144,39 +151,54 @@ def compare(cand_path: Path, ref_path: Path) -> dict:
             base_offset = pairs[0][0]["baseline_y_pt"] - pairs[0][1]["baseline_y_pt"]
         else:
             base_offset = 0.0
-        drifts = []
-        page_word_total = 0
-        page_word_hits = 0
-        # Look-ahead over the reference line list so hyphenation
-        # continuations can match across line boundaries.
+
+        # Cycle-6 Track 2: pre-compute the per-pair word-endpoint
+        # match. In strict-pairs mode this gates the baseline-drift
+        # contribution as well — only pairs where the candidate's
+        # first/last word actually align with the reference's
+        # contribute to the metric, so structural-divergence noise
+        # (pdftotext seeing all lines on a multi-story page while
+        # candidate sees only the filtered story) stops dominating.
         next_ref_first: dict[int, str] = {}
         for i in range(len(rls) - 1):
             words = (rls[i + 1].get("first_word") or "").split()
             if words:
                 next_ref_first[i] = normalise_word(words[0])
+        pair_hits: list[int] = []
         for i, (c, r) in enumerate(pairs):
-            adj = (c["baseline_y_pt"] - r["baseline_y_pt"]) - base_offset
-            drifts.append(abs(adj))
-            page_word_total += 1
             if c.get("source_text") is not None:
-                # Cycle-5 path: real first/last-word matching.
-                page_word_hits += word_endpoints_match(
-                    c["source_text"],
-                    r.get("first_word", ""),
-                    r.get("last_word", ""),
-                    next_ref_first.get(i),
+                pair_hits.append(
+                    word_endpoints_match(
+                        c["source_text"],
+                        r.get("first_word", ""),
+                        r.get("last_word", ""),
+                        next_ref_first.get(i),
+                    )
                 )
             else:
                 # Legacy heuristic for pre-cycle-5 candidate JSONLs.
                 cand_byte_span = c["last_byte"] - c["first_byte"]
                 ref_char_span = r["x_max"] - r["x_min"]
                 est_ref_byte_span = ref_char_span / 6.0
-                if (
-                    cand_byte_span > 0
-                    and est_ref_byte_span > 0
-                    and 0.5 < cand_byte_span / est_ref_byte_span < 2.0
-                ):
-                    page_word_hits += 1
+                pair_hits.append(
+                    1 if (
+                        cand_byte_span > 0
+                        and est_ref_byte_span > 0
+                        and 0.5 < cand_byte_span / est_ref_byte_span < 2.0
+                    ) else 0
+                )
+
+        drifts = []
+        page_word_total = 0
+        page_word_hits = 0
+        for i, (c, r) in enumerate(pairs):
+            page_word_total += 1
+            page_word_hits += pair_hits[i]
+            if strict_pairs and pair_hits[i] == 0:
+                # Skip baseline-drift contribution for un-aligned pairs.
+                continue
+            adj = (c["baseline_y_pt"] - r["baseline_y_pt"]) - base_offset
+            drifts.append(abs(adj))
 
         word_match_total += page_word_total
         word_match_hits += page_word_hits
@@ -217,13 +239,25 @@ def pct(xs: list[float], q: int) -> float:
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) != 4:
-        print(f"usage: {argv[0]} CANDIDATE.jsonl REFERENCE.jsonl OUT.json", file=sys.stderr)
+    # Trivial argv parser keeps the script free of an argparse dep;
+    # cycle-6 adds --strict-pairs.
+    strict_pairs = False
+    args = []
+    for a in argv[1:]:
+        if a == "--strict-pairs":
+            strict_pairs = True
+        else:
+            args.append(a)
+    if len(args) != 3:
+        print(
+            f"usage: {argv[0]} [--strict-pairs] CANDIDATE.jsonl REFERENCE.jsonl OUT.json",
+            file=sys.stderr,
+        )
         return 2
-    cand_path = Path(argv[1])
-    ref_path = Path(argv[2])
-    out_path = Path(argv[3])
-    result = compare(cand_path, ref_path)
+    cand_path = Path(args[0])
+    ref_path = Path(args[1])
+    out_path = Path(args[2])
+    result = compare(cand_path, ref_path, strict_pairs=strict_pairs)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     s = result["summary"]
