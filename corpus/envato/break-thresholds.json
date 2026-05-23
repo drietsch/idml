@@ -1,5 +1,5 @@
 {
-  "_doc": "Per-fixture break-decision regression thresholds. Each entry pins the worst-case-acceptable metric observed at the cycle in which it was added + ~25-30% headroom. Future composer / shaper changes must keep their numbers at-or-below these. Loosening a threshold to chase a passing run is a regression in disguise — fix the change or revert.",
+  "_doc": "Per-fixture break-decision regression thresholds. Each entry pins the worst-case-acceptable metric observed at the cycle in which it was added + ~25-30% headroom. Future composer / shaper changes must keep their numbers at-or-below these. Loosening a threshold to chase a passing run is a regression in disguise \u2014 fix the change or revert.",
   "_history": [
     "cycle 4 (2c): initial gate with text + text-advanced; word_match_rate was a loose byte-span heuristic.",
     "cycle 5 (Track 1): re-baselined word_match_rate after source-text plumbing. The new metric is strict first/last-word equality; pre-cycle-5 baselines and thresholds were retired.",
@@ -21,7 +21,7 @@
       "thresholds": {
         "max_line_count_delta_sum": 4,
         "min_word_match_rate_mean": 0.45,
-        "max_baseline_drift_pt_p99": 0.50
+        "max_baseline_drift_pt_p99": 0.5
       }
     },
     {
@@ -39,7 +39,7 @@
       "thresholds": {
         "_note": "cycle-5 Track 4: tables fixture pinned after wiring emit_cell_paragraph to BreakRecord collection. Word match is high (0.94) because cell content first/last words align well with pdftotext. baseline_drift_p99 is large because cell-text y origins differ from body-paragraph y origins by frame inset.",
         "max_line_count_delta_sum": 20,
-        "min_word_match_rate_mean": 0.80,
+        "min_word_match_rate_mean": 0.8,
         "max_baseline_drift_pt_p99": 200.0
       }
     },
@@ -150,7 +150,7 @@
         "total_ref_lines": 1344,
         "line_count_delta_sum": 423,
         "word_match_rate_mean": 0.003,
-        "baseline_drift_pt_p99": 439.290
+        "baseline_drift_pt_p99": 439.29
       },
       "thresholds": {
         "max_line_count_delta_sum": 540,
@@ -164,8 +164,8 @@
       "baseline_observed": {
         "total_cand_lines": 722,
         "total_ref_lines": 1034,
-        "line_count_delta_sum": 312,
-        "word_match_rate_mean": 0.008,
+        "line_count_delta_sum": 262,
+        "word_match_rate_mean": 0.009,
         "baseline_drift_pt_p99": 532.667
       },
       "thresholds": {
