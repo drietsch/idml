@@ -106,6 +106,11 @@ else:
     print(f'FX_IDML={json.dumps(entry["candidate_idml"])}')
     print(f'FX_PDF={json.dumps(entry["reference_pdf"])}')
     print(f'FX_FONT={json.dumps(entry["font"])}')
+# Cycle-6 Track 1: optional candidate-side filters. Both default to
+# empty strings so callers can `[ -n ]`-check them. Story filter
+# applies via --break-story-id; page-range via --break-page-range.
+print(f'FX_BREAK_STORY={json.dumps(entry.get("break_story_id", ""))}')
+print(f'FX_BREAK_PAGE_RANGE={json.dumps(entry.get("break_page_range", ""))}')
 PY
 }
 
@@ -155,10 +160,17 @@ for name in "${SELECTED[@]}"; do
     ref="$OUT/$name.ref.jsonl"
     report="$OUT/$name.json"
 
+    # Cycle-6 Track 1: thread the candidate-side filters through
+    # idml-inspect when the manifest set them.
+    FILTER_FLAGS=()
+    [ -n "$FX_BREAK_STORY" ] && FILTER_FLAGS+=(--break-story-id "$FX_BREAK_STORY")
+    [ -n "$FX_BREAK_PAGE_RANGE" ] && FILTER_FLAGS+=(--break-page-range "$FX_BREAK_PAGE_RANGE")
+
     if [ "$FX_KIND" = "pack" ]; then
         "$INSPECT" \
             --default-font "$DEFAULT_FONT" \
             "${FONT_FLAGS[@]}" \
+            ${FILTER_FLAGS[@]+"${FILTER_FLAGS[@]}"} \
             --emit-breaks "$cand" \
             "$FX_IDML" >/dev/null 2>"$OUT/$name.inspect.log" || {
                 echo "[$name] FAIL: idml-inspect exited non-zero (see $OUT/$name.inspect.log)" >&2
@@ -168,6 +180,7 @@ for name in "${SELECTED[@]}"; do
     else
         "$INSPECT" \
             "${FONT_FLAGS[@]}" \
+            ${FILTER_FLAGS[@]+"${FILTER_FLAGS[@]}"} \
             --emit-breaks "$cand" \
             "$FX_IDML" >/dev/null 2>"$OUT/$name.inspect.log" || {
                 echo "[$name] FAIL: idml-inspect exited non-zero (see $OUT/$name.inspect.log)" >&2
