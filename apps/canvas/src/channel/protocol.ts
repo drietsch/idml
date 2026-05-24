@@ -74,7 +74,51 @@ export type WorkerToMainKind =
   | { kind: "warning"; payload: { kind: string; details: string } }
   | { kind: "stats"; payload: DocumentStats }
   | { kind: "snapshotReady"; payload: SnapshotPng }
-  | { kind: "snapshotFailed"; payload: { error: SnapshotError } };
+  | { kind: "snapshotFailed"; payload: { error: SnapshotError } }
+  | {
+      kind: "attachReady";
+      payload: { gpuActive: boolean; sceneCacheBudget: number };
+    }
+  | { kind: "resolutionDone"; payload: ResolutionResult };
+
+export interface ResolutionResult {
+  numbering: Record<string, AnchorPosition>;
+  fieldDiff: FieldChange[];
+  dirtyPages: PageId[];
+  iterations: number;
+  runningHeaders: RunningHeader[];
+  toc: TocEntry[];
+  footnoteCount: number;
+}
+
+export interface RunningHeader {
+  pageId: PageId;
+  pageNumber: number;
+  text: string;
+  level: number;
+}
+
+export interface TocEntry {
+  level: number;
+  text: string;
+  pageNumber: number;
+  includeStyle: string;
+}
+
+export interface AnchorPosition {
+  pageNumber: number;
+  pageId: PageId | null;
+  counters: Record<string, number>;
+  text: string;
+  level: number;
+}
+
+export interface FieldChange {
+  fieldId: string;
+  storyId: string;
+  oldText: string;
+  newText: string;
+}
 
 export interface SnapshotPng {
   pageId: PageId;

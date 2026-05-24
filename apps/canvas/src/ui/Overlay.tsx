@@ -8,7 +8,7 @@
 // so they stay 2 px wide at any zoom.
 
 import type { Camera } from "../channel/camera";
-import type { PageId } from "../channel/protocol";
+import type { PageId, ResolutionResult } from "../channel/protocol";
 import type { PageRect } from "./layout";
 import type { SelectionState } from "./ViewportCanvas";
 
@@ -17,6 +17,7 @@ export interface OverlayProps {
   pageIds: ReadonlyArray<PageId>;
   pageRects: ReadonlyArray<PageRect>;
   selection: SelectionState | null;
+  resolution: ResolutionResult | null;
   /** CSS-px viewport size. Needed to size the SVG. */
   width: number;
   height: number;
@@ -52,9 +53,94 @@ export function Overlay(props: OverlayProps) {
             cameraScale={k}
           />
         )}
+        {/* Anchor badges — one per heading anchor from Tier 3 */}
+        {props.resolution && (
+          <AnchorBadges
+            resolution={props.resolution}
+            pageRects={props.pageRects}
+            pageIds={props.pageIds}
+            cameraScale={k}
+          />
+        )}
       </g>
     </svg>
   );
+}
+
+function AnchorBadges(props: {
+  resolution: ResolutionResult;
+  pageIds: ReadonlyArray<PageId>;
+  pageRects: ReadonlyArray<PageRect>;
+  cameraScale: number;
+}) {
+  // Group anchors by containing page so badges from multiple
+  // headings on the same page stack vertically instead of overlapping.
+  type Entry = {
+    anchorId: string;
+    text: string;
+    level: number;
+    pageNumber: number;
+  };
+  const byPage = new Map<PageId, Entry[]>();
+  for (const [anchorId, pos] of Object.entries(props.resolution.numbering)) {
+    if (!pos.pageId) continue;
+    const list = byPage.get(pos.pageId) ?? [];
+    list.push({
+      anchorId,
+      text: pos.text,
+      level: pos.level,
+      pageNumber: pos.pageNumber,
+    });
+    byPage.set(pos.pageId, list);
+  }
+
+  const inv = 1 / props.cameraScale;
+  const badges: React.ReactNode[] = [];
+  for (const [pageId, anchors] of byPage) {
+    const idx = props.pageIds.indexOf(pageId);
+    if (idx < 0) continue;
+    const r = props.pageRects[idx];
+    // Stable order by level so siblings on the same page render
+    // top-down by h1, h2, h3.
+    anchors.sort((a, b) => a.level - b.level);
+    anchors.forEach((a, i) => {
+      const cx = r.x + 8 / props.cameraScale;
+      const cy = r.y + (12 + i * 22) / props.cameraScale;
+      const trimmed = a.text.length > 28 ? `${a.text.slice(0, 27)}…` : a.text;
+      const label = `⚓ ${a.pageNumber} — ${trimmed}`;
+      // Compute pixel width via a simple char heuristic so the
+      // background rect tracks the text length. SVG <text>
+      // intrinsic measurement requires a second pass after mount;
+      // the heuristic is good enough for fixed-width-ish system UI.
+      const labelWidthPx = 8 + label.length * 6.0;
+      badges.push(
+        <g
+          key={`${pageId}:${a.anchorId}`}
+          transform={`translate(${cx}, ${cy}) scale(${inv})`}
+        >
+          <rect
+            x={0}
+            y={-9}
+            width={labelWidthPx}
+            height={16}
+            rx={3}
+            fill="#10b981"
+            fillOpacity="0.92"
+          />
+          <text
+            x={4}
+            y={3}
+            fontSize={10}
+            fontFamily="system-ui, sans-serif"
+            fill="white"
+          >
+            {label}
+          </text>
+        </g>,
+      );
+    });
+  }
+  return <>{badges}</>;
 }
 
 function PageCaption(props: {

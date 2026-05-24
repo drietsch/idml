@@ -18,7 +18,12 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { CanvasClient } from "../channel/client";
 import { viewportToDoc, type Camera } from "../channel/camera";
-import type { HitResult, PageId } from "../channel/protocol";
+import type {
+  HitResult,
+  PageId,
+  ResolutionResult,
+  RunningHeader,
+} from "../channel/protocol";
 import { documentBounds, fitCamera, layoutPages, zoomAt, type PageRect } from "./layout";
 import { Overlay } from "./Overlay";
 
@@ -39,6 +44,12 @@ export interface ViewportCanvasProps {
   onHit?: (selection: SelectionState | null) => void;
   /** Current selection; used by the overlay to highlight the hit point + page. */
   selection?: SelectionState | null;
+  /** Main-thread FPS, sampled via rAF. Shown in the HUD. */
+  fps?: number;
+  /** Whether the worker successfully initialised WebGPU. `null` while undetermined. */
+  gpuActive?: boolean | null;
+  /** Tier 3 resolution result — anchor table + per-anchor page numbers. */
+  resolution?: ResolutionResult | null;
 }
 
 const CLICK_DRAG_THRESHOLD_PX = 4;
@@ -246,13 +257,23 @@ export function ViewportCanvas(props: ViewportCanvasProps) {
         pageIds={props.pageIds}
         pageRects={rects}
         selection={props.selection ?? null}
+        resolution={props.resolution ?? null}
         width={wrapperRef.current?.clientWidth ?? 0}
         height={wrapperRef.current?.clientHeight ?? 0}
       />
       <ViewportHud
         camera={props.camera}
         pageCount={props.pageIds.length}
+        pageIds={props.pageIds}
+        pageRects={rects}
         selection={props.selection ?? null}
+        fps={props.fps ?? 0}
+        gpuActive={props.gpuActive ?? null}
+        anchorCount={
+          props.resolution ? Object.keys(props.resolution.numbering).length : 0
+        }
+        footnoteCount={props.resolution?.footnoteCount ?? 0}
+        runningHeaders={props.resolution?.runningHeaders ?? []}
       />
     </div>
   );
@@ -261,12 +282,76 @@ export function ViewportCanvas(props: ViewportCanvasProps) {
 function ViewportHud(props: {
   camera: Camera;
   pageCount: number;
+  pageIds: ReadonlyArray<PageId>;
+  pageRects: ReadonlyArray<PageRect>;
   selection: SelectionState | null;
+  fps: number;
+  gpuActive: boolean | null;
+  anchorCount: number;
+  footnoteCount: number;
+  runningHeaders: ReadonlyArray<RunningHeader>;
 }) {
   const sel = props.selection;
+  const gpuBadge = props.gpuActive === null
+    ? { label: "…", color: "#9ca3af" }
+    : props.gpuActive
+      ? { label: "GPU", color: "#10b981" }
+      : { label: "CPU", color: "#f59e0b" };
+  const fpsColor =
+    props.fps === 0
+      ? "#9ca3af"
+      : props.fps >= 55
+        ? "#10b981"
+        : props.fps >= 30
+          ? "#f59e0b"
+          : "#ef4444";
   return (
     <div style={hudStyle}>
+      <span style={{ color: gpuBadge.color, fontWeight: 600 }}>
+        {gpuBadge.label}
+      </span>
+      {props.fps > 0 && (
+        <span style={{ color: fpsColor }}>{props.fps} fps</span>
+      )}
       <span>{props.pageCount} pages</span>
+      {props.anchorCount > 0 && (
+        <span style={{ color: "#34d399" }}>{props.anchorCount} ⚓</span>
+      )}
+      {props.footnoteCount > 0 && (
+        <span style={{ color: "#a78bfa" }}>{props.footnoteCount} fn</span>
+      )}
+      {(() => {
+        // Show the running header for the page closest to viewport
+        // centre — gives a "where am I" anchor for long documents.
+        const [vw, vh] = [
+          // approximate viewport size from camera scale + canvas dims
+          800,
+          600,
+        ];
+        const cx = vw / 2;
+        const cy = vh / 2;
+        const docX = (cx - props.camera.tx) / Math.max(1e-6, props.camera.scale);
+        const docY = (cy - props.camera.ty) / Math.max(1e-6, props.camera.scale);
+        let currentIdx = 0;
+        let bestDistSq = Infinity;
+        for (let i = 0; i < props.pageRects.length; i++) {
+          const r = props.pageRects[i];
+          const px = r.x + r.w / 2;
+          const py = r.y + r.h / 2;
+          const dsq = (px - docX) ** 2 + (py - docY) ** 2;
+          if (dsq < bestDistSq) {
+            bestDistSq = dsq;
+            currentIdx = i;
+          }
+        }
+        const header = props.runningHeaders[currentIdx];
+        if (header?.text) {
+          const truncated =
+            header.text.length > 24 ? `${header.text.slice(0, 23)}…` : header.text;
+          return <span style={{ color: "#fde047" }}>§ {truncated}</span>;
+        }
+        return null;
+      })()}
       <span>{(props.camera.scale * 100).toFixed(0)}%</span>
       <span>
         {props.camera.tx.toFixed(0)}, {props.camera.ty.toFixed(0)}

@@ -30,9 +30,18 @@ import {
   IDENTITY_CAMERA,
   type Camera,
 } from "../channel/camera";
-import type { DocumentHandle, PageId, WorkerToMain } from "../channel/protocol";
+import type {
+  DocumentHandle,
+  PageId,
+  ResolutionResult,
+  WorkerToMain,
+} from "../channel/protocol";
 import { Navigator as PageNavigator } from "./Navigator";
+import { Outline } from "./Outline";
 import { ViewportCanvas, type SelectionState } from "./ViewportCanvas";
+import { useAnimatedCamera } from "./useAnimatedCamera";
+import { useFps } from "./useFps";
+import { useKeyboardShortcuts } from "./useKeyboardShortcuts";
 
 const SNAPSHOT_WIDTH_PX = 256;
 
@@ -44,9 +53,13 @@ export function CanvasApp() {
   const [snapshots, setSnapshots] = useState<Map<PageId, string>>(new Map());
   const [camera, setCameraState] = useState<Camera>(IDENTITY_CAMERA);
   const [selection, setSelection] = useState<SelectionState | null>(null);
+  const [gpuActive, setGpuActive] = useState<boolean | null>(null);
+  const [loading, setLoading] = useState<{ name: string; bytes: number } | null>(null);
+  const [resolution, setResolution] = useState<ResolutionResult | null>(null);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const [viewportSize, setViewportSize] = useState<[number, number]>([0, 0]);
   const sabSupported = useMemo(() => supportsSharedArrayBuffer(), []);
+  const fps = useFps();
 
   useEffect(() => {
     const client = new CanvasClient();
@@ -54,6 +67,10 @@ export function CanvasApp() {
     const off = client.subscribe((msg: WorkerToMain) => {
       if (msg.kind === "warning") {
         setWarnings((prev) => [...prev, `${msg.payload.kind}: ${msg.payload.details}`]);
+      } else if (msg.kind === "attachReady") {
+        setGpuActive(msg.payload.gpuActive);
+      } else if (msg.kind === "resolutionDone") {
+        setResolution(msg.payload);
       }
     });
     client
@@ -80,6 +97,17 @@ export function CanvasApp() {
     setCameraState(cam);
     clientRef.current?.setCamera(cam);
   }, []);
+  // Animated jumps for discrete navigation (navigator click,
+  // keyboard fit, goto-page). Direct pan/zoom from the viewport
+  // still goes through `setCamera` for one-frame responsiveness.
+  const animateCamera = useAnimatedCamera(camera, setCamera);
+  useKeyboardShortcuts({
+    pageIds: handle?.pageIds ?? [],
+    pageSizesPt: handle?.pageSizesPt ?? [],
+    camera,
+    viewportSize,
+    animateCamera,
+  });
 
   // Observe viewport size for the fit-to-page navigator jumps. Use
   // ResizeObserver so window resizes update the camera math.
@@ -100,6 +128,7 @@ export function CanvasApp() {
       return;
     }
     setStatus(`loading ${file.name} (${file.size.toLocaleString()} bytes)…`);
+    setLoading({ name: file.name, bytes: file.size });
     const bytes = new Uint8Array(await file.arrayBuffer());
     // Revoke any object URLs from a prior document — the snapshot
     // tier per spec is never evicted, but a new document means the
@@ -108,9 +137,12 @@ export function CanvasApp() {
       for (const url of prev.values()) URL.revokeObjectURL(url);
       return new Map();
     });
+    // Old resolution is stale for a new document.
+    setResolution(null);
     try {
       const h = await clientRef.current.loadDocument(bytes);
       setHandle(h);
+      setLoading(null);
       setStatus(
         `loaded ${h.pageCount} page${h.pageCount === 1 ? "" : "s"}; snapshotting…`,
       );
@@ -133,6 +165,7 @@ export function CanvasApp() {
       }
       setStatus(`loaded ${h.pageCount} page${h.pageCount === 1 ? "" : "s"}`);
     } catch (err) {
+      setLoading(null);
       setStatus(`load failed: ${String(err)}`);
     }
   }, []);
@@ -170,7 +203,16 @@ export function CanvasApp() {
             pageSizesPt={handle.pageSizesPt}
             snapshots={snapshots}
             viewportSize={viewportSize}
-            onCameraChange={setCamera}
+            onCameraChange={animateCamera}
+          />
+        )}
+        {handle && handle.pageCount > 0 && resolution && (
+          <Outline
+            resolution={resolution}
+            pageIds={handle.pageIds}
+            pageSizesPt={handle.pageSizesPt}
+            viewportSize={viewportSize}
+            onCameraChange={animateCamera}
           />
         )}
         <div ref={viewportRef} style={viewportContainerStyle}>
@@ -183,10 +225,14 @@ export function CanvasApp() {
               onCameraChange={setCamera}
               onHit={setSelection}
               selection={selection}
+              fps={fps}
+              gpuActive={gpuActive}
+              resolution={resolution}
             />
           ) : (
             <EmptyState />
           )}
+          {loading && <LoadingOverlay name={loading.name} bytes={loading.bytes} />}
         </div>
       </div>
     </div>
@@ -199,6 +245,20 @@ function EmptyState() {
       <p style={{ fontSize: 14, color: "#555" }}>
         Drop an IDML file in the header to begin.
       </p>
+    </div>
+  );
+}
+
+function LoadingOverlay(props: { name: string; bytes: number }) {
+  return (
+    <div style={loadingOverlayStyle}>
+      <div style={spinnerStyle} />
+      <div style={{ fontSize: 13, color: "#374151", marginTop: 12 }}>
+        Parsing <strong>{props.name}</strong>
+      </div>
+      <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
+        {(props.bytes / 1024).toFixed(1)} KiB
+      </div>
     </div>
   );
 }
@@ -271,6 +331,27 @@ const emptyStyle: React.CSSProperties = {
   alignItems: "center",
   justifyContent: "center",
   background: "#f3f4f6",
+};
+
+const loadingOverlayStyle: React.CSSProperties = {
+  position: "absolute",
+  inset: 0,
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "center",
+  background: "rgba(243, 244, 246, 0.85)",
+  zIndex: 10,
+  pointerEvents: "none",
+};
+
+const spinnerStyle: React.CSSProperties = {
+  width: 32,
+  height: 32,
+  border: "3px solid #d1d5db",
+  borderTopColor: "#2563eb",
+  borderRadius: "50%",
+  animation: "idml-canvas-spin 0.9s linear infinite",
 };
 
 const dropStyle: React.CSSProperties = {

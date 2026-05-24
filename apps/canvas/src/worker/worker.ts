@@ -25,6 +25,7 @@ interface CanvasWorkerInstance {
   pageCount(): number;
   pageInfo(index: number): unknown;
   renderTilePng(pageId: string, targetWidthPx: number): Uint8Array | undefined;
+  runResolveJson(): string | undefined;
   free(): void;
   // GPU surface, only present when the `gpu` feature is enabled at
   // build time. The worker probes via `gpuReady` after `initGpu`.
@@ -132,9 +133,27 @@ self.addEventListener("message", async (event: MessageEvent) => {
     const reply = JSON.parse(replyJson) as WorkerToMain;
     postBack(reply);
     // A successful DocumentLoaded means our model is fresh; the
-    // renderer needs its page layout rebuilt.
-    if (reply.kind === "documentLoaded" && renderer) {
-      renderer.refreshLayout();
+    // renderer needs its page layout rebuilt, and the Tier 3
+    // resolver should run once so the UI can show anchor + page-
+    // number facts.
+    if (reply.kind === "documentLoaded") {
+      if (renderer) {
+        renderer.refreshLayout();
+      }
+      const resolutionJson = worker.runResolveJson();
+      if (resolutionJson) {
+        try {
+          const payload = JSON.parse(resolutionJson);
+          postBack({
+            seq: null,
+            protocol: PROTOCOL_VERSION,
+            kind: "resolutionDone",
+            payload,
+          });
+        } catch (e) {
+          console.warn("resolution JSON parse failed:", e);
+        }
+      }
     }
   }
 });
@@ -188,6 +207,14 @@ async function attachRenderer(
     renderer.refreshLayout();
   }
   renderer.start();
+  // Notify the main thread so the HUD can show the GPU/CPU badge
+  // and the developer console can confirm initGpu's outcome.
+  postBack({
+    seq: null,
+    protocol: PROTOCOL_VERSION,
+    kind: "attachReady",
+    payload: { gpuActive, sceneCacheBudget: 200 },
+  });
 }
 
 function postBack(msg: WorkerToMain) {
