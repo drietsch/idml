@@ -7,12 +7,15 @@
 
 import {
   PROTOCOL_VERSION,
+  type CaretGeometry,
+  type ContentSelection,
   type DocumentHandle,
   type LodTier,
   type MainToWorker,
   type MainToWorkerKind,
   type Mutation,
   type PageId,
+  type SelectionRect,
   type SnapshotPng,
   type WorkerToMain,
 } from "./protocol";
@@ -113,6 +116,39 @@ export class CanvasClient {
 
   async mutate(mutation: Mutation): Promise<WorkerToMain> {
     return this.send({ kind: "mutate", payload: mutation });
+  }
+
+  /** Phase 3 — replace the worker's selection state. */
+  async setSelection(selection: ContentSelection | null): Promise<WorkerToMain> {
+    return this.send({ kind: "setSelection", payload: { selection } });
+  }
+
+  /** Phase 3 — fetch the caret rectangle for a selection. */
+  async caretGeometry(selection: ContentSelection): Promise<CaretGeometry | null> {
+    const reply = await this.send({
+      kind: "requestCaretGeometry",
+      payload: { selection },
+    });
+    if (reply.kind === "caretGeometry") return reply.payload.caret;
+    throw new Error(`unexpected reply: ${reply.kind}`);
+  }
+
+  /** Phase 3 — fetch rect-per-line selection geometry. */
+  async selectionGeometry(selection: ContentSelection): Promise<SelectionRect[]> {
+    const reply = await this.send({
+      kind: "requestSelectionGeometry",
+      payload: { selection },
+    });
+    if (reply.kind === "selectionGeometry") return reply.payload.rects;
+    throw new Error(`unexpected reply: ${reply.kind}`);
+  }
+
+  async undo(): Promise<WorkerToMain> {
+    return this.send({ kind: "undo" });
+  }
+
+  async redo(): Promise<WorkerToMain> {
+    return this.send({ kind: "redo" });
   }
 
   /** Write the camera transform. Worker reads it on the next frame. */

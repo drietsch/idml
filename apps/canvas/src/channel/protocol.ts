@@ -41,7 +41,45 @@ export type MainToWorkerKind =
   | {
       kind: "requestSnapshot";
       payload: { pageId: PageId; targetWidthPx: number };
-    };
+    }
+  | {
+      kind: "setSelection";
+      payload: { selection: ContentSelection | null };
+    }
+  | {
+      kind: "requestSelectionGeometry";
+      payload: { selection: ContentSelection };
+    }
+  | {
+      kind: "requestCaretGeometry";
+      payload: { selection: ContentSelection };
+    }
+  | { kind: "undo" }
+  | { kind: "redo" };
+
+export interface ContentSelection {
+  storyId: string;
+  start: number;
+  end: number;
+  affinity: boolean;
+}
+
+export interface CaretGeometry {
+  pageId: PageId;
+  frameId: string | null;
+  xPt: number;
+  topPt: number;
+  heightPt: number;
+}
+
+export interface SelectionRect {
+  pageId: PageId;
+  frameId: string | null;
+  leftPt: number;
+  topPt: number;
+  widthPt: number;
+  heightPt: number;
+}
 
 export type LodTier = "snapshot" | "midRes" | "live";
 export type HitFilter = "frame" | "text" | "any";
@@ -79,7 +117,27 @@ export type WorkerToMainKind =
       kind: "attachReady";
       payload: { gpuActive: boolean; sceneCacheBudget: number };
     }
-  | { kind: "resolutionDone"; payload: ResolutionResult };
+  | { kind: "resolutionDone"; payload: ResolutionResult }
+  | {
+      kind: "mutationApplied";
+      payload: { clientSeq: number; appliedSeq: number; pageIds: PageId[] };
+    }
+  | {
+      kind: "selectionGeometry";
+      payload: { rects: SelectionRect[] };
+    }
+  | {
+      kind: "caretGeometry";
+      payload: { caret: CaretGeometry | null };
+    }
+  | {
+      kind: "undoApplied";
+      payload: { undoneSeq: number; appliedSeq: number; pageIds: PageId[] };
+    }
+  | {
+      kind: "redoApplied";
+      payload: { redoneSeq: number; appliedSeq: number; pageIds: PageId[] };
+    };
 
 export interface ResolutionResult {
   numbering: Record<string, AnchorPosition>;

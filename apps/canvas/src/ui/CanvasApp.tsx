@@ -31,9 +31,12 @@ import {
   type Camera,
 } from "../channel/camera";
 import type {
+  CaretGeometry,
+  ContentSelection,
   DocumentHandle,
   PageId,
   ResolutionResult,
+  SelectionRect,
   WorkerToMain,
 } from "../channel/protocol";
 import { Navigator as PageNavigator } from "./Navigator";
@@ -42,6 +45,7 @@ import { ViewportCanvas, type SelectionState } from "./ViewportCanvas";
 import { useAnimatedCamera } from "./useAnimatedCamera";
 import { useFps } from "./useFps";
 import { useKeyboardShortcuts } from "./useKeyboardShortcuts";
+import { useTextEditing } from "./useTextEditing";
 
 const SNAPSHOT_WIDTH_PX = 256;
 
@@ -56,6 +60,13 @@ export function CanvasApp() {
   const [gpuActive, setGpuActive] = useState<boolean | null>(null);
   const [loading, setLoading] = useState<{ name: string; bytes: number } | null>(null);
   const [resolution, setResolution] = useState<ResolutionResult | null>(null);
+  // Phase 3 — content selection + worker-derived caret + selection geom.
+  const [contentSelection, setContentSelectionRaw] =
+    useState<ContentSelection | null>(null);
+  const contentSelectionRef = useRef<ContentSelection | null>(null);
+  contentSelectionRef.current = contentSelection;
+  const [caret, setCaret] = useState<CaretGeometry | null>(null);
+  const [selectionRects, setSelectionRects] = useState<SelectionRect[]>([]);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const [viewportSize, setViewportSize] = useState<[number, number]>([0, 0]);
   const sabSupported = useMemo(() => supportsSharedArrayBuffer(), []);
@@ -71,6 +82,26 @@ export function CanvasApp() {
         setGpuActive(msg.payload.gpuActive);
       } else if (msg.kind === "resolutionDone") {
         setResolution(msg.payload);
+      } else if (
+        msg.kind === "mutationApplied" ||
+        msg.kind === "undoApplied" ||
+        msg.kind === "redoApplied"
+      ) {
+        // Mutation landed; worker has rebuilt. Re-query caret +
+        // selection geom so the overlay reflects the new layout.
+        // Use a microtask so we don't fire from inside the subscribe
+        // callback's stack.
+        const sel = contentSelectionRef.current;
+        const c = clientRef.current;
+        if (sel && c) {
+          void c.caretGeometry(sel).then(setCaret).catch(() => setCaret(null));
+          if (sel.start !== sel.end) {
+            void c
+              .selectionGeometry(sel)
+              .then(setSelectionRects)
+              .catch(() => setSelectionRects([]));
+          }
+        }
       }
     });
     client
@@ -107,6 +138,41 @@ export function CanvasApp() {
     camera,
     viewportSize,
     animateCamera,
+  });
+
+  // Setting selection mirrors to worker + refreshes caret + rect cache.
+  // Phase 3 — every selection change posts SetSelection plus a caret
+  // query plus a selection-geometry query. Three round-trips per
+  // keystroke is fine at this scale (<1 ms each per the spec budget);
+  // a future optimisation can piggyback caret on SetSelection's reply.
+  const setContentSelection = useCallback(
+    (sel: ContentSelection | null) => {
+      setContentSelectionRaw(sel);
+      const c = clientRef.current;
+      if (!c) return;
+      void c.setSelection(sel);
+      if (sel) {
+        void c.caretGeometry(sel).then(setCaret).catch(() => setCaret(null));
+        if (sel.start !== sel.end) {
+          void c
+            .selectionGeometry(sel)
+            .then(setSelectionRects)
+            .catch(() => setSelectionRects([]));
+        } else {
+          setSelectionRects([]);
+        }
+      } else {
+        setCaret(null);
+        setSelectionRects([]);
+      }
+    },
+    [],
+  );
+
+  useTextEditing({
+    client: clientRef.current,
+    selection: contentSelection,
+    setSelection: setContentSelection,
   });
 
   // Observe viewport size for the fit-to-page navigator jumps. Use
@@ -223,11 +289,31 @@ export function CanvasApp() {
               pageSizesPt={handle.pageSizesPt}
               camera={camera}
               onCameraChange={setCamera}
-              onHit={setSelection}
+              onHit={(s) => {
+                setSelection(s);
+                // Phase 3 — click on text → caret at the offset.
+                if (
+                  s &&
+                  s.hit.storyId &&
+                  s.hit.offsetWithinStory !== null &&
+                  s.hit.offsetWithinStory !== undefined
+                ) {
+                  setContentSelection({
+                    storyId: s.hit.storyId,
+                    start: s.hit.offsetWithinStory,
+                    end: s.hit.offsetWithinStory,
+                    affinity: false,
+                  });
+                } else {
+                  setContentSelection(null);
+                }
+              }}
               selection={selection}
               fps={fps}
               gpuActive={gpuActive}
               resolution={resolution}
+              caret={caret}
+              selectionRects={selectionRects}
             />
           ) : (
             <EmptyState />

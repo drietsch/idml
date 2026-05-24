@@ -8,7 +8,12 @@
 // so they stay 2 px wide at any zoom.
 
 import type { Camera } from "../channel/camera";
-import type { PageId, ResolutionResult } from "../channel/protocol";
+import type {
+  CaretGeometry,
+  PageId,
+  ResolutionResult,
+  SelectionRect,
+} from "../channel/protocol";
 import type { PageRect } from "./layout";
 import type { SelectionState } from "./ViewportCanvas";
 
@@ -18,6 +23,8 @@ export interface OverlayProps {
   pageRects: ReadonlyArray<PageRect>;
   selection: SelectionState | null;
   resolution: ResolutionResult | null;
+  caret: CaretGeometry | null;
+  selectionRects: ReadonlyArray<SelectionRect>;
   /** CSS-px viewport size. Needed to size the SVG. */
   width: number;
   height: number;
@@ -62,8 +69,83 @@ export function Overlay(props: OverlayProps) {
             cameraScale={k}
           />
         )}
+        {/* Phase 3 — multi-line selection ants */}
+        {props.selectionRects.length > 0 && (
+          <SelectionAnts
+            rects={props.selectionRects}
+            pageIds={props.pageIds}
+            pageRects={props.pageRects}
+          />
+        )}
+        {/* Phase 3 — glyph-positioned caret */}
+        {props.caret && (
+          <TextCaret
+            caret={props.caret}
+            pageIds={props.pageIds}
+            pageRects={props.pageRects}
+            cameraScale={k}
+          />
+        )}
       </g>
     </svg>
+  );
+}
+
+function SelectionAnts(props: {
+  rects: ReadonlyArray<SelectionRect>;
+  pageIds: ReadonlyArray<PageId>;
+  pageRects: ReadonlyArray<PageRect>;
+}) {
+  return (
+    <>
+      {props.rects.map((r, i) => {
+        const idx = props.pageIds.indexOf(r.pageId);
+        if (idx < 0) return null;
+        const p = props.pageRects[idx];
+        return (
+          <rect
+            key={i}
+            x={p.x + r.leftPt}
+            y={p.y + r.topPt}
+            width={r.widthPt}
+            height={r.heightPt}
+            fill="#2563eb"
+            fillOpacity={0.25}
+            pointerEvents="none"
+          />
+        );
+      })}
+    </>
+  );
+}
+
+function TextCaret(props: {
+  caret: CaretGeometry;
+  pageIds: ReadonlyArray<PageId>;
+  pageRects: ReadonlyArray<PageRect>;
+  cameraScale: number;
+}) {
+  const idx = props.pageIds.indexOf(props.caret.pageId);
+  if (idx < 0) return null;
+  const p = props.pageRects[idx];
+  // Caret width in CSS px; inverse-scale so it's always ~1.5 px.
+  const width = 1.5 / props.cameraScale;
+  return (
+    <rect
+      x={p.x + props.caret.xPt - width / 2}
+      y={p.y + props.caret.topPt}
+      width={width}
+      height={props.caret.heightPt}
+      fill="#1d4ed8"
+      pointerEvents="none"
+    >
+      <animate
+        attributeName="opacity"
+        values="1;0;1"
+        dur="1.05s"
+        repeatCount="indefinite"
+      />
+    </rect>
   );
 }
 

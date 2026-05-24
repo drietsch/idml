@@ -19,10 +19,12 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { CanvasClient } from "../channel/client";
 import { viewportToDoc, type Camera } from "../channel/camera";
 import type {
+  CaretGeometry,
   HitResult,
   PageId,
   ResolutionResult,
   RunningHeader,
+  SelectionRect,
 } from "../channel/protocol";
 import { documentBounds, fitCamera, layoutPages, zoomAt, type PageRect } from "./layout";
 import { Overlay } from "./Overlay";
@@ -50,6 +52,10 @@ export interface ViewportCanvasProps {
   gpuActive?: boolean | null;
   /** Tier 3 resolution result — anchor table + per-anchor page numbers. */
   resolution?: ResolutionResult | null;
+  /** Phase 3 — caret geometry from the worker; null when no selection. */
+  caret?: CaretGeometry | null;
+  /** Phase 3 — rect-per-line geometry for range selections. */
+  selectionRects?: ReadonlyArray<SelectionRect>;
 }
 
 const CLICK_DRAG_THRESHOLD_PX = 4;
@@ -258,6 +264,8 @@ export function ViewportCanvas(props: ViewportCanvasProps) {
         pageRects={rects}
         selection={props.selection ?? null}
         resolution={props.resolution ?? null}
+        caret={props.caret ?? null}
+        selectionRects={props.selectionRects ?? []}
         width={wrapperRef.current?.clientWidth ?? 0}
         height={wrapperRef.current?.clientHeight ?? 0}
       />
