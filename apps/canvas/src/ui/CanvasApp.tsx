@@ -205,8 +205,22 @@ export function CanvasApp() {
     });
     // Old resolution is stale for a new document.
     setResolution(null);
+    // Phase 3 — auto-fetch a default font so text is shaped + the
+    // captured StoryLayout has real glyph positions. Without this
+    // the caret + selection rendering has nothing to position
+    // against (glyphs vec empty → no clusters captured). Inter is
+    // checked in under corpus/fonts/.
+    let fontBytes: Uint8Array | undefined;
     try {
-      const h = await clientRef.current.loadDocument(bytes);
+      const fontResp = await fetch("/fonts/Inter.ttf");
+      if (fontResp.ok) {
+        fontBytes = new Uint8Array(await fontResp.arrayBuffer());
+      }
+    } catch {
+      // Font fetch is best-effort; canvas still renders without it.
+    }
+    try {
+      const h = await clientRef.current.loadDocument(bytes, fontBytes);
       setHandle(h);
       setLoading(null);
       setStatus(
