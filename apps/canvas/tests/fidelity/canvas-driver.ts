@@ -21,15 +21,19 @@ import { loadPackFonts } from "./fonts";
 // page (uniform-coloured backgrounds dominate the metric).
 const FOGRA39_PATH =
   "/Library/Application Support/Adobe/Color/Profiles/Recommended/CoatedFOGRA39.icc";
-let cachedFogra39: Buffer | null | undefined;
-function fogra39Bytes(): Buffer | null {
-  if (cachedFogra39 !== undefined) return cachedFogra39;
-  try {
-    cachedFogra39 = existsSync(FOGRA39_PATH) ? readFileSync(FOGRA39_PATH) : null;
-  } catch {
-    cachedFogra39 = null;
-  }
-  return cachedFogra39;
+function fogra39Path(): string | null {
+  return existsSync(FOGRA39_PATH) ? FOGRA39_PATH : null;
+}
+
+/**
+ * Convert an absolute filesystem path to a `/@fs/<absolute>` URL the
+ * Vite dev server can stream. Vite is configured (vite.config.ts
+ * `server.fs.allow`) to expose the repo root + `/tmp` + the system
+ * font profile directory, so this works for IDMLs, TTFs, and the
+ * Coated FOGRA39 profile alike.
+ */
+function vitePathFor(absPath: string): string {
+  return "/@fs" + absPath;
 }
 
 export interface CanvasPageMeta {
@@ -122,15 +126,17 @@ export async function loadIdml(
   if (packName) {
     await preloadPackFonts(page, packName);
   }
-  // Use base64 over the page.evaluate boundary instead of a JS
-  // number array: a multi-MB IDML serialised as `Array.from(bytes)`
-  // costs ~8× its disk size in V8 heap (each byte → boxed Number).
-  // Across 61 packs that exhausts the worker's default 2 GB. Base64
-  // strings are ~1.33× the source bytes — manageable.
-  const idmlB64 = readFileSync(idmlPath).toString("base64");
-  const fontB64 = readFileSync(defaultFontPathFor(packName)).toString("base64");
-  const cmyk = fogra39Bytes();
-  const cmykB64 = cmyk ? cmyk.toString("base64") : null;
+  // Fetch bytes via Vite's `/@fs/` route inside the browser context
+  // instead of pushing them across the page.evaluate boundary. Some
+  // envato packs reach 100–218 MB; serialising those as base64
+  // strings exceeds the browser tab's RPC payload budget and the
+  // context closes mid-evaluate. Direct fetch keeps the bytes
+  // streaming + decoded inside the browser, never touching the
+  // Playwright RPC.
+  const idmlUrl = vitePathFor(idmlPath);
+  const fontUrl = vitePathFor(defaultFontPathFor(packName));
+  const fogra39 = fogra39Path();
+  const cmykUrl = fogra39 ? vitePathFor(fogra39) : null;
 
   // Bypass the React `onChange` path: invoking
   // `__canvas.client.loadDocument` directly lets us hand in the CMYK
@@ -140,13 +146,9 @@ export async function loadIdml(
   // so subsequent `requestSnapshot` calls run cleanly without the
   // navigator pre-fetch loop in flight.
   const data = await page.evaluate(
-    async ({ idmlB64, fontB64, cmykB64 }) => {
-      const decode = (b64: string): Uint8Array => {
-        const bin = atob(b64);
-        const out = new Uint8Array(bin.length);
-        for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-        return out;
-      };
+    async ({ idmlUrl, fontUrl, cmykUrl }) => {
+      const fetchBytes = async (url: string): Promise<Uint8Array> =>
+        new Uint8Array(await (await fetch(url)).arrayBuffer());
       const c = (globalThis as unknown as {
         __canvas: {
           client: {
@@ -162,12 +164,14 @@ export async function loadIdml(
           };
         };
       }).__canvas;
-      const idml = decode(idmlB64);
-      const font = decode(fontB64);
-      const icc = cmykB64 ? decode(cmykB64) : undefined;
+      const [idml, font, icc] = await Promise.all([
+        fetchBytes(idmlUrl),
+        fetchBytes(fontUrl),
+        cmykUrl ? fetchBytes(cmykUrl) : Promise.resolve(undefined),
+      ]);
       return await c.client.loadDocument(idml, font, icc);
     },
-    { idmlB64, fontB64, cmykB64 },
+    { idmlUrl, fontUrl, cmykUrl },
   );
   // Tag the path used (file name) so the trace report references the
   // pack — the file input would otherwise carry this for us.
@@ -199,19 +203,15 @@ function defaultFontPathFor(packName: string | undefined): string {
  */
 async function preloadPackFonts(page: Page, packName: string): Promise<void> {
   const pack = loadPackFonts(packName);
-  // Base64 over the boundary — see loadIdml for the heap rationale.
-  const entries: Array<{ family: string; style: string | null; b64: string }> = [];
-  for (const m of pack.mappings) {
-    const b64 = readFileSync(m.ttfPath).toString("base64");
-    entries.push({ family: m.family, style: m.style, b64 });
-  }
+  // Fetch each TTF via /@fs/ — same rationale as loadIdml above.
+  const entries = pack.mappings.map((m) => ({
+    family: m.family,
+    style: m.style,
+    url: vitePathFor(m.ttfPath),
+  }));
   await page.evaluate(async ({ entries }) => {
-    const decode = (b64: string): Uint8Array => {
-      const bin = atob(b64);
-      const out = new Uint8Array(bin.length);
-      for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-      return out;
-    };
+    const fetchBytes = async (url: string): Promise<Uint8Array> =>
+      new Uint8Array(await (await fetch(url)).arrayBuffer());
     const c = (globalThis as unknown as {
       __canvas: {
         client: {
@@ -226,7 +226,8 @@ async function preloadPackFonts(page: Page, packName: string): Promise<void> {
     }).__canvas;
     await c.client.clearFontRegistry();
     for (const e of entries) {
-      await c.client.registerFont(e.family, decode(e.b64), e.style);
+      const bytes = await fetchBytes(e.url);
+      await c.client.registerFont(e.family, bytes, e.style);
     }
   }, { entries });
 }

@@ -63,7 +63,14 @@ export default defineConfig({
   plugins: [react(), crossOriginIsolation, fontsRoute()],
   server: {
     fs: {
-      allow: [resolve(__dirname), resolve(__dirname, "..", ".."), "/tmp"],
+      allow: [
+        resolve(__dirname),
+        resolve(__dirname, "..", ".."),
+        "/tmp",
+        // System CMYK ICC profile dir — the fidelity suite fetches
+        // CoatedFOGRA39.icc via /@fs/ to match `pdftoppm`'s output.
+        "/Library/Application Support/Adobe/Color/Profiles",
+      ],
     },
   },
   optimizeDeps: {
