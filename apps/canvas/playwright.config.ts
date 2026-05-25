@@ -11,6 +11,13 @@ const REPO_ROOT = resolve(__dirname, "..", "..");
 const PORT = Number(process.env.IDML_CANVAS_TEST_PORT ?? 5180);
 const BASE_URL = `http://127.0.0.1:${PORT}`;
 
+// Default Node heap (~2 GB) trips on a 61-pack sweep — the
+// page.evaluate boundary briefly holds a copy of each IDML +
+// PNG-per-page. Bump unless the caller already set NODE_OPTIONS.
+if (!process.env.NODE_OPTIONS) {
+  process.env.NODE_OPTIONS = "--max-old-space-size=8192";
+}
+
 export default defineConfig({
   testDir: "./tests",
   // Single worker keeps the snapshot tier deterministic (worker pool

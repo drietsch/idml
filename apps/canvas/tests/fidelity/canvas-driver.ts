@@ -122,10 +122,15 @@ export async function loadIdml(
   if (packName) {
     await preloadPackFonts(page, packName);
   }
-  const idmlBytes = Array.from(readFileSync(idmlPath));
-  const fontBytes = Array.from(readFileSync(defaultFontPathFor(packName)));
+  // Use base64 over the page.evaluate boundary instead of a JS
+  // number array: a multi-MB IDML serialised as `Array.from(bytes)`
+  // costs ~8× its disk size in V8 heap (each byte → boxed Number).
+  // Across 61 packs that exhausts the worker's default 2 GB. Base64
+  // strings are ~1.33× the source bytes — manageable.
+  const idmlB64 = readFileSync(idmlPath).toString("base64");
+  const fontB64 = readFileSync(defaultFontPathFor(packName)).toString("base64");
   const cmyk = fogra39Bytes();
-  const cmykBytes = cmyk ? Array.from(cmyk) : null;
+  const cmykB64 = cmyk ? cmyk.toString("base64") : null;
 
   // Bypass the React `onChange` path: invoking
   // `__canvas.client.loadDocument` directly lets us hand in the CMYK
@@ -135,7 +140,13 @@ export async function loadIdml(
   // so subsequent `requestSnapshot` calls run cleanly without the
   // navigator pre-fetch loop in flight.
   const data = await page.evaluate(
-    async ({ idmlBytes, fontBytes, cmykBytes }) => {
+    async ({ idmlB64, fontB64, cmykB64 }) => {
+      const decode = (b64: string): Uint8Array => {
+        const bin = atob(b64);
+        const out = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+        return out;
+      };
       const c = (globalThis as unknown as {
         __canvas: {
           client: {
@@ -151,12 +162,12 @@ export async function loadIdml(
           };
         };
       }).__canvas;
-      const idml = Uint8Array.from(idmlBytes);
-      const font = Uint8Array.from(fontBytes);
-      const icc = cmykBytes ? Uint8Array.from(cmykBytes) : undefined;
+      const idml = decode(idmlB64);
+      const font = decode(fontB64);
+      const icc = cmykB64 ? decode(cmykB64) : undefined;
       return await c.client.loadDocument(idml, font, icc);
     },
-    { idmlBytes, fontBytes, cmykBytes },
+    { idmlB64, fontB64, cmykB64 },
   );
   // Tag the path used (file name) so the trace report references the
   // pack — the file input would otherwise carry this for us.
@@ -188,12 +199,19 @@ function defaultFontPathFor(packName: string | undefined): string {
  */
 async function preloadPackFonts(page: Page, packName: string): Promise<void> {
   const pack = loadPackFonts(packName);
-  const entries: Array<{ family: string; style: string | null; bytes: number[] }> = [];
+  // Base64 over the boundary — see loadIdml for the heap rationale.
+  const entries: Array<{ family: string; style: string | null; b64: string }> = [];
   for (const m of pack.mappings) {
-    const bytes = Array.from(readFileSync(m.ttfPath));
-    entries.push({ family: m.family, style: m.style, bytes });
+    const b64 = readFileSync(m.ttfPath).toString("base64");
+    entries.push({ family: m.family, style: m.style, b64 });
   }
   await page.evaluate(async ({ entries }) => {
+    const decode = (b64: string): Uint8Array => {
+      const bin = atob(b64);
+      const out = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+      return out;
+    };
     const c = (globalThis as unknown as {
       __canvas: {
         client: {
@@ -208,7 +226,7 @@ async function preloadPackFonts(page: Page, packName: string): Promise<void> {
     }).__canvas;
     await c.client.clearFontRegistry();
     for (const e of entries) {
-      await c.client.registerFont(e.family, Uint8Array.from(e.bytes), e.style);
+      await c.client.registerFont(e.family, decode(e.b64), e.style);
     }
   }, { entries });
 }
@@ -231,9 +249,15 @@ export async function snapshotPagePng(
   targetWidthPx: number,
   dpi: number = FIDELITY_DPI,
 ): Promise<Uint8Array> {
+  // PNGs come back as base64 strings, not `number[]`. A 200 KB PNG
+  // as a JS number array is ~200K boxed Number objects (~6–8 MB
+  // heap) and the page.evaluate serialisation cost scales with that.
+  // Base64 keeps the encoded size at ~1.33× the binary — small
+  // enough that 61 packs × 10–15 pages no longer saturate the
+  // worker's default Node heap.
   const backend = (process.env.BACKEND ?? "cpu").toLowerCase();
   if (backend === "gpu") {
-    const numberArray = await page.evaluate(
+    const b64 = await page.evaluate(
       async ({ pageId, dpi }) => {
         const c = (globalThis as unknown as {
           __canvas: {
@@ -246,14 +270,25 @@ export async function snapshotPagePng(
           };
         }).__canvas;
         const bytes = await c.client.requestVelloPng(pageId, dpi);
-        return bytes ? Array.from(bytes) : null;
+        if (!bytes) return null;
+        // btoa needs a binary string; do it in 32 KB chunks so the
+        // String.fromCharCode call stays under the argument-count cap.
+        let bin = "";
+        const CHUNK = 0x8000;
+        for (let i = 0; i < bytes.length; i += CHUNK) {
+          bin += String.fromCharCode.apply(
+            null,
+            bytes.subarray(i, i + CHUNK) as unknown as number[],
+          );
+        }
+        return btoa(bin);
       },
       { pageId, dpi },
     );
-    if (numberArray) return Uint8Array.from(numberArray);
+    if (b64) return Buffer.from(b64, "base64");
     // Fall through to CPU path when GPU returns null (e.g. headless).
   }
-  const numberArray = await page.evaluate(
+  const b64 = await page.evaluate(
     async ({ pageId, targetWidthPx, dpi }) => {
       const c = (globalThis as unknown as {
         __canvas: {
@@ -267,9 +302,18 @@ export async function snapshotPagePng(
         };
       }).__canvas;
       const snap = await c.client.requestSnapshot(pageId, targetWidthPx, dpi);
-      return snap.pngBytes;
+      // `pngBytes` is still a `number[]` on the wire (the wasm/JSON
+      // channel hasn't been changed); convert to base64 in the
+      // browser context before crossing the page.evaluate boundary.
+      const arr = snap.pngBytes;
+      let bin = "";
+      const CHUNK = 0x8000;
+      for (let i = 0; i < arr.length; i += CHUNK) {
+        bin += String.fromCharCode.apply(null, arr.slice(i, i + CHUNK));
+      }
+      return btoa(bin);
     },
     { pageId, targetWidthPx, dpi },
   );
-  return Uint8Array.from(numberArray);
+  return Buffer.from(b64, "base64");
 }
