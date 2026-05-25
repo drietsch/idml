@@ -397,10 +397,19 @@ function CacheBadge(props: { stats: LayoutCacheStats }) {
   const ratio = props.stats.hits / total;
   const color = ratio >= 0.9 ? "#10b981" : ratio >= 0.5 ? "#f59e0b" : "#ef4444";
   const pct = Math.round(ratio * 100);
+  const ms = props.stats.rebuildMs;
+  // AC-E-1 budget — 32 ms per typed character. Green under, amber close,
+  // red over.
+  const msColor = ms <= 16 ? "#10b981" : ms <= 32 ? "#f59e0b" : "#ef4444";
   return (
-    <span style={{ color }} title={`layout cache: ${props.stats.hits} hits / ${props.stats.misses} misses (${props.stats.len} entries)`}>
-      cache {pct}% ({props.stats.hits}/{total})
-    </span>
+    <>
+      <span style={{ color }} title={`layout cache: ${props.stats.hits} hits / ${props.stats.misses} misses (${props.stats.len} entries)`}>
+        cache {pct}% ({props.stats.hits}/{total})
+      </span>
+      <span style={{ color: msColor }} title="last rebuild wall-clock; AC-E-1 budget = 32 ms">
+        {ms.toFixed(1)} ms
+      </span>
+    </>
   );
 }
 

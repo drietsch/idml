@@ -165,6 +165,8 @@ export interface LayoutCacheStats {
   misses: number;
   len: number;
   capacity: number;
+  /** Wall-clock ms of the rebuild that produced these stats. */
+  rebuildMs: number;
 }
 
 export interface ResolutionResult {
