@@ -168,6 +168,32 @@ export class WorkerRenderer {
     this.dirty = true;
   }
 
+  /**
+   * Mark the next tick as dirty so it redraws even if the camera
+   * generation hasn't changed. Called by worker.ts after the wasm
+   * reports `mutationApplied` / `undoApplied` / `redoApplied`. On the
+   * CPU path it also drops cached tiles for the affected pages so
+   * the next draw fetches fresh PNG bytes instead of blitting stale
+   * snapshots; on the GPU path the worker already cleared its
+   * scene_cache so presentFrame rebuilds.
+   */
+  markDirty(pageIds: ReadonlyArray<PageId> = []): void {
+    this.dirty = true;
+    if (pageIds.length === 0) {
+      for (const t of this.tiles.values()) t.bitmap.close();
+      this.tiles.clear();
+      return;
+    }
+    for (const pageId of pageIds) {
+      const key = tileKey({ pageId, widthPx: this.snapshotWidthPx });
+      const cached = this.tiles.get(key);
+      if (cached) {
+        cached.bitmap.close();
+        this.tiles.delete(key);
+      }
+    }
+  }
+
   start(): void {
     if (this.running) return;
     this.running = true;

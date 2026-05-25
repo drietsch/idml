@@ -154,6 +154,18 @@ self.addEventListener("message", async (event: MessageEvent) => {
           console.warn("resolution JSON parse failed:", e);
         }
       }
+    } else if (
+      reply.kind === "mutationApplied" ||
+      reply.kind === "undoApplied" ||
+      reply.kind === "redoApplied"
+    ) {
+      // Model has changed — invalidate cached tiles for the
+      // affected pages and let the render loop redraw on the next
+      // tick. On the GPU path the worker already cleared its
+      // scene_cache so presentFrame rebuilds.
+      if (renderer) {
+        renderer.markDirty(reply.payload?.pageIds ?? []);
+      }
     }
   }
 });
