@@ -189,14 +189,20 @@ export class CanvasClient {
 
   private readonly onMessage = (event: MessageEvent) => {
     const msg = event.data as WorkerToMain;
+    // Resolve the matching `send(...)` promise first so the
+    // request-reply path stays the lowest-latency one.
     if (msg.seq !== null) {
       const cb = this.pending.get(msg.seq);
       if (cb) {
         this.pending.delete(msg.seq);
         cb(msg);
-        return;
       }
     }
+    // Fan out to subscribers regardless of seq. Lets multiple parts
+    // of the UI react to the same reply (e.g. CanvasApp updates the
+    // cache-stats HUD on `mutationApplied` while the original
+    // `client.mutate(...)` caller awaits the promise). Without this
+    // broadcast, only the awaiter sees the reply.
     for (const l of this.listeners) {
       l(msg);
     }

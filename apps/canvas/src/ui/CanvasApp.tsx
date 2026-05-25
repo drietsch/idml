@@ -34,6 +34,7 @@ import type {
   CaretGeometry,
   ContentSelection,
   DocumentHandle,
+  LayoutCacheStats,
   PageId,
   ResolutionResult,
   SelectionRect,
@@ -67,6 +68,9 @@ export function CanvasApp() {
   contentSelectionRef.current = contentSelection;
   const [caret, setCaret] = useState<CaretGeometry | null>(null);
   const [selectionRects, setSelectionRects] = useState<SelectionRect[]>([]);
+  // Phase 4 Step 2 — last rebuild's layout-cache stats. Shown in HUD.
+  const [layoutCacheStats, setLayoutCacheStats] =
+    useState<LayoutCacheStats | null>(null);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const [viewportSize, setViewportSize] = useState<[number, number]>([0, 0]);
   const sabSupported = useMemo(() => supportsSharedArrayBuffer(), []);
@@ -102,6 +106,9 @@ export function CanvasApp() {
               .catch(() => setSelectionRects([]));
           }
         }
+        // Phase 4 instrumentation — surface the rebuild's cache
+        // stats so the HUD can show the incremental-layout win.
+        setLayoutCacheStats(msg.payload.cacheStats);
       }
     });
     client
@@ -328,6 +335,7 @@ export function CanvasApp() {
               resolution={resolution}
               caret={caret}
               selectionRects={selectionRects}
+              layoutCacheStats={layoutCacheStats}
             />
           ) : (
             <EmptyState />

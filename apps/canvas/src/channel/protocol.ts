@@ -120,7 +120,12 @@ export type WorkerToMainKind =
   | { kind: "resolutionDone"; payload: ResolutionResult }
   | {
       kind: "mutationApplied";
-      payload: { clientSeq: number; appliedSeq: number; pageIds: PageId[] };
+      payload: {
+        clientSeq: number;
+        appliedSeq: number;
+        pageIds: PageId[];
+        cacheStats: LayoutCacheStats;
+      };
     }
   | {
       kind: "selectionGeometry";
@@ -132,12 +137,35 @@ export type WorkerToMainKind =
     }
   | {
       kind: "undoApplied";
-      payload: { undoneSeq: number; appliedSeq: number; pageIds: PageId[] };
+      payload: {
+        undoneSeq: number;
+        appliedSeq: number;
+        pageIds: PageId[];
+        cacheStats: LayoutCacheStats;
+      };
     }
   | {
       kind: "redoApplied";
-      payload: { redoneSeq: number; appliedSeq: number; pageIds: PageId[] };
+      payload: {
+        redoneSeq: number;
+        appliedSeq: number;
+        pageIds: PageId[];
+        cacheStats: LayoutCacheStats;
+      };
     };
+
+/**
+ * Phase 4 Step 2 — layout-cache stats sent piggyback on each
+ * mutation/undo/redo reply. `hits + misses` is the number of
+ * paragraphs the rebuild evaluated; the ratio quantifies the
+ * incremental-layout win.
+ */
+export interface LayoutCacheStats {
+  hits: number;
+  misses: number;
+  len: number;
+  capacity: number;
+}
 
 export interface ResolutionResult {
   numbering: Record<string, AnchorPosition>;

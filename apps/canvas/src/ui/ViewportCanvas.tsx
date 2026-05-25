@@ -21,6 +21,7 @@ import { viewportToDoc, type Camera } from "../channel/camera";
 import type {
   CaretGeometry,
   HitResult,
+  LayoutCacheStats,
   PageId,
   ResolutionResult,
   RunningHeader,
@@ -56,6 +57,8 @@ export interface ViewportCanvasProps {
   caret?: CaretGeometry | null;
   /** Phase 3 — rect-per-line geometry for range selections. */
   selectionRects?: ReadonlyArray<SelectionRect>;
+  /** Phase 4 Step 2 — last rebuild's layout-cache stats; HUD badge. */
+  layoutCacheStats?: LayoutCacheStats | null;
 }
 
 const CLICK_DRAG_THRESHOLD_PX = 4;
@@ -282,6 +285,7 @@ export function ViewportCanvas(props: ViewportCanvasProps) {
         }
         footnoteCount={props.resolution?.footnoteCount ?? 0}
         runningHeaders={props.resolution?.runningHeaders ?? []}
+        layoutCacheStats={props.layoutCacheStats ?? null}
       />
     </div>
   );
@@ -298,6 +302,7 @@ function ViewportHud(props: {
   anchorCount: number;
   footnoteCount: number;
   runningHeaders: ReadonlyArray<RunningHeader>;
+  layoutCacheStats: LayoutCacheStats | null;
 }) {
   const sel = props.selection;
   const gpuBadge = props.gpuActive === null
@@ -322,6 +327,9 @@ function ViewportHud(props: {
         <span style={{ color: fpsColor }}>{props.fps} fps</span>
       )}
       <span>{props.pageCount} pages</span>
+      {props.layoutCacheStats && props.layoutCacheStats.hits + props.layoutCacheStats.misses > 0 && (
+        <CacheBadge stats={props.layoutCacheStats} />
+      )}
       {props.anchorCount > 0 && (
         <span style={{ color: "#34d399" }}>{props.anchorCount} ⚓</span>
       )}
@@ -372,6 +380,27 @@ function ViewportHud(props: {
         </span>
       )}
     </div>
+  );
+}
+
+/**
+ * Phase 4 Step 2 — visualise the per-paragraph layout cache win.
+ *
+ * Shows `hits/total` for the most recent mutation/undo/redo rebuild.
+ * Green when ≥ 90% of paragraphs hit (typing-class edit), amber
+ * 50-89% (style change or larger), red below 50% (cold or
+ * thrashed cache).
+ */
+function CacheBadge(props: { stats: LayoutCacheStats }) {
+  const total = props.stats.hits + props.stats.misses;
+  if (total === 0) return null;
+  const ratio = props.stats.hits / total;
+  const color = ratio >= 0.9 ? "#10b981" : ratio >= 0.5 ? "#f59e0b" : "#ef4444";
+  const pct = Math.round(ratio * 100);
+  return (
+    <span style={{ color }} title={`layout cache: ${props.stats.hits} hits / ${props.stats.misses} misses (${props.stats.len} entries)`}>
+      cache {pct}% ({props.stats.hits}/{total})
+    </span>
   );
 }
 
