@@ -48,8 +48,8 @@
       "indd_in_zip": null,
       "readme_in_zip": "Canva Link.txt",
       "declared_fonts": [],
-      "stage": "skip",
-      "skip_reason": "IDML > 50MB; renderer perf doesn't fit Playwright's 5min timeout \u2014 investigate separately"
+      "stage": "smoke",
+      "skip_reason": null
     },
     {
       "name": "annual-report-template-8b5d40",
@@ -287,8 +287,8 @@
       "declared_fonts": [
         "Alfa Slab One"
       ],
-      "stage": "skip",
-      "skip_reason": "IDML > 50MB; renderer perf doesn't fit Playwright's 5min timeout \u2014 investigate separately"
+      "stage": "smoke",
+      "skip_reason": null
     },
     {
       "name": "food-cooking-magazine-template",
@@ -520,8 +520,8 @@
       "indd_in_zip": null,
       "readme_in_zip": "Canva Link.txt",
       "declared_fonts": [],
-      "stage": "skip",
-      "skip_reason": "IDML > 50MB; renderer perf doesn't fit Playwright's 5min timeout \u2014 investigate separately"
+      "stage": "smoke",
+      "skip_reason": null
     },
     {
       "name": "photography-portfolio-vol-16",
@@ -631,8 +631,8 @@
       "indd_in_zip": null,
       "readme_in_zip": "Canva Link.txt",
       "declared_fonts": [],
-      "stage": "skip",
-      "skip_reason": "IDML > 50MB; renderer perf doesn't fit Playwright's 5min timeout \u2014 investigate separately"
+      "stage": "smoke",
+      "skip_reason": null
     },
     {
       "name": "square-company-profile",
