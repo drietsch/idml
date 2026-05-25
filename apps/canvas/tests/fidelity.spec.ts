@@ -11,7 +11,7 @@
 // Output lives under FIDELITY_OUT (default /tmp/idml-canvas-fidelity).
 
 import { test, expect } from "@playwright/test";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 
 import {
@@ -37,6 +37,12 @@ import {
   THRESHOLDS_PATH,
   writeThresholds,
 } from "./fidelity/thresholds";
+import {
+  DashboardPack,
+  DashboardState,
+  dashboardPath,
+  writeDashboard,
+} from "./fidelity/dashboard";
 
 const FIDELITY_MODE = (process.env.FIDELITY_MODE ?? "gate") as
   | "gate"
@@ -69,10 +75,29 @@ interface PackRecord {
 }
 
 const aggregate: PackRecord[] = [];
+const dashboardPacks: DashboardPack[] = [];
+const dashboardStartedAt = new Date().toISOString();
 
 mkdirSync(FIDELITY_OUT_ROOT, { recursive: true });
 
 const packs = selectPacks();
+
+function refreshDashboard(): void {
+  const state: DashboardState = {
+    mode: FIDELITY_MODE,
+    backend: (process.env.BACKEND ?? "cpu").toLowerCase(),
+    dpi: FIDELITY_DPI,
+    startedAt: dashboardStartedAt,
+    updatedAt: new Date().toISOString(),
+    packs: dashboardPacks,
+    totalExpected: packs.length,
+  };
+  writeDashboard(state);
+}
+
+// Seed an empty dashboard before any pack runs so the file exists
+// and is openable from the moment the suite starts.
+refreshDashboard();
 
 for (const pack of packs) {
   test.describe(pack.name, () => {
@@ -162,45 +187,104 @@ for (const pack of packs) {
         JSON.stringify(record, null, 2),
       );
 
-      // Gate logic. Capture mode never fails; gate mode fails only
-      // for `gated` packs that breach a threshold; smoke + advisory
-      // mode log but never fail.
-      if (FIDELITY_MODE === "capture" || FIDELITY_MODE === "advisory") {
-        return;
-      }
-      if (pack.stage !== "gated") return;
-      const t = thresholdFor(pack.name);
-      if (!t) {
-        // Pack is gated in manifest but no threshold spec; treat as
-        // advisory (do not fail). Surface in annotations.
-        testInfo.annotations.push({
-          type: "missing-threshold",
-          description: `pack ${pack.name} stage=gated but no entry in ${THRESHOLDS_PATH}`,
-        });
-        return;
-      }
-      const limit = t.max_pages_with_pdf ?? Infinity;
-      const violations: string[] = [];
-      for (const r of pageRecords) {
-        if (r.page > limit) break;
-        if (!r.diff) continue;
-        if (r.diff.meanDe > t.max_mean_de) {
-          violations.push(
-            `p${r.page}: meanΔE ${r.diff.meanDe.toFixed(3)} > ${t.max_mean_de}`,
-          );
-        }
-        if (r.diff.p99De > t.max_p99_de) {
-          violations.push(
-            `p${r.page}: p99ΔE ${r.diff.p99De.toFixed(3)} > ${t.max_p99_de}`,
-          );
-        }
-        if (r.diff.ssim < t.min_ssim) {
-          violations.push(
-            `p${r.page}: ssim ${r.diff.ssim.toFixed(4)} < ${t.min_ssim}`,
-          );
+      // Resolve gate violations (used by both the Playwright assertion
+      // below and the dashboard's status column).
+      const gateViolations: string[] = [];
+      const thr = thresholdFor(pack.name);
+      if (FIDELITY_MODE === "gate" && pack.stage === "gated" && thr) {
+        const limit = thr.max_pages_with_pdf ?? Infinity;
+        for (const r of pageRecords) {
+          if (r.page > limit) break;
+          if (!r.diff) continue;
+          if (r.diff.meanDe > thr.max_mean_de) {
+            gateViolations.push(
+              `p${r.page}: meanΔE ${r.diff.meanDe.toFixed(3)} > ${thr.max_mean_de}`,
+            );
+          }
+          if (r.diff.p99De > thr.max_p99_de) {
+            gateViolations.push(
+              `p${r.page}: p99ΔE ${r.diff.p99De.toFixed(3)} > ${thr.max_p99_de}`,
+            );
+          }
+          if (r.diff.ssim < thr.min_ssim) {
+            gateViolations.push(
+              `p${r.page}: ssim ${r.diff.ssim.toFixed(4)} < ${thr.min_ssim}`,
+            );
+          }
         }
       }
-      expect(violations, violations.join("; ")).toEqual([]);
+
+      // Push a dashboard entry + refresh the HTML.
+      dashboardPacks.push({
+        name: pack.name,
+        stage: pack.stage,
+        pagesRendered: candPaths.length,
+        pagesDiffed,
+        worstMeanDe: worstMean,
+        worstP99De: worstP99,
+        worstSsim: worstSsim,
+        pages: pageRecords.map((r) => ({
+          page: r.page,
+          meanDe: r.diff?.meanDe ?? null,
+          p99De: r.diff?.p99De ?? null,
+          ssim: r.diff?.ssim ?? null,
+          candPath: r.candPath,
+          refPath: r.refPath,
+          heatPath: r.diff ? packPagePath(pack.name, "heat", r.page) : null,
+          reason: r.reason,
+        })),
+        threshold: thr,
+        gateViolations,
+        finishedAt: new Date().toISOString(),
+      });
+      refreshDashboard();
+
+      // Attach the worst page's reference / candidate / heatmap to
+      // the Playwright report so `npx playwright show-report` opens
+      // straight onto the regression. Picks the page with the
+      // highest meanΔE.
+      const worstPage = pageRecords
+        .filter((p) => p.diff != null)
+        .sort((a, b) => (b.diff!.meanDe ?? 0) - (a.diff!.meanDe ?? 0))[0];
+      if (worstPage) {
+        try {
+          if (worstPage.refPath && existsSync(worstPage.refPath)) {
+            await testInfo.attach(`ref-p${worstPage.page}`, {
+              path: worstPage.refPath,
+              contentType: "image/png",
+            });
+          }
+          if (existsSync(worstPage.candPath)) {
+            await testInfo.attach(`cand-p${worstPage.page}`, {
+              path: worstPage.candPath,
+              contentType: "image/png",
+            });
+          }
+          const heat = packPagePath(pack.name, "heat", worstPage.page);
+          if (existsSync(heat)) {
+            await testInfo.attach(`heat-p${worstPage.page}`, {
+              path: heat,
+              contentType: "image/png",
+            });
+          }
+        } catch {
+          // Attachment is best-effort; surface nothing if the
+          // reporter trips over a non-existent file.
+        }
+      }
+
+      // Gate assertion: capture / advisory log only; gate mode fails
+      // when a `stage: gated` pack carries violations (computed above).
+      if (FIDELITY_MODE === "gate" && pack.stage === "gated") {
+        if (!thr) {
+          testInfo.annotations.push({
+            type: "missing-threshold",
+            description: `pack ${pack.name} stage=gated but no entry in ${THRESHOLDS_PATH}`,
+          });
+        } else {
+          expect(gateViolations, gateViolations.join("; ")).toEqual([]);
+        }
+      }
     });
   });
 }
@@ -210,6 +294,10 @@ test.afterAll(async () => {
   writeFileSync(
     path,
     JSON.stringify({ runs: aggregate, dpi: FIDELITY_DPI, mode: FIDELITY_MODE }, null, 2),
+  );
+  refreshDashboard();
+  process.stdout.write(
+    `\n[fidelity] dashboard: file://${dashboardPath()}\n`,
   );
   if (FIDELITY_MODE === "capture") {
     const baselines: CapturedBaseline[] = [];
