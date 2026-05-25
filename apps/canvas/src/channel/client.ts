@@ -64,32 +64,48 @@ export class CanvasClient {
     return () => this.listeners.delete(listener);
   }
 
-  /** Convenience: type-narrow `documentLoaded` reply. */
+  /**
+   * Convenience: type-narrow `documentLoaded` reply.
+   *
+   * Routes through a binary side-channel (transferable ArrayBuffers)
+   * rather than the JSON envelope so multi-MB IDMLs don't pay the
+   * ~8× cost of `Array.from(bytes)` → `JSON.stringify` →
+   * `serde_json::from_str`. On wasm32 the JSON path trips a
+   * `Vec::with_capacity` overflow above ~80 MB; the binary path is
+   * effectively a memcpy.
+   */
   async loadDocument(
     bytes: Uint8Array,
     font?: Uint8Array,
     cmykIccProfile?: Uint8Array,
   ): Promise<DocumentHandle> {
-    const reply = await this.send({
-      kind: "loadDocument",
-      payload: {
-        bytes: Array.from(bytes),
-        font: font ? Array.from(font) : null,
-        cmykIccProfile: cmykIccProfile ? Array.from(cmykIccProfile) : null,
-      },
+    const seq = this.nextSeq++;
+    const promise = new Promise<DocumentHandle>((resolve, reject) => {
+      this.loadDocPending.set(seq, { resolve, reject });
     });
-    if (reply.kind === "documentLoaded") {
-      return reply.payload;
-    }
-    if (reply.kind === "loadFailed") {
-      throw new Error(
-        `load failed (${reply.payload.error.kind}): ${
-          "message" in reply.payload.error ? reply.payload.error.message : ""
-        }`,
-      );
-    }
-    throw new Error(`unexpected reply: ${reply.kind}`);
+    const transfer: Transferable[] = [bytes.buffer];
+    if (font) transfer.push(font.buffer);
+    if (cmykIccProfile) transfer.push(cmykIccProfile.buffer);
+    this.worker.postMessage(
+      {
+        kind: "loadDocumentBinary",
+        seq,
+        bytes,
+        font: font ?? null,
+        cmykIccProfile: cmykIccProfile ?? null,
+      },
+      // Transfer ownership of the underlying buffers; the caller's
+      // Uint8Array references become unusable after this. Saves a
+      // copy in V8.
+      transfer,
+    );
+    return promise;
   }
+
+  private readonly loadDocPending = new Map<
+    number,
+    { resolve: (h: DocumentHandle) => void; reject: (e: Error) => void }
+  >();
 
   async requestPage(pageId: PageId, lod: LodTier): Promise<WorkerToMain> {
     return this.send({ kind: "requestPage", payload: { pageId, lod } });
@@ -242,9 +258,45 @@ export class CanvasClient {
   }
 
   private readonly onMessage = (event: MessageEvent) => {
+    // Side-channel: binary loadDocument reply (skip the JSON envelope
+    // because the request payload was binary, see `loadDocument`).
+    const raw = event.data as { kind?: string };
+    if (raw && raw.kind === "loadDocumentBinaryReply") {
+      const r = event.data as { seq: number; replyJson: string };
+      const pending = this.loadDocPending.get(r.seq);
+      if (!pending) return;
+      this.loadDocPending.delete(r.seq);
+      try {
+        const reply = JSON.parse(r.replyJson) as WorkerToMain;
+        if (reply.kind === "documentLoaded") {
+          pending.resolve(reply.payload);
+        } else if (reply.kind === "loadFailed") {
+          const e = reply.payload.error;
+          pending.reject(
+            new Error(
+              `load failed (${e.kind}): ${"message" in e ? e.message : ""}`,
+            ),
+          );
+        } else {
+          pending.reject(new Error(`unexpected reply kind: ${reply.kind}`));
+        }
+      } catch (err) {
+        pending.reject(new Error(`malformed reply: ${String(err)}`));
+      }
+      // Fan out to listeners that care (e.g. the renderer's
+      // documentLoaded → refreshLayout side-effect already runs on
+      // the worker side; main-thread listeners that want to know
+      // can subscribe).
+      try {
+        const parsed = JSON.parse(r.replyJson) as WorkerToMain;
+        for (const l of this.listeners) l(parsed);
+      } catch {
+        // already handled
+      }
+      return;
+    }
     // Sub-phase D side-channel: vello PNG readback replies bypass
     // the typed JSON envelope (transferable bytes ride directly).
-    const raw = event.data as { kind?: string };
     if (raw && raw.kind === "velloPngReply") {
       const reply = event.data as {
         kind: "velloPngReply";

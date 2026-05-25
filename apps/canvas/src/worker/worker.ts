@@ -35,6 +35,12 @@ interface CanvasWorkerInstance {
   gpuReady?(): boolean;
   /** Sub-phase D — Vello/GPU readback path for the fidelity suite. */
   renderPageVelloPng?(pageId: string, dpi: number): Promise<Uint8Array | undefined>;
+  loadDocumentDirect(
+    seq: number,
+    bytes: Uint8Array,
+    font?: Uint8Array,
+    cmykIccProfile?: Uint8Array,
+  ): string;
 }
 
 interface CanvasWasmModule {
@@ -105,7 +111,14 @@ type IncomingMessage =
       cssHeight: number;
     }
   | { kind: "resizeCanvas"; dpr: number; cssWidth: number; cssHeight: number }
-  | { kind: "renderPageVelloPng"; seq: number; pageId: string; dpi: number };
+  | { kind: "renderPageVelloPng"; seq: number; pageId: string; dpi: number }
+  | {
+      kind: "loadDocumentBinary";
+      seq: number;
+      bytes: Uint8Array;
+      font: Uint8Array | null;
+      cmykIccProfile: Uint8Array | null;
+    };
 
 const messageQueue: IncomingMessage[] = [];
 let pumping = false;
@@ -155,6 +168,54 @@ async function dispatch(data: IncomingMessage): Promise<void> {
       return;
     }
     await attachRenderer(data.canvas, data.dpr, data.cssWidth, data.cssHeight);
+    return;
+  }
+  if (data.kind === "loadDocumentBinary") {
+    await initPromise;
+    if (!worker) {
+      (self as unknown as DedicatedWorkerGlobalScope).postMessage({
+        kind: "loadDocumentBinaryReply",
+        seq: data.seq,
+        replyJson: JSON.stringify({
+          seq: data.seq,
+          protocol: PROTOCOL_VERSION,
+          kind: "loadFailed",
+          payload: { error: { kind: "parse", message: "worker not initialised" } },
+        }),
+      });
+      return;
+    }
+    const replyJson = worker.loadDocumentDirect(
+      data.seq,
+      data.bytes,
+      data.font ?? undefined,
+      data.cmykIccProfile ?? undefined,
+    );
+    (self as unknown as DedicatedWorkerGlobalScope).postMessage({
+      kind: "loadDocumentBinaryReply",
+      seq: data.seq,
+      replyJson,
+    });
+    // Mirror the post-load side-effects of the JSON channel:
+    // refresh the renderer's page layout + run the Tier 3 resolver.
+    try {
+      const reply = JSON.parse(replyJson) as WorkerToMain;
+      if (reply.kind === "documentLoaded") {
+        if (renderer) renderer.refreshLayout();
+        const resolutionJson = worker.runResolveJson();
+        if (resolutionJson) {
+          const payload = JSON.parse(resolutionJson);
+          postBack({
+            seq: null,
+            protocol: PROTOCOL_VERSION,
+            kind: "resolutionDone",
+            payload,
+          });
+        }
+      }
+    } catch (e) {
+      console.warn("loadDocumentBinary post-process:", e);
+    }
     return;
   }
   if (data.kind === "renderPageVelloPng") {

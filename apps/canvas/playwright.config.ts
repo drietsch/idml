@@ -34,6 +34,12 @@ export default defineConfig({
   expect: {
     timeout: 30_000,
   },
+  // The GPU/Vello path occasionally trips a wasm-bindgen "recursive
+  // use of an object" race when the prior test's worker hasn't
+  // finished tearing down before this one's initGpu fires. The
+  // single-test runs always pass; one retry is enough to absorb the
+  // flake without masking real regressions (a real bug repeats).
+  retries: 1,
   use: {
     baseURL: BASE_URL,
     trace: "retain-on-failure",
