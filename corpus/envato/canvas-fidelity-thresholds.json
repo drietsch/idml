@@ -1,0 +1,492 @@
+{
+  "fixtures": [
+    {
+      "name": "ancient-building-magazine",
+      "max_pages_with_pdf": 12,
+      "max_mean_de": 3.61,
+      "max_p99_de": 85.1,
+      "min_ssim": 0.84,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=2.885 p99\u0394E=68.075 ssim=0.8589, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "annual-report",
+      "max_pages_with_pdf": 16,
+      "max_mean_de": 9.19,
+      "max_p99_de": 125.01,
+      "min_ssim": 0.73,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=7.352 p99\u0394E=100.000 ssim=0.7487, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "annual-report-template",
+      "max_pages_with_pdf": 20,
+      "max_mean_de": 86.42,
+      "max_p99_de": 118.77,
+      "min_ssim": 0.34,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=69.130 p99\u0394E=95.010 ssim=0.3538, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "annual-report-template-8b5d40",
+      "max_pages_with_pdf": 20,
+      "max_mean_de": 28.85,
+      "max_p99_de": 61.53,
+      "min_ssim": 0.52,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=23.078 p99\u0394E=49.220 ssim=0.5390, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "book-template-design",
+      "max_pages_with_pdf": 16,
+      "max_mean_de": 6.29,
+      "max_p99_de": 124.65,
+      "min_ssim": 0.82,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=5.027 p99\u0394E=99.720 ssim=0.8399, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "brand-guideline-template",
+      "max_pages_with_pdf": 16,
+      "max_mean_de": 19.7,
+      "max_p99_de": 125.01,
+      "min_ssim": 0.77,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=15.754 p99\u0394E=100.000 ssim=0.7936, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "brand-guidelines",
+      "max_pages_with_pdf": 24,
+      "max_mean_de": 5.52,
+      "max_p99_de": 90.8,
+      "min_ssim": 0.82,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=4.413 p99\u0394E=72.633 ssim=0.8423, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "brochure",
+      "max_pages_with_pdf": 12,
+      "max_mean_de": 18.37,
+      "max_p99_de": 100.11,
+      "min_ssim": 0.79,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=14.691 p99\u0394E=80.081 ssim=0.8082, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "brown-fashion-brochure",
+      "max_pages_with_pdf": 8,
+      "max_mean_de": 4.69,
+      "max_p99_de": 118.1,
+      "min_ssim": 0.8,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=3.752 p99\u0394E=94.473 ssim=0.8168, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "business-magazine-template",
+      "max_pages_with_pdf": 20,
+      "max_mean_de": 14.28,
+      "max_p99_de": 124.98,
+      "min_ssim": 0.48,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=11.420 p99\u0394E=99.981 ssim=0.4935, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "business-proposal",
+      "max_pages_with_pdf": 12,
+      "max_mean_de": 6.25,
+      "max_p99_de": 105.18,
+      "min_ssim": 0.75,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=4.997 p99\u0394E=84.138 ssim=0.7722, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "business-proposal-template",
+      "max_pages_with_pdf": 16,
+      "max_mean_de": 13.53,
+      "max_p99_de": 121.45,
+      "min_ssim": 0.78,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=10.816 p99\u0394E=97.153 ssim=0.8023, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "capability-statement-brochure",
+      "max_pages_with_pdf": 16,
+      "max_mean_de": 8.6,
+      "max_p99_de": 125.01,
+      "min_ssim": 0.78,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=6.872 p99\u0394E=100.000 ssim=0.7988, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "catalog",
+      "max_pages_with_pdf": 12,
+      "max_mean_de": 17.16,
+      "max_p99_de": 78.33,
+      "min_ssim": 0.44,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=13.722 p99\u0394E=62.661 ssim=0.4580, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "catalog-brochure-template",
+      "max_pages_with_pdf": 20,
+      "max_mean_de": 45.95,
+      "max_p99_de": 105.31,
+      "min_ssim": 0.6,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=36.757 p99\u0394E=84.245 ssim=0.6213, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "charity-ebook-digital-magazine-template",
+      "max_pages_with_pdf": 12,
+      "max_mean_de": 15.74,
+      "max_p99_de": 125.01,
+      "min_ssim": 0.55,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=12.588 p99\u0394E=100.000 ssim=0.5639, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "church-newsletter-template",
+      "max_pages_with_pdf": 4,
+      "max_mean_de": 5.88,
+      "max_p99_de": 118.62,
+      "min_ssim": 0.75,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=4.699 p99\u0394E=94.889 ssim=0.7661, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "company-profile-canva-docx-id-psd",
+      "max_pages_with_pdf": 20,
+      "max_mean_de": 14.29,
+      "max_p99_de": 89.68,
+      "min_ssim": 0.77,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=11.432 p99\u0394E=71.739 ssim=0.7870, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "company-profile-template",
+      "max_pages_with_pdf": 20,
+      "max_mean_de": 36.68,
+      "max_p99_de": 105.18,
+      "min_ssim": 0.56,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=29.343 p99\u0394E=84.138 ssim=0.5774, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "cultured-business-newsletter",
+      "max_pages_with_pdf": 10,
+      "max_mean_de": 4.91,
+      "max_p99_de": 105.18,
+      "min_ssim": 0.76,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=3.920 p99\u0394E=84.138 ssim=0.7836, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "digital-bridesmaid-planner-template",
+      "max_pages_with_pdf": 4,
+      "max_mean_de": 12.35,
+      "max_p99_de": 64.54,
+      "min_ssim": 0.6,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=9.879 p99\u0394E=51.629 ssim=0.6188, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "employment-application",
+      "max_pages_with_pdf": 3,
+      "max_mean_de": 3.1,
+      "max_p99_de": 98.86,
+      "min_ssim": 0.9,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=2.480 p99\u0394E=79.082 ssim=0.9215, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "event-program-brochure",
+      "max_pages_with_pdf": 16,
+      "max_mean_de": 10.12,
+      "max_p99_de": 105.31,
+      "min_ssim": 0.71,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=8.094 p99\u0394E=84.245 ssim=0.7272, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "fitness-protein-powder-business-card-templates",
+      "max_pages_with_pdf": 2,
+      "max_mean_de": 48.38,
+      "max_p99_de": 91.49,
+      "min_ssim": 0.3,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=38.701 p99\u0394E=73.187 ssim=0.3107, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "food-cooking-magazine-template",
+      "max_pages_with_pdf": 16,
+      "max_mean_de": 13.07,
+      "max_p99_de": 125.01,
+      "min_ssim": 0.53,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=10.454 p99\u0394E=100.000 ssim=0.5444, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "furniture-product-catalog",
+      "max_pages_with_pdf": 12,
+      "max_mean_de": 3.39,
+      "max_p99_de": 105.18,
+      "min_ssim": 0.85,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=2.706 p99\u0394E=84.138 ssim=0.8677, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "green-energy-newsletter",
+      "max_pages_with_pdf": 10,
+      "max_mean_de": 6.72,
+      "max_p99_de": 116.5,
+      "min_ssim": 0.7,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=5.375 p99\u0394E=93.193 ssim=0.7222, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "gridtastic-grid-kit",
+      "max_pages_with_pdf": 2,
+      "max_mean_de": 11.91,
+      "max_p99_de": 23.81,
+      "min_ssim": 0.89,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=9.521 p99\u0394E=19.045 ssim=0.9142, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "hair-stylist-brochure-vol-3",
+      "max_pages_with_pdf": 20,
+      "max_mean_de": 20.3,
+      "max_p99_de": 105.47,
+      "min_ssim": 0.81,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=16.235 p99\u0394E=84.373 ssim=0.8274, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "high-quality-brand-guideline-template",
+      "max_pages_with_pdf": 32,
+      "max_mean_de": 27.04,
+      "max_p99_de": 59.41,
+      "min_ssim": 0.73,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=21.627 p99\u0394E=47.522 ssim=0.7528, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "hr-employee-handbook",
+      "max_pages_with_pdf": 16,
+      "max_mean_de": 8.28,
+      "max_p99_de": 125.01,
+      "min_ssim": 0.77,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=6.622 p99\u0394E=100.000 ssim=0.7904, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "indesign-magazine",
+      "max_pages_with_pdf": 24,
+      "max_mean_de": 6.02,
+      "max_p99_de": 125.01,
+      "min_ssim": 0.7,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=4.814 p99\u0394E=100.000 ssim=0.7152, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "interior-brochure-design",
+      "max_pages_with_pdf": 16,
+      "max_mean_de": 6.08,
+      "max_p99_de": 104.85,
+      "min_ssim": 0.81,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=4.859 p99\u0394E=83.872 ssim=0.8296, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "interior-design-catalog",
+      "max_pages_with_pdf": 24,
+      "max_mean_de": 2.48,
+      "max_p99_de": 82.07,
+      "min_ssim": 0.88,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=1.980 p99\u0394E=65.654 ssim=0.9018, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "lifestyle-magazine-layout",
+      "max_pages_with_pdf": 24,
+      "max_mean_de": 30.57,
+      "max_p99_de": 125.01,
+      "min_ssim": 0.5,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=24.450 p99\u0394E=100.000 ssim=0.5137, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "magazine",
+      "max_pages_with_pdf": 16,
+      "max_mean_de": 7.14,
+      "max_p99_de": 94.03,
+      "min_ssim": 0.63,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=5.706 p99\u0394E=75.223 ssim=0.6505, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "magazine-e72797",
+      "max_pages_with_pdf": 24,
+      "max_mean_de": 11.22,
+      "max_p99_de": 80.05,
+      "min_ssim": 0.6,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=8.972 p99\u0394E=64.037 ssim=0.6197, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "magazine-editorial-layout",
+      "max_pages_with_pdf": 24,
+      "max_mean_de": 11.62,
+      "max_p99_de": 125.01,
+      "min_ssim": 0.71,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=9.290 p99\u0394E=100.000 ssim=0.7293, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "minimal-furniture-brochure",
+      "max_pages_with_pdf": 20,
+      "max_mean_de": 5.31,
+      "max_p99_de": 101.44,
+      "min_ssim": 0.75,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=4.244 p99\u0394E=81.152 ssim=0.7722, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "minimal-interior-design-catalog",
+      "max_pages_with_pdf": 32,
+      "max_mean_de": 7.15,
+      "max_p99_de": 106.01,
+      "min_ssim": 0.64,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=5.717 p99\u0394E=84.807 ssim=0.6549, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "modern-architecture-portfolio-template",
+      "max_pages_with_pdf": 16,
+      "max_mean_de": 10.29,
+      "max_p99_de": 54.32,
+      "min_ssim": 0.85,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=8.226 p99\u0394E=43.453 ssim=0.8749, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "modern-resume-reference-job-application-template",
+      "max_pages_with_pdf": 3,
+      "max_mean_de": 7.62,
+      "max_p99_de": 104.33,
+      "min_ssim": 0.82,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=6.088 p99\u0394E=83.457 ssim=0.8430, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "newspaper",
+      "max_pages_with_pdf": 8,
+      "max_mean_de": 12.16,
+      "max_p99_de": 105.31,
+      "min_ssim": 0.56,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=9.726 p99\u0394E=84.245 ssim=0.5720, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "newspaper-newsletter-layout",
+      "max_pages_with_pdf": 4,
+      "max_mean_de": 13.89,
+      "max_p99_de": 107.14,
+      "min_ssim": 0.51,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=11.110 p99\u0394E=85.712 ssim=0.5204, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "newspaper-template",
+      "max_pages_with_pdf": 8,
+      "max_mean_de": 13.62,
+      "max_p99_de": 115.66,
+      "min_ssim": 0.51,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=10.894 p99\u0394E=92.520 ssim=0.5272, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "photography-portfolio-vol-16",
+      "max_pages_with_pdf": 20,
+      "max_mean_de": 13.2,
+      "max_p99_de": 105.31,
+      "min_ssim": 0.82,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=10.554 p99\u0394E=84.245 ssim=0.8414, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "project-case-study-template",
+      "max_pages_with_pdf": 20,
+      "max_mean_de": 9.39,
+      "max_p99_de": 125.01,
+      "min_ssim": 0.8,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=7.507 p99\u0394E=100.000 ssim=0.8251, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "project-competitor-analysis-template",
+      "max_pages_with_pdf": 20,
+      "max_mean_de": 9.71,
+      "max_p99_de": 101.17,
+      "min_ssim": 0.83,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=7.763 p99\u0394E=80.931 ssim=0.8544, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "real-estate-brochure",
+      "max_pages_with_pdf": 28,
+      "max_mean_de": 13.95,
+      "max_p99_de": 104.07,
+      "min_ssim": 0.73,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=11.156 p99\u0394E=83.250 ssim=0.7542, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "resume-template-teacher",
+      "max_pages_with_pdf": 2,
+      "max_mean_de": 4.53,
+      "max_p99_de": 101.47,
+      "min_ssim": 0.82,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=3.623 p99\u0394E=81.171 ssim=0.8393, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "saas-product-launch-annual-report-brochure",
+      "max_pages_with_pdf": 16,
+      "max_mean_de": 7.39,
+      "max_p99_de": 102.54,
+      "min_ssim": 0.83,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=5.907 p99\u0394E=82.024 ssim=0.8508, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "soccer-career-flyer-templates",
+      "max_pages_with_pdf": 1,
+      "max_mean_de": 17.55,
+      "max_p99_de": 47.67,
+      "min_ssim": 0.77,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=14.037 p99\u0394E=38.131 ssim=0.7883, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "sport-magazine",
+      "max_pages_with_pdf": 28,
+      "max_mean_de": 6.05,
+      "max_p99_de": 105.04,
+      "min_ssim": 0.77,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=4.839 p99\u0394E=84.030 ssim=0.7955, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "square-catalog-brochure-template",
+      "max_pages_with_pdf": 20,
+      "max_mean_de": 12.5,
+      "max_p99_de": 78.6,
+      "min_ssim": 0.61,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=9.997 p99\u0394E=62.873 ssim=0.6255, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "square-company-profile",
+      "max_pages_with_pdf": 16,
+      "max_mean_de": 7.01,
+      "max_p99_de": 99.18,
+      "min_ssim": 0.7,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=5.600 p99\u0394E=79.341 ssim=0.7225, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "the-brochure",
+      "max_pages_with_pdf": 24,
+      "max_mean_de": 13.48,
+      "max_p99_de": 86.45,
+      "min_ssim": 0.76,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=10.783 p99\u0394E=69.156 ssim=0.7814, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "travel-guide-brochure-template-indd-canva",
+      "max_pages_with_pdf": 16,
+      "max_mean_de": 5.58,
+      "max_p99_de": 125.01,
+      "min_ssim": 0.79,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=4.460 p99\u0394E=100.000 ssim=0.8068, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "wedding-newspaper",
+      "max_pages_with_pdf": 4,
+      "max_mean_de": 34.13,
+      "max_p99_de": 122.5,
+      "min_ssim": 0.48,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=27.301 p99\u0394E=98.000 ssim=0.4927, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "welcome-guide-template",
+      "max_pages_with_pdf": 48,
+      "max_mean_de": 6.76,
+      "max_p99_de": 122.24,
+      "min_ssim": 0.75,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=5.406 p99\u0394E=97.785 ssim=0.7698, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "white-blue-modern-company-annual-report",
+      "max_pages_with_pdf": 24,
+      "max_mean_de": 8.9,
+      "max_p99_de": 99.51,
+      "min_ssim": 0.83,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=7.113 p99\u0394E=79.600 ssim=0.8530, +25% headroom on \u0394E / -2% on SSIM"
+    },
+    {
+      "name": "white-clean-clothing-brand-guideline-document",
+      "max_pages_with_pdf": 24,
+      "max_mean_de": 11.96,
+      "max_p99_de": 99.51,
+      "min_ssim": 0.74,
+      "rationale": "auto-baked from full GPU run; baseline worst page mean\u0394E=9.562 p99\u0394E=79.600 ssim=0.7603, +25% headroom on \u0394E / -2% on SSIM"
+    }
+  ]
+}

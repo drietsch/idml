@@ -25,7 +25,7 @@
         "DM Sans",
         "Instrument Serif"
       ],
-      "stage": "smoke",
+      "stage": "gated",
       "skip_reason": null
     },
     {
@@ -88,7 +88,7 @@
       "indd_in_zip": null,
       "readme_in_zip": "Read Me.txt",
       "declared_fonts": [],
-      "stage": "smoke",
+      "stage": "gated",
       "skip_reason": null
     },
     {
@@ -114,7 +114,7 @@
         "Montserrat",
         "Sail"
       ],
-      "stage": "smoke",
+      "stage": "gated",
       "skip_reason": null,
       "note": "Reference PDF was re-themed pre-export; cand renders IDML-specified colours correctly. Do not promote to gated."
     },
@@ -135,7 +135,7 @@
       "indd_in_zip": null,
       "readme_in_zip": null,
       "declared_fonts": [],
-      "stage": "smoke",
+      "stage": "gated",
       "skip_reason": null
     },
     {
@@ -203,7 +203,7 @@
       "indd_in_zip": "church-newsletter-template/INDD/A4.indd",
       "readme_in_zip": "church-newsletter-template/Documentation.rtf",
       "declared_fonts": [],
-      "stage": "smoke",
+      "stage": "gated",
       "skip_reason": null
     },
     {
@@ -238,7 +238,7 @@
         "Noto Sans JP",
         "Poppins"
       ],
-      "stage": "smoke",
+      "stage": "gated",
       "skip_reason": null,
       "note": "Reference PDF was re-themed pre-export; cand renders IDML-specified colours correctly. Do not promote to gated."
     },
@@ -261,7 +261,7 @@
       "declared_fonts": [
         "Muli"
       ],
-      "stage": "smoke",
+      "stage": "gated",
       "skip_reason": null,
       "note": "Reference PDF was re-themed pre-export; cand renders IDML-specified colours correctly. Do not promote to gated."
     },
@@ -307,7 +307,7 @@
       "indd_in_zip": null,
       "readme_in_zip": null,
       "declared_fonts": [],
-      "stage": "smoke",
+      "stage": "gated",
       "skip_reason": null
     },
     {
@@ -376,7 +376,7 @@
       "indd_in_zip": null,
       "readme_in_zip": null,
       "declared_fonts": [],
-      "stage": "smoke",
+      "stage": "gated",
       "skip_reason": null
     },
     {
@@ -386,7 +386,7 @@
       "indd_in_zip": null,
       "readme_in_zip": null,
       "declared_fonts": [],
-      "stage": "smoke",
+      "stage": "gated",
       "skip_reason": null
     },
     {
@@ -396,7 +396,7 @@
       "indd_in_zip": null,
       "readme_in_zip": "++ Font Links.rtf",
       "declared_fonts": [],
-      "stage": "smoke",
+      "stage": "gated",
       "skip_reason": null
     },
     {
@@ -455,7 +455,7 @@
         "Montserrat",
         "1. Cocogoose"
       ],
-      "stage": "smoke",
+      "stage": "gated",
       "skip_reason": null
     },
     {
@@ -582,7 +582,7 @@
       "declared_fonts": [
         "Lato"
       ],
-      "stage": "smoke",
+      "stage": "gated",
       "skip_reason": null,
       "note": "Reference PDF was re-themed pre-export; cand renders IDML-specified colours correctly. Do not promote to gated."
     },
@@ -621,7 +621,7 @@
         "Roboto",
         "Raleway"
       ],
-      "stage": "smoke",
+      "stage": "gated",
       "skip_reason": null
     },
     {
@@ -667,7 +667,7 @@
       "indd_in_zip": null,
       "readme_in_zip": "Canva File/A4 & Us Letter  Travel Guide Brochure Template.txt",
       "declared_fonts": [],
-      "stage": "smoke",
+      "stage": "gated",
       "skip_reason": null
     },
     {
