@@ -76,9 +76,34 @@ export function CanvasApp() {
   const sabSupported = useMemo(() => supportsSharedArrayBuffer(), []);
   const fps = useFps();
 
+  const [snapshotsReady, setSnapshotsReady] = useState(false);
+
+  // Dev-only test hook. Playwright + ad-hoc browser scripts read
+  // `window.__canvas` to drive the editor. `snapshotsReady` flips
+  // true after the navigator's own snapshot pre-fetch loop finishes
+  // so external scripts don't fire requestSnapshot concurrently
+  // (rustybuzz/wasm-bindgen would trip "recursive use of an object"
+  // and tear down the worker). Stripped from production bundles by
+  // Vite's dead-code elimination under `import.meta.env.PROD`.
+  if (!import.meta.env.PROD) {
+    (globalThis as unknown as { __canvas?: unknown }).__canvas = {
+      client: clientRef.current,
+      handle,
+      ready: handle != null,
+      snapshotsReady,
+    };
+  }
+
   useEffect(() => {
     const client = new CanvasClient();
     clientRef.current = client;
+    if (!import.meta.env.PROD) {
+      (globalThis as unknown as { __canvas?: unknown }).__canvas = {
+        client,
+        handle: null,
+        ready: false,
+      };
+    }
     const off = client.subscribe((msg: WorkerToMain) => {
       if (msg.kind === "warning") {
         setWarnings((prev) => [...prev, `${msg.payload.kind}: ${msg.payload.details}`]);
@@ -227,6 +252,7 @@ export function CanvasApp() {
       // Font fetch is best-effort; canvas still renders without it.
     }
     try {
+      setSnapshotsReady(false);
       const h = await clientRef.current.loadDocument(bytes, fontBytes);
       setHandle(h);
       setLoading(null);
@@ -251,6 +277,7 @@ export function CanvasApp() {
         }
       }
       setStatus(`loaded ${h.pageCount} page${h.pageCount === 1 ? "" : "s"}`);
+      setSnapshotsReady(true);
     } catch (err) {
       setLoading(null);
       setStatus(`load failed: ${String(err)}`);

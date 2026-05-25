@@ -3,3 +3,5 @@ dist/
 src/wasm/
 *.local
 tsconfig.tsbuildinfo
+playwright-report/
+test-results/

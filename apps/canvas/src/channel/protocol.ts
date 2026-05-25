@@ -40,7 +40,7 @@ export type MainToWorkerKind =
     }
   | {
       kind: "requestSnapshot";
-      payload: { pageId: PageId; targetWidthPx: number };
+      payload: { pageId: PageId; targetWidthPx: number; dpi?: number | null };
     }
   | {
       kind: "setSelection";
@@ -55,7 +55,16 @@ export type MainToWorkerKind =
       payload: { selection: ContentSelection };
     }
   | { kind: "undo" }
-  | { kind: "redo" };
+  | { kind: "redo" }
+  | {
+      kind: "registerFont";
+      payload: {
+        family: string;
+        style?: string | null;
+        bytes: number[];
+      };
+    }
+  | { kind: "clearFontRegistry" };
 
 export interface ContentSelection {
   storyId: string;
@@ -152,7 +161,9 @@ export type WorkerToMainKind =
         pageIds: PageId[];
         cacheStats: LayoutCacheStats;
       };
-    };
+    }
+  | { kind: "fontRegistered"; payload: { family: string } }
+  | { kind: "fontRegistryCleared" };
 
 /**
  * Phase 4 Step 2 — layout-cache stats sent piggyback on each

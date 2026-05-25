@@ -97,12 +97,18 @@ export class CanvasClient {
 
   /**
    * Request a low-resolution snapshot for the navigator / overview.
-   * Resolves to the PNG bytes; throws if the worker errors.
+   * Resolves to the PNG bytes; throws if the worker errors. When
+   * `dpi` is provided it wins over `targetWidthPx` — useful for the
+   * fidelity suite, which needs byte-exact dimensions vs `pdftoppm`.
    */
-  async requestSnapshot(pageId: PageId, targetWidthPx: number): Promise<SnapshotPng> {
+  async requestSnapshot(
+    pageId: PageId,
+    targetWidthPx: number,
+    dpi?: number,
+  ): Promise<SnapshotPng> {
     const reply = await this.send({
       kind: "requestSnapshot",
-      payload: { pageId, targetWidthPx },
+      payload: { pageId, targetWidthPx, dpi: dpi ?? null },
     });
     if (reply.kind === "snapshotReady") {
       return reply.payload;
@@ -147,6 +153,54 @@ export class CanvasClient {
     return this.send({ kind: "undo" });
   }
 
+  /**
+   * Register a font in the worker's family resolver. Persists across
+   * loadDocument calls; the renderer's `BytesResolver` will route any
+   * `AppliedFont` matching `family` (+ optional `style`) to these
+   * bytes. Mirrors `idml-inspect --font-family "Family=path"`.
+   */
+  async registerFont(
+    family: string,
+    bytes: Uint8Array,
+    style: string | null = null,
+  ): Promise<void> {
+    const reply = await this.send({
+      kind: "registerFont",
+      payload: { family, style, bytes: Array.from(bytes) },
+    });
+    if (reply.kind !== "fontRegistered") {
+      throw new Error(`unexpected reply: ${reply.kind}`);
+    }
+  }
+
+  /** Drop every previously-registered font. */
+  async clearFontRegistry(): Promise<void> {
+    const reply = await this.send({ kind: "clearFontRegistry" });
+    if (reply.kind !== "fontRegistryCleared") {
+      throw new Error(`unexpected reply: ${reply.kind}`);
+    }
+  }
+
+  /**
+   * Sub-phase D — request a Vello/GPU readback PNG of one page.
+   * Routes around the JSON channel because the underlying wasm
+   * method is `Promise<Uint8Array>` and returning binary through
+   * the seq-keyed envelope path serialises as a number array
+   * (slow on large pages). Resolves to null when GPU is not
+   * initialised (the caller falls back to `requestSnapshot`).
+   */
+  async requestVelloPng(pageId: PageId, dpi: number): Promise<Uint8Array | null> {
+    const seq = this.nextVelloSeq++;
+    const promise = new Promise<Uint8Array | null>((resolve) => {
+      this.velloPending.set(seq, resolve);
+    });
+    this.worker.postMessage({ kind: "renderPageVelloPng", seq, pageId, dpi });
+    return promise;
+  }
+
+  private nextVelloSeq = 1;
+  private readonly velloPending = new Map<number, (bytes: Uint8Array | null) => void>();
+
   async redo(): Promise<WorkerToMain> {
     return this.send({ kind: "redo" });
   }
@@ -188,6 +242,22 @@ export class CanvasClient {
   }
 
   private readonly onMessage = (event: MessageEvent) => {
+    // Sub-phase D side-channel: vello PNG readback replies bypass
+    // the typed JSON envelope (transferable bytes ride directly).
+    const raw = event.data as { kind?: string };
+    if (raw && raw.kind === "velloPngReply") {
+      const reply = event.data as {
+        kind: "velloPngReply";
+        seq: number;
+        pngBytes: number[] | null;
+      };
+      const cb = this.velloPending.get(reply.seq);
+      if (cb) {
+        this.velloPending.delete(reply.seq);
+        cb(reply.pngBytes ? Uint8Array.from(reply.pngBytes) : null);
+      }
+      return;
+    }
     const msg = event.data as WorkerToMain;
     // Resolve the matching `send(...)` promise first so the
     // request-reply path stays the lowest-latency one.

@@ -116,10 +116,16 @@ export class WorkerRenderer {
     this.gpuActive = opts.gpuActive ?? false;
     if (!this.gpuActive) {
       const ctx = canvas.getContext("2d");
+      // A failed GPU init can still leave the OffscreenCanvas with a
+      // context locked to webgpu, so the 2D fallback may not be
+      // available. We log + continue with no compositor; snapshot
+      // PNGs flow through `handleMessage` independently of `ctx`.
+      this.ctx = ctx ?? undefined;
       if (!ctx) {
-        throw new Error("OffscreenCanvas refused to give a 2D context");
+        console.warn(
+          "OffscreenCanvas 2D context unavailable — live tile compositor disabled (snapshots still work)",
+        );
       }
-      this.ctx = ctx;
     } else {
       this.ctx = undefined;
     }

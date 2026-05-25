@@ -33,6 +33,8 @@ interface CanvasWorkerInstance {
   resizeGpu?(width: number, height: number): void;
   presentFrame?(scale: number, tx: number, ty: number, dpr: number): boolean;
   gpuReady?(): boolean;
+  /** Sub-phase D — Vello/GPU readback path for the fidelity suite. */
+  renderPageVelloPng?(pageId: string, dpi: number): Promise<Uint8Array | undefined>;
 }
 
 interface CanvasWasmModule {
@@ -85,19 +87,63 @@ const initPromise = init().catch((err) => {
   });
 });
 
-self.addEventListener("message", async (event: MessageEvent) => {
-  const data = event.data as
-    | { kind: "channel"; msg: MainToWorker }
-    | { kind: "cameraSab"; buffer: SharedArrayBuffer | ArrayBuffer }
-    | {
-        kind: "attachCanvas";
-        canvas: OffscreenCanvas;
-        dpr: number;
-        cssWidth: number;
-        cssHeight: number;
-      }
-    | { kind: "resizeCanvas"; dpr: number; cssWidth: number; cssHeight: number };
+// Incoming messages must be processed strictly in order. The wasm
+// `handleMessage` call is synchronous and short, but `attachCanvas`'s
+// `initGpu` is async — during its awaits the event loop is free to
+// fire another `message` listener, which would re-enter wasm with a
+// stale borrow. Rust panics with "recursive use of an object detected
+// which would lead to unsafe aliasing in rust". Queue every event and
+// drain via a single async pump.
+type IncomingMessage =
+  | { kind: "channel"; msg: MainToWorker }
+  | { kind: "cameraSab"; buffer: SharedArrayBuffer | ArrayBuffer }
+  | {
+      kind: "attachCanvas";
+      canvas: OffscreenCanvas;
+      dpr: number;
+      cssWidth: number;
+      cssHeight: number;
+    }
+  | { kind: "resizeCanvas"; dpr: number; cssWidth: number; cssHeight: number }
+  | { kind: "renderPageVelloPng"; seq: number; pageId: string; dpi: number };
 
+const messageQueue: IncomingMessage[] = [];
+let pumping = false;
+
+async function pump() {
+  if (pumping) return;
+  pumping = true;
+  try {
+    while (messageQueue.length > 0) {
+      const data = messageQueue.shift()!;
+      try {
+        await dispatch(data);
+      } catch (err) {
+        // Surface the failure but keep draining — a hung pump strands
+        // every subsequent message (e.g. a failing attachCanvas would
+        // block every requestSnapshot behind it).
+        postBack({
+          seq: null,
+          protocol: PROTOCOL_VERSION,
+          kind: "warning",
+          payload: {
+            kind: "dispatchError",
+            details: `${data.kind}: ${String(err)}`,
+          },
+        });
+      }
+    }
+  } finally {
+    pumping = false;
+  }
+}
+
+self.addEventListener("message", (event: MessageEvent) => {
+  messageQueue.push(event.data as IncomingMessage);
+  void pump();
+});
+
+async function dispatch(data: IncomingMessage): Promise<void> {
   if (data.kind === "cameraSab") {
     cameraBuffer = new CameraBuffer(data.buffer);
     return;
@@ -109,6 +155,24 @@ self.addEventListener("message", async (event: MessageEvent) => {
       return;
     }
     await attachRenderer(data.canvas, data.dpr, data.cssWidth, data.cssHeight);
+    return;
+  }
+  if (data.kind === "renderPageVelloPng") {
+    await initPromise;
+    let pngBytes: Uint8Array | undefined;
+    if (worker?.renderPageVelloPng) {
+      try {
+        pngBytes = await worker.renderPageVelloPng(data.pageId, data.dpi);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn("renderPageVelloPng threw:", err);
+      }
+    }
+    (self as unknown as DedicatedWorkerGlobalScope).postMessage({
+      kind: "velloPngReply",
+      seq: data.seq,
+      pngBytes: pngBytes ? Array.from(pngBytes) : null,
+    });
     return;
   }
   if (data.kind === "resizeCanvas") {
@@ -168,7 +232,7 @@ self.addEventListener("message", async (event: MessageEvent) => {
       }
     }
   }
-});
+}
 
 async function attachRenderer(
   canvas: OffscreenCanvas,
