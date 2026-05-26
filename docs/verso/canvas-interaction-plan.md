@@ -324,10 +324,15 @@ Three concrete improvements, in priority order:
    `item_transform`, then test against the raw `bounds`. Exact for
    rotated/sheared frames. (Compound-path / hole-accurate hit-testing
    using `subpath_starts` is a later refinement — flag, don't build.)
-2. **True z-order.** Replace the per-kind sequential scan with a single
-   pass over all page items in document order, topmost-first. Requires
-   surfacing a unified z-ordered item list from the spread (the
-   renderer already paints in document order; mirror that order here).
+2. **True z-order (layer-aware).** Replace the per-kind sequential scan
+   with a single pass over all page items, topmost-first. The order is
+   **layer order first, then document order within a layer** — *not*
+   raw spread document order. Source it from the *same* computation the
+   renderer paints from: `crates/idml-renderer/src/pipeline.rs` already
+   builds a `layer_z_index` (~L864) keyed by each item's `ItemLayer`.
+   Hit-testing must consult that index (or a shared helper extracted
+   from it) so selection and rendering can never disagree about which
+   element is on top.
 3. **Group descent.** When the topmost hit is a `Group`, descend into
    its children (composing the group's `item_transform`) so the user
    selects the leaf, with Group-level selection reachable via a
@@ -338,17 +343,55 @@ Three concrete improvements, in priority order:
 `HitFilter` (already `Frame | Text | Any`) gains meaning: the select
 tool uses `Frame`, the text tool uses `Text`.
 
+### 5.1 Layers as an input to interaction
+
+Layers already exist in the model and the renderer, and they gate
+interaction in two ways that belong in *this* plan (the layer **model
+and management UI** do not — see "out of scope" below).
+
+- **The model.** `crates/idml-parse/src/designmap.rs:54` parses
+  `Layer { self_id, name, visible, locked, printable }`. Every page
+  item references its layer via `ItemLayer`.
+- **Visibility gating.** The renderer already skips items on a layer
+  where `visible && printable` is false (`pipeline.rs:832`).
+  Hit-testing and marquee selection must apply the **same** gate — an
+  item the user cannot see must not be selectable. Reuse the renderer's
+  visibility predicate rather than re-deriving it.
+- **Locked gating.** `locked` is documented in the parser as *"purely
+  an editor concern; the renderer ignores it."* The selection layer is
+  therefore the **first** consumer of `locked`: items on a locked layer
+  are not hit-testable for selection (click falls through to whatever is
+  selectable beneath, or clears). This is a selection-rule change in
+  Phase A, not a render change.
+- **Z-order.** Already covered by §5 #2 — the layer-aware order is the
+  one selection must use.
+
+**State-ambiguity note (for the later `verso.layers` work, not here).**
+`editor-architecture.md` flags layer *visibility* as a
+document-vs-application-state decision: "hidden in the document"
+(persisted, affects export + all collaborators) vs. "hidden in my view"
+(per-user application state). This plan only *reads* the current
+`visible` flag to gate hit-testing; it does not decide that question.
+
+**Out of scope here (→ `verso.layers`, build-sequence Step 7):**
+creating / reordering / renaming layers, the visibility & lock toggles,
+re-assigning items to layers (`ItemLayer`), and the Layers panel. Those
+need *new* Operations (reorder layer, set `ItemLayer`, set
+visibility/lock) and a panel UI — neither is a direct-manipulation
+primitive.
+
 ---
 
 ## 6. New acceptance criteria
 
 Continuing `canvas.md` §11.3's numbering:
 
-- **AC-E-10 Element selection.** Click selects the topmost element
-  under the pointer (oriented, not AABB); Shift/Cmd-click adds/toggles;
-  click on empty canvas clears. Selection survives zoom, pan, and
-  re-layout. Measurement: automated test over single/overlapping/rotated
-  frames at 3 zoom levels.
+- **AC-E-10 Element selection.** Click selects the topmost *selectable*
+  element under the pointer (oriented, not AABB; skipping items on
+  hidden or locked layers per §5.1); Shift/Cmd-click adds/toggles; click
+  on empty canvas clears. Selection survives zoom, pan, and re-layout.
+  Measurement: automated test over single/overlapping/rotated frames at
+  3 zoom levels, plus a hidden-layer and a locked-layer case.
 - **AC-E-11 Marquee.** Click-drag on empty canvas selects all elements
   whose oriented bounds intersect the marquee; Shift adds. Measurement:
   automated test with rotated + overlapping elements.
@@ -388,9 +431,11 @@ rotation and z-order. Pure foundation; no mutation.
   - New `ElementSelection { ids: Vec<NodeId> }` (application state) +
     set ops (set/add/toggle/remove/clear). Mirror to worker via a new
     `SetElementSelection` channel message (parallel to `SetSelection`).
-  - `hit.rs`: oriented containment (#1), true z-order (#2). Group
-    descent (#3) can trail into Phase A.1 if it complicates the first
-    landing.
+  - `hit.rs`: oriented containment (#1), layer-aware z-order (#2,
+    sourced from `pipeline.rs`'s `layer_z_index`), and layer
+    visibility + locked gating (§5.1 — skip items on hidden/locked
+    layers). Group descent (#3) can trail into Phase A.1 if it
+    complicates the first landing.
   - Marquee intersection query (oriented-bounds ∩ rect).
 - **Channel** (`channel.rs`): `SetElementSelection { ids }`,
   `RequestMarqueeHits { page_id, rect }` → reply with `Vec<NodeId>`.
@@ -575,8 +620,8 @@ Adobe chrome).
   path byte-identical; cover with the existing text undo tests + new
   frame undo tests in one run.
 - **Hit-testing z-order** must match the renderer's paint order exactly
-  or selection will feel wrong. Mitigation: source the z-ordered item
-  list from the same place the renderer paints from, not a parallel
+  or selection will feel wrong. Mitigation: source the layer-aware order
+  from `pipeline.rs`'s `layer_z_index` (§5 #2 / §5.1), not a parallel
   ordering.
 - **Scope creep into the shell.** This plan is deliberately
   shell-independent. Resist building bundle/tool infrastructure here —
@@ -587,7 +632,8 @@ Adobe chrome).
 ## 12. Sequenced checklist
 
 - [ ] **A** Element selection set + worker mirror + oriented hit-test +
-      true z-order; marquee. (AC-E-10/11/12)
+      layer-aware z-order + hidden/locked-layer gating (§5.1); marquee.
+      (AC-E-10/11/12)
 - [ ] **B** `idml-mutate` bridge + unified undo log; `gesture.rs` +
       ephemeral overlay; translate end-to-end. (AC-E-13, AC-E-7/8)
 - [ ] **C** Resize handles + anchoring + aspect-lock. (AC-E-14)
