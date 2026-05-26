@@ -1,887 +1,1199 @@
-# Verso: Technical Briefing — Editor Architecture
+# Verso: Technical Specification — Application Shell (Step 3 Substrate)
 
-*Third document in the Verso series, after the renderer-phase concept and the scripting-layer briefing. Defines the architecture of the editor that sits on top of the renderer and scripting layer. The central claim is that the Verso editor is not a monolithic application — it is a bundle host that happens to ship a bundle suite, and every architectural decision in this document flows from that framing.*
+*Companion document to the Verso Editor Architecture briefing. The briefing defines the four-layer architecture (renderer → scripting → shell → bundles), the two mutation channels (Operations + Gestures), and the build sequence. This specification zooms in on Step 3 of that sequence: the empty application shell that hosts the existing IDML canvas, with a declarative panel registry, the dockview docking substrate, the shadcn UI foundation, the application-state context layer, and the tsify-generated WASM ↔ TypeScript type contract. The deliverable of Step 3 is a shell that can run with zero bundles loaded, into which the existing `CanvasApp` is decomposed and re-mounted as a configurable arrangement of panels, with all types crossing the WASM boundary derived from Rust as the single source of truth.*
 
-*Revision history: the first version made an over-strong claim that "every interaction is an Operation" without acknowledging that direct manipulation (drag-to-rotate, marquee selection, live property scrubbing) cannot work that way. The second version introduced the gesture layer for ephemeral interactions and the distinction between document state and application state. The third revision added concrete integration detail for dockview as the docking substrate. This fourth revision updates the document to use the project name Verso throughout.*
+*This is the spec, not the implementation plan. The implementation plan is the build sequence at the end.*
+
+*Revision history: original draft covered shell decomposition, registries, dockview substrate, shadcn, theming, command palette, and persistence. This revision adds the WASM ↔ TypeScript contract layer using tsify to eliminate the type-drift class of bug between the Rust renderer and the TypeScript shell, removes the hand-written `protocol.ts` as the source of truth for shared types, and updates the migration path, build sequence, time budget, acceptance criteria, and what-not-to-do accordingly.*
+
+---
 
 ## Scope
 
-This briefing covers:
+This spec covers:
 
-- The four-layer architecture (renderer → scripting → shell → bundles) and the invariants between layers.
-- The two mutation channels: Operations (for committed state) and Gestures (for ephemeral state during direct manipulation).
-- The bundle system: manifest format, contribution points, lifecycle, activation events.
-- The Verso application shell: docking via dockview, panels, command palette, menu system, keybinding manager, perspectives.
-- The Contribution API — the seam between the shell and bundles.
-- Panel and GUI component definitions.
-- The distinction between document state and application state, with selection as the canonical case.
-- The visual design position, including an explicit position on the InDesign question.
-- The recommended build sequence.
+- The decomposition of the existing `apps/canvas/src/ui/CanvasApp.tsx` into a shell + panels.
+- The **WASM ↔ TypeScript type contract**, generated from Rust via `tsify`, replacing the hand-written `protocol.ts` as the source of truth for shared types.
+- The Panel Manifest format and the `PanelRegistry`.
+- The Application State context layer (camera, selection, content selection, document, client).
+- The `DockingSubstrate` abstraction and the single `DockviewSubstrate` implementation.
+- The `SemanticGroupRegistry` mapping semantic group names to dockview group IDs at runtime.
+- The shadcn UI setup, the `@verso/ui` panel design system layered on top, and the substrate-isolation discipline that mirrors the dockview wrapping.
+- The CSS-variable theme bridge between shadcn and dockview.
+- The command palette built on shadcn's `Command` primitive, with an initially empty `CommandRegistry`.
+- Layout auto-persistence to `localStorage`.
+- The monorepo organization that supports the substrate-isolation discipline.
+- The migration path from the current `CanvasApp.tsx` and `protocol.ts` to the shell+panels+generated-types structure.
 
-Out of scope: the specific design system (colors, type, spacing), individual feature bundle designs, plugin marketplace mechanics, AI-assisted editor workflows. These are downstream of the architecture this briefing specifies and can be designed once the substrate exists.
+Out of scope:
 
-## The Four-Layer Architecture
+- The bundle loader and bundle activation lifecycle (Step 4 of the build sequence).
+- The gesture pipeline, pointer event routing into the renderer, the overlay layer (Step 5).
+- The refactor of the inspector into a bundle (Step 6).
+- The specific visual design language — colors, typography, density (the design language brief, Step 1, is a separate artifact).
+- The Phase 2 OffscreenCanvas + Vello live-tile renderer work, which is renderer-internal and orthogonal to the shell.
+
+## Position in the Architecture
+
+The shell sits on top of the renderer + scripting layer, beneath bundles. It is the empty container into which feature contributions are registered.
 
 ```
 ┌─────────────────────────────────────────────────┐
-│  Bundles (built-in and user-installed)          │
-│  Declare: panels, tools, commands, menus,       │
-│  keybindings, settings, themes                  │
+│  Bundles (future — Step 4+)                     │
+│  Register: panels, tools, commands, menus       │
 └─────────────────────────────────────────────────┘
                        ▲
-                       │ contribution registration via Contribution API
+                       │ Contribution API
                        ▼
 ┌─────────────────────────────────────────────────┐
-│  Verso Application Shell                        │
-│  Docking (dockview), panels, menus, command     │
-│  palette, perspectives, keybinding manager      │
+│  Verso Application Shell                  ← Step 3 substrate
+│  ┌───────────────────────────────────────────┐  │
+│  │  Panel Registry                           │  │
+│  │  Command Registry                         │  │
+│  │  Semantic Group Registry                  │  │
+│  │  Application State (contexts)             │  │
+│  │  Docking Substrate (wraps dockview)       │  │
+│  │  Theme bridge (shadcn ↔ dockview)         │  │
+│  └───────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────┘
-        ▲                              ▲
-        │  Operations through          │  Gesture API
-        │  the scripting layer         │  (begin, update, commit, cancel)
-        ▼                              ▼
-┌──────────────────────┐    ┌──────────────────────────┐
-│  Scripting Layer     │    │  Renderer Gesture Layer  │
-│  (QuickJS, JS API,   │    │  (ephemeral interaction  │
-│  Operation channel)  │    │   state, frame-rate)     │
-└──────────────────────┘    └──────────────────────────┘
-        ▲                              │
-        │                              │
-        └──────────────┬───────────────┘
+                       ▲
+                       │ CanvasClient (worker bridge)
+                       │ — types generated from Rust via tsify ─
                        ▼
 ┌─────────────────────────────────────────────────┐
-│  Scene Graph (committed) + Ephemeral Overlay    │
-│  Verso renderer / WASM core                     │
+│  IDML Renderer (existing — apps/canvas worker)  │
+│  Scene graph, layout, snapshots, mutations      │
+│  Rust types annotated #[derive(Tsify)] — source │
+│  of truth for the WASM ↔ TypeScript boundary    │
 └─────────────────────────────────────────────────┘
 ```
 
-The shell talks to the scene graph through *two* channels: the scripting layer for committed mutations (Operations), and the gesture layer for ephemeral direct-manipulation state. Both terminate in the same scene graph but operate on different layers of it — committed state vs ephemeral overlay. The distinction is essential and is unpacked below.
+Step 3 produces the middle layer in this picture. Step 4 adds the contribution API and bundle loader on top. Steps 5+ build the gesture pipeline, the inspector-as-bundle, and the core editor bundles. The renderer beneath is unchanged.
 
-### Layer invariants
+## Current State (What's in `CanvasApp.tsx` Today)
 
-These are the rules that make the architecture hold together. They must be enforced by code structure and code review, not by convention.
+The existing implementation is a single-component shell. Its responsibilities, as currently distributed:
 
-**The renderer and scene graph know nothing about anything above them.** They expose the Operation channel for committed mutations, the Gesture API for ephemeral interactions, and change events as their notification surface. They never reach upward.
+**Application state held in `useState`:**
+- `handle: DocumentHandle | null` — the loaded document.
+- `snapshots: Map<PageId, string>` — per-page thumbnail data URLs.
+- `camera: Camera` — viewport pan/zoom, mirrored to SAB on every change.
+- `selection: SelectionState | null` — visual hit selection from the viewport.
+- `contentSelection: ContentSelection | null` — text caret/range selection within a story.
+- `caret: CaretGeometry | null` — derived from worker after selection/mutation.
+- `selectionRects: SelectionRect[]` — derived from worker after selection/mutation.
+- `resolution: ResolutionResult | null` — document structural resolution.
+- `gpuActive: boolean | null` — renderer instrumentation.
+- `loading: { name, bytes } | null` — file-loading UI state.
+- `status: string`, `warnings: string[]` — user-facing status surface.
+- `layoutCacheStats: LayoutCacheStats | null` — Phase 4 instrumentation.
 
-**The scripting layer knows about the renderer and scene graph and exposes the JS API and Operation channel.** It knows nothing about UI, panels, docking, or bundles. It is the same scripting layer specified in the previous briefing, unchanged.
+**Document-loading orchestration:**
+- Worker boot via `CanvasClient`.
+- File drop / pick → byte read → `client.loadDocument()` → per-page snapshot fetching → status updates.
+- Inter font fetch as a side-channel before document load.
 
-**The application shell uses the scripting layer for committed mutations and the Gesture API for direct manipulation.** The shell has no privileged Operation path — every committed mutation goes through the same channel scripts use. The shell does have privileged access to the Gesture API, because gestures are how the GUI tells the renderer "I am directly manipulating these nodes; show the user the result in real time." Scripts cannot start gestures; they apply discrete Operations.
+**Subscriptions:**
+- `client.subscribe()` for `warning`, `attachReady`, `resolutionDone`, `mutationApplied` / `undoApplied` / `redoApplied`.
+- `ResizeObserver` on the viewport container for fit-to-page math.
 
-**Bundles contribute features to the shell.** A bundle is a self-contained unit of feature: declarative manifest plus executable code. Removing a bundle removes the feature cleanly. Bundles communicate with each other only through the scene graph (the universal medium) or through events the shell mediates. They never reach into each other's internals.
+**Layout (JSX):**
+- Header with status, file picker.
+- Left: `PageNavigator` (thumbnails).
+- Left (when resolution available): `Outline` (structural).
+- Center: `ViewportCanvas` (the renderer surface + HUD).
+- Empty state when no document is loaded.
+- Loading overlay during file parse.
 
-### Why this layering matters
+**Hooks used:**
+- `useAnimatedCamera` for discrete camera jumps.
+- `useKeyboardShortcuts` for navigation.
+- `useTextEditing` for keyboard input on selected text.
+- `useFps` for HUD.
 
-This is the structure that makes Verso's larger ambitions tractable:
+**Dev hook:**
+- `window.__canvas` for Playwright + ad-hoc browser scripting.
 
-- **The GUI has no privileged Operation path.** Every committed mutation is an Operation: undoable, persistable, recordable, scriptable, collaboration-syncable, AI-drivable. The GUI's gesture machinery is how direct manipulation feels right; the result of every gesture is still a normal Operation that flows through the normal channel.
-- **The shell is its own first plugin.** Anything a built-in bundle does, a user-written bundle can do too. There is no privileged API only the built-in features can access. This is the property that makes the extensibility story real rather than rhetorical.
-- **The architecture is testable.** Each layer has a clean interface. The scene graph can be tested without a scripting layer. The scripting layer can be tested without a shell. The shell can be tested with mock bundles. Bundles can be tested with a mock shell.
-- **The architecture is replaceable.** Any layer can be rewritten without affecting the others, as long as the interface is preserved.
+The component is 513 lines, 17 KB, and is doing the work of what should be five or six smaller pieces. The Step 3 decomposition redistributes these responsibilities without changing any of the underlying behavior.
 
-### What the renderer and scene graph expose
+The hand-written `apps/canvas/src/channel/protocol.ts` is, similarly, doing the work of "shared type declarations across a language boundary" — a contract maintained in two places (Rust on one side, TypeScript on the other) with no enforced relationship between them. The Step 3 contract-layer work eliminates this duplication.
 
-The scene graph's public API has two surfaces:
+## The WASM ↔ TypeScript Contract
 
-For committed mutations (consumed by the scripting layer, indirectly by everything else):
-- `apply(op: Operation) -> Result<AppliedOperation, OperationError>` — the sole *committed* mutation surface.
-- `getNode(id: NodeId) -> NodeView` — read-only structured access to a node.
-- `query(...)` — read-only structured queries over the graph.
-- `subscribe(filter, callback) -> Unsubscribe` — change-notification stream for committed mutations.
-- `version() -> u64` — monotonic version for cache invalidation.
+The renderer is Rust compiled to WASM, hosted in a Web Worker, talking to the main thread via `postMessage` (and to the WASM module directly via `wasm-bindgen` calls). Both edges carry typed data: `DocumentHandle`, `ContentSelection`, `CaretGeometry`, `SelectionRect`, `WorkerToMain` discriminated unions, etc. Today these types exist in two places — as Rust structs/enums in the renderer crate, and as hand-written TypeScript interfaces in `apps/canvas/src/channel/protocol.ts`. Nothing prevents drift between them; drift becomes a runtime bug, often a subtle one (a renamed field becomes `undefined`, a re-shaped variant produces an unhandled case in a switch).
 
-For ephemeral direct manipulation (consumed by the shell):
-- `beginGesture(nodes, type) -> GestureHandle`
-- `updateGesture(handle, update)`
-- `commitGesture(handle) -> AppliedOperation`
-- `cancelGesture(handle)`
+The Step 3 substrate fixes this by making Rust the source of truth and generating TypeScript from it via [`tsify`](https://github.com/madonoharu/tsify).
 
-The next two sections unpack each surface.
+### Why tsify (and not the alternatives)
 
-## The Two Mutation Channels
+The alternatives considered:
 
-The architecturally critical realization in this briefing: **not all interactions can or should go through Operations**. Discrete edits (set a property, insert a node, change a color via a swatch click) are Operations. Continuous interactions (drag-to-rotate, marquee selection, live property scrubbing) are gestures that produce *one* Operation at the end, not hundreds during.
+- **Hand-written TypeScript matching Rust by convention** — the current state. Cheap, fragile, scales poorly with the number of types crossing the boundary. As the renderer grows toward Phase 2+ (live-tile rendering) and Step 5 (gesture pipeline), the protocol surface grows; manual maintenance becomes a tax.
+- **`ts-rs`** — alternative derive macro, emits `.ts` files via test runs. Slightly more ceremony (separate test runner step, manually configured output paths). Strong fit for non-wasm-bindgen workflows; the integration with wasm-bindgen is less natural.
+- **WIT + the Component Model** — the architecturally correct long-term answer. Not yet pragmatic for production browser apps in 2026; browser tooling is still maturing and would mean abandoning the wasm-bindgen workflow that's already working.
+- **OpenAPI / JSON Schema / Protocol Buffers** — HTTP-shaped or RPC-shaped schema languages. Wrong vocabulary for an in-process WASM boundary; pay full tooling cost for one feature (schema-driven types) that tsify gives for free.
 
-### Why direct manipulation cannot be Operations
+tsify is the right fit because it integrates directly with wasm-bindgen's `.d.ts` generation, requires no separate build step, supports the full Rust type system that matters here (structs, enums including tagged unions, generics, optional fields), and has a stable API at version 0.5.x.
 
-Consider rotating an object by dragging a rotation handle. The cursor moves at roughly 60 events per second. If each cursor movement produced a `SetProperty` Operation:
+### What moves to Rust as source of truth
 
-- The undo stack would have 60 entries per second of dragging. Pressing Cmd-Z would reverse one frame of cursor motion at a time. This is wrong.
-- Scripts would receive 60 change notifications per second of dragging. Bindings would recompute. DuckDB projections would update. Collaboration would broadcast 60 mutations per second.
-- The Operation log would be enormous and meaningless. Persistence would grind.
-- Performance would be bad because every Operation has overhead — type validation, inversion computation, broadcast.
+Every type in `apps/canvas/src/channel/protocol.ts` that has a Rust counterpart on the renderer side. Concretely:
 
-The right behavior is unambiguous: a one-second rotation drag produces *one* undo entry, *one* script notification, *one* collaboration message — for the final rotation. The 60 intermediate visual updates are real (the user needs to see them) but they are not part of the document's history.
+- `DocumentHandle`, `PageId`, page metadata.
+- `ContentSelection`, `CaretGeometry`, `SelectionRect`.
+- `ResolutionResult` and its substructures.
+- `LayoutCacheStats`.
+- `Camera` (already shared via SAB, but the struct itself is Rust-side).
+- The `WorkerToMain` discriminated union and every variant's payload (`warning`, `attachReady`, `resolutionDone`, `mutationApplied`, `undoApplied`, `redoApplied`).
+- The `MainToWorker` discriminated union (`hello`, `loadDocument`, `requestSnapshot`, `setCamera`, `setSelection`, `caretGeometry`, `selectionGeometry`, mutation/undo/redo commands).
 
-This pattern is universal across direct-manipulation tools. Figma calls it interactive editing. Blender, Sketch, every CAD tool, and every serious creative tool has the equivalent. It is not optional.
+After the migration, `protocol.ts` contains *only*:
 
-### The Operation channel (committed mutations)
+- A re-export of the generated types from the Rust-emitted `.d.ts`.
+- TypeScript-only types that have no Rust counterpart — primarily the `CanvasClient` class's request/reply correlation types and any UI-side helper types.
 
-Operations are the canonical mutation primitive, defined in the scripting briefing and unchanged here:
+### Cargo setup
+
+In the renderer crate's `Cargo.toml` (the crate that exports the WASM module):
+
+```toml
+[dependencies]
+wasm-bindgen = "0.2"
+serde = { version = "1.0", features = ["derive"] }
+serde-wasm-bindgen = "0.6"
+tsify = { version = "0.5", default-features = false, features = ["js"] }
+```
+
+The `js` feature is non-default and is the right choice for Verso. The default (`json`) routes Rust ↔ JS data through `serde_json` — fine for small messages, wasteful for large ones (the geometry payloads in `SelectionRect[]` or `CaretGeometry` are not small once a real document is loaded). The `js` feature uses `serde-wasm-bindgen` instead, marshaling directly into JS values without an intermediate JSON string. For a renderer that emits selection geometry on every keystroke and layout cache stats on every mutation, the difference matters.
+
+### Type annotation pattern
+
+Every Rust type that crosses the WASM boundary gets the `Tsify` derive plus the wasm-abi attribute:
 
 ```rust
-pub enum Operation {
-    SetProperty { node, path, value },
-    InsertNode { parent, position, node },
-    RemoveNode { node },
-    MoveNode { node, new_parent, position },
-    Batch(Vec<Operation>),
+// In the renderer crate, e.g. src/protocol.rs
+
+use serde::{Deserialize, Serialize};
+use tsify::Tsify;
+
+#[derive(Tsify, Serialize, Deserialize, Clone, Debug)]
+#[tsify(into_wasm_abi, from_wasm_abi)]
+#[serde(rename_all = "camelCase")]
+pub struct ContentSelection {
+    pub story_id: StoryId,
+    pub start: u32,
+    pub end: u32,
+    pub affinity: bool,
+}
+
+#[derive(Tsify, Serialize, Deserialize, Clone, Debug)]
+#[tsify(into_wasm_abi, from_wasm_abi)]
+#[serde(rename_all = "camelCase")]
+pub struct CaretGeometry {
+    pub page_id: PageId,
+    pub x_pt: f64,
+    pub y_pt: f64,
+    pub height_pt: f64,
+}
+
+// Discriminated union — tsify generates a TypeScript tagged union.
+#[derive(Tsify, Serialize, Deserialize, Clone, Debug)]
+#[tsify(into_wasm_abi, from_wasm_abi)]
+#[serde(tag = "kind", content = "payload", rename_all = "camelCase")]
+pub enum WorkerToMain {
+    Warning(WorkerWarning),
+    AttachReady(AttachReadyPayload),
+    ResolutionDone(ResolutionResult),
+    MutationApplied(MutationAppliedPayload),
+    UndoApplied(MutationAppliedPayload),
+    RedoApplied(MutationAppliedPayload),
 }
 ```
 
-Operations are typed, serializable, replayable, invertible. They go through `apply(op)`, which is the sole *committed* mutation surface. Everything downstream — undo stack, scripts, collaboration, persistence — operates on Operations.
+This generates TypeScript equivalents that match the existing `protocol.ts` shape, with two specific advantages:
 
-The Operation channel handles:
-- Discrete edits from menus or commands (Insert Text Frame, Convert to Outlines).
-- Swatch clicks, font selection from dropdown, enum selection.
-- Property edits via text input (typed a value, pressed Enter).
-- Programmatic mutations from scripts.
-- The *result* of a gesture, produced at commit time.
+- **`#[serde(rename_all = "camelCase")]`** makes the TypeScript field names idiomatic (`storyId` not `story_id`) while Rust stays idiomatic (`story_id` not `storyId`). The serde rename does the work; tsify follows it.
+- **Discriminated unions** with `#[serde(tag = "kind", content = "payload")]` produce TypeScript types that match the existing `WorkerToMain` shape exactly (`{ kind: "warning", payload: { ... } }` etc.). The `client.subscribe` handler's switch statement works unchanged.
 
-### The Gesture API (ephemeral interactions)
+### Build integration
 
-Gestures handle continuous interactions where the visual state must update at frame rate but only the final committed value matters to the document.
+tsify hooks into wasm-bindgen's existing `.d.ts` generation. The build pipeline becomes:
 
-```rust
-pub trait GestureAPI {
-    fn begin(&mut self, nodes: &[NodeId], gesture: GestureType) -> GestureHandle;
-    fn update(&mut self, handle: GestureHandle, update: GestureUpdate);
-    fn commit(&mut self, handle: GestureHandle) -> AppliedOperation;
-    fn cancel(&mut self, handle: GestureHandle);
+1. `cargo build --target wasm32-unknown-unknown --release` in the renderer crate.
+2. `wasm-bindgen` post-processing emits `.wasm` + `.js` + `.d.ts`. The `.d.ts` includes the tsify-derived types automatically.
+3. The output is consumed by `apps/canvas`'s Vite build like any other dependency.
+
+No separate codegen step. No extra build tool. The TypeScript types are produced as a side-effect of the existing WASM build.
+
+For local development, the workflow is `wasm-pack build` (or `cargo-make` running the equivalent) in the renderer crate, then standard Vite HMR on the TypeScript side. The generated `.d.ts` lives at the wasm-bindgen output path; `apps/canvas`'s `tsconfig.json` already has it in its module-resolution scope.
+
+### What stays in TypeScript
+
+Not everything in `protocol.ts` has a Rust counterpart, and not everything should:
+
+- **The `CanvasClient` class itself.** The dispatch logic, request/reply correlation, `subscribe` mechanism. This is TypeScript orchestration over the `postMessage` channel, not a shared type.
+- **Promise-resolver maps and pending-request bookkeeping.** Inherent to the JS side; no Rust analog.
+- **UI-only types.** `SelectionState` (the union of visual selection + geometry that the React side composes), component prop types, hook return shapes. These never cross the WASM boundary.
+- **The dev-hook shape on `window.__canvas`.** Pure debugging surface.
+
+The discipline: if a type travels through `postMessage` or through a wasm-bindgen call, it's Rust-sourced via tsify. If it lives entirely in the TypeScript shell or the React tree, it's TypeScript-only.
+
+### The hot-path exception
+
+Not every wasm-bindgen call goes through tsify. The camera-update path — `client.setCamera(cam)` — writes to a `SharedArrayBuffer` in the current implementation; the worker reads on its next frame. This is the right design for a 60-Hz pan/zoom update: no message-passing overhead, no serialization. It stays as-is.
+
+The pattern is: **discrete, structured, low-frequency events go through tsify-typed messages. High-frequency continuous updates go through SAB or direct numeric wasm-bindgen arguments.** Selection changes, mutations, document loads → tsify. Camera scrubbing, future gesture pipeline frame updates → SAB or raw numeric arguments.
+
+This split happens to align with the Operations vs Gestures distinction from the parent briefing: Operations are tsify-typed (they're the discrete events of the document's history); the Gesture API in Step 5 will be raw and fast, exposing `beginGesture` / `updateGesture` / `commitGesture` with numeric arguments where it counts.
+
+### Migration of `protocol.ts`
+
+The existing `apps/canvas/src/channel/protocol.ts` is replaced in two passes:
+
+**Pass 1 — additive.** Add tsify derives to the corresponding Rust types. Build the renderer; the generated `.d.ts` now contains TypeScript types that parallel `protocol.ts`. Verify the generated types are structurally identical to the hand-written ones (a one-time diff review). Both versions coexist.
+
+**Pass 2 — replacement.** In `protocol.ts`, replace each hand-written interface with a re-export from the generated types. Update `CanvasClient` to import from the generated module. Delete the hand-written interfaces. The file shrinks from ~150 lines to ~30 lines plus the `CanvasClient` class.
+
+Pass 1 is risk-free; pass 2 is mostly mechanical, and the type checker catches any discrepancies as compile errors.
+
+### Versioning the contract
+
+The protocol version is already wire-visible (the `hello` / `ready` handshake exchanges a `protocol` version number). With Rust-sourced types, the version is whatever the renderer crate's `Cargo.toml` says it is — single source of truth for the version too. Worth incrementing it whenever a tsify-derived type's shape changes incompatibly, and worth a CI check that the version increments when the generated `.d.ts` changes meaningfully. That CI check is a Step 4 concern, not Step 3 — for Step 3, hand-discipline is enough.
+
+## The Four Registries
+
+The shell maintains four registries as its core data model. All four are initially empty (no contributions); the built-in panels register themselves at shell startup, third-party bundles will register through the same APIs in Step 4+.
+
+### 1. PanelRegistry
+
+The declarative panel manifest is the central abstraction. A panel is data:
+
+```typescript
+// packages/shell/src/registries/panel.ts
+
+import type { ComponentType } from "react";
+
+export interface PanelProps {
+  /** The Verso editor handle — context providers, registries, client. */
+  verso: VersoEditor;
+  /** Dockview-provided lifecycle. Bundles never read this directly. */
+  api: PanelApi;
 }
 
-pub enum GestureType {
-    Translate,
-    Rotate { pivot: Point },
-    Scale { pivot: Point, lock_aspect: bool },
-    Skew,
-    Marquee { mode: MarqueeMode },
-    PathEdit { handle_index: usize },
-    PropertyScrub { property: PropertyPath },
-    // Closed set, extended only with deliberation.
+export interface PanelContribution {
+  /** Stable identifier. Format: "<namespace>.<panel>". */
+  id: string;
+
+  /** Human-readable title shown in the tab header. */
+  title: string;
+
+  /** The React component to render inside the panel. */
+  component: ComponentType<PanelProps>;
+
+  /** Initial dock edge. Users may rearrange; this is initial placement only. */
+  defaultDock?: DockEdge;
+
+  /** Semantic group name. Panels declaring the same group land in the same dockview group. */
+  defaultGroup?: string;
+
+  /** Optional icon for the tab header. */
+  icon?: string;
+
+  /** Optional visibility predicate evaluated against application state. */
+  when?: VisibilityPredicate;
+
+  /** Whether the panel is closable. Defaults to true; false for the canvas. */
+  closable?: boolean;
+
+  /** Whether the panel can be moved. Defaults to true; false for the canvas. */
+  movable?: boolean;
+}
+
+export type DockEdge = "left" | "right" | "top" | "bottom" | "center";
+
+export type VisibilityPredicate =
+  | string                                    // e.g. "selection.hasType('TextFrame')"
+  | ((state: ApplicationState) => boolean);
+
+export interface PanelRegistry {
+  register(contribution: PanelContribution): Disposable;
+  unregister(id: string): void;
+  get(id: string): PanelContribution | undefined;
+  list(): PanelContribution[];
+  onChange(handler: (event: PanelRegistryEvent) => void): Disposable;
+}
+
+export type PanelRegistryEvent =
+  | { kind: "registered"; contribution: PanelContribution }
+  | { kind: "unregistered"; id: string };
+```
+
+The registry is a passive data store. The `DockingSubstrate` subscribes to its events and projects them into dockview operations. The registry itself knows nothing about dockview.
+
+### 2. CommandRegistry
+
+Commands are the canonical action primitive. Every menu item, every keybinding, every command-palette entry resolves to a command.
+
+```typescript
+// packages/shell/src/registries/command.ts
+
+export interface CommandContribution {
+  id: string;
+  title: string;
+  category?: string;
+  icon?: string;
+  /** The handler. Receives the editor and an optional payload. */
+  handler: (verso: VersoEditor, payload?: unknown) => void | Promise<void>;
+  /** Optional enablement predicate. Disabled commands appear greyed in UI. */
+  when?: VisibilityPredicate;
+}
+
+export interface CommandRegistry {
+  register(contribution: CommandContribution): Disposable;
+  unregister(id: string): void;
+  invoke(id: string, payload?: unknown): Promise<void>;
+  get(id: string): CommandContribution | undefined;
+  list(): CommandContribution[];
 }
 ```
 
-The lifecycle for a rotation drag:
+In Step 3, the only command registered is `verso.file.openIdml` — the existing file-picker functionality, lifted into a command so it's invocable from the palette. The header file picker becomes a UI element that invokes this command.
 
-1. **Begin.** Pointer down on the rotation handle. The shell calls `beginGesture([node_id], GestureType::Rotate { pivot })`. The renderer captures the initial rotation, allocates an ephemeral overlay entry, and returns a handle. No Operation yet.
-2. **Update.** Pointer moves. The shell calls `updateGesture(handle, GestureUpdate::Angle(delta))` at frame rate. The renderer updates the ephemeral rotation, recomputes the displayed transform, and triggers a re-render of the affected region. No Operation. No undo entry. No script notification.
-3. **Commit.** Pointer up. The shell calls `commitGesture(handle)`. The renderer reads the final ephemeral rotation, computes the one `SetProperty` Operation that takes the committed state from before-the-gesture to after-the-gesture, applies it through the Operation channel. Now undo, scripts, persistence, and collaboration see the result. The ephemeral overlay entry is cleared.
-4. **Cancel.** If the user presses Escape during the drag, the shell calls `cancelGesture(handle)`. The ephemeral overlay is cleared. No Operation. The committed state is unchanged.
+### 3. SemanticGroupRegistry
 
-### Where gesture logic lives
+The bridge between bundle-declared semantic placement (`defaultGroup: "structure"`) and concrete dockview group IDs created at runtime.
 
-The gesture layer lives **inside the renderer / Rust / WASM core**, not in the JS shell. Two reasons:
+```typescript
+// packages/shell/src/docking/semantic-group.ts
 
-**Performance.** Gestures need to update at frame rate, often with non-trivial computation: snapping against dozens of guides, composing transforms relative to a pivot, hit-testing for handle interactions during the drag itself. Bouncing every pointer event from JS into WASM, doing the math, bouncing back the result, applying to the GPU, adds latency. Keeping the gesture state machine in WASM lets the renderer process the pointer event, update its own ephemeral state, and re-render in one round trip.
+export interface SemanticGroupRegistry {
+  /** Get the dockview group ID for a semantic name, creating one if needed. */
+  resolve(name: string, defaultDock: DockEdge): string;
 
-**Correctness.** Rotation around an arbitrary pivot. Scale with locked aspect. Skew with snapping. Path manipulation with correlated Bezier handles. Marquee selection over rotated objects. This is real geometry, and it belongs in the same crate as the rest of the renderer's geometry — not duplicated in TypeScript with the inevitable bugs that come from two implementations of the same math.
+  /** Look up without creating. */
+  lookup(name: string): string | undefined;
 
-The shell's role is narrow:
+  /** Called by the substrate when a dockview group is removed (user closed all tabs). */
+  forget(name: string): void;
+}
+```
 
-1. Receive pointer events from the canvas element.
-2. Determine which tool is active (text tool, select tool, etc.) and what was hit.
-3. Call the appropriate gesture lifecycle method on the WASM core.
-4. Render any 2D overlay UI on top (selection outlines, dimensions readouts, snap indicators).
+The resolution rule: if a semantic name has never been seen, create a new dockview group docked to `defaultDock`, register the mapping, return the new group's ID. If it has been seen and the group still exists in dockview, return its ID. If it has been seen but the group has been dissolved (user closed all its tabs), re-resolve as if new — this is the "third-party bundle registering against `'typography'` after the user has dissolved that group" case from the briefing.
 
-This is a much smaller responsibility than "implement all the geometry of direct manipulation in TypeScript."
+### 4. KeybindingRegistry
 
-### Scripts cannot start gestures
+Declared in the spec but with minimal implementation in Step 3. The existing `useKeyboardShortcuts` hook in `CanvasApp.tsx` is left in place during Step 3, hooked into the post-decomposition state contexts. Migrating to a true registry happens in Step 4 alongside the bundle loader.
 
-This is a deliberate restriction. The Gesture API is for direct manipulation. Scripts perform discrete mutations through Operations. A script that wants to rotate an object 30 degrees just constructs a `SetProperty` Operation for the final rotation. It does not (and cannot) call `beginGesture` / `updateGesture` / `commitGesture`.
+```typescript
+// packages/shell/src/registries/keybinding.ts (stub for Step 3)
 
-The reason: gestures are intrinsically tied to a single pointer device and a continuous user interaction. They have no meaning in a scripted context. A script applying a million rotations should produce a million Operations (or, if batched, one Operation), not a million pretend-gestures. Allowing scripts to use the Gesture API would couple them to a UI abstraction that doesn't apply.
+export interface KeybindingContribution {
+  key: string;                  // e.g. "cmd+t", "shift+escape"
+  command: string;              // command id
+  when?: VisibilityPredicate;
+}
 
-This restriction is enforced at the type-system level: the Gesture API is exposed to the shell, not to the scripting layer.
+export interface KeybindingRegistry {
+  register(contribution: KeybindingContribution): Disposable;
+  // Full implementation deferred to Step 4.
+}
+```
 
-### The amended invariant
+## The Application State Contexts
 
-The precise commitment, restated with the gesture layer in mind:
+The state currently held inside `CanvasApp` lifts into React contexts at the shell level. Panels read from contexts via hooks. This is the application-state-vs-document-state line from the briefing made structural.
 
-> The committed scene graph is mutated only through Operations applied via `apply(op)`. Direct manipulation produces one Operation per gesture, not one per frame. The ephemeral overlay used during gestures is not part of the canonical document state and follows different rules.
+### Context boundaries
 
-This preserves everything the scripting briefing committed to (script equivalence, undo, persistence, collaboration) while accommodating the realities of direct manipulation.
+Each piece of application state gets its own context provider. Combining them into one mega-context is tempting and wrong — it causes unnecessary re-renders when any field changes. Five focused providers, each with a narrow purpose:
 
-## Document State vs Application State
+```typescript
+// packages/shell/src/state/contexts.tsx
 
-A second distinction that the previous briefing implicitly conflated and that turns out to matter just as much.
+// 1. The worker client — stable, set once on mount.
+export const CanvasClientContext = createContext<CanvasClient | null>(null);
 
-**Document state** is the canonical scene graph. It is shared, persisted, undoable, scriptable, broadcast to collaborators. Mutated only through Operations (with the gesture layer as a continuous-input shim that commits to Operations).
+// 2. The document — changes on file load.
+export const DocumentContext = createContext<DocumentState>({
+  handle: null,
+  snapshots: new Map(),
+  resolution: null,
+  loading: null,
+  status: "initialising…",
+  warnings: [],
+});
 
-**Application state** is per-user UI state: selection, viewport transform, active tool, panel layout, command palette open/closed, scroll positions in panels. It is local to the user, ephemeral, not undoable in the document sense, not synced to collaborators as part of the document.
+// 3. The camera — changes on every pan/zoom.
+export const CameraContext = createContext<CameraState>({
+  camera: IDENTITY_CAMERA,
+  setCamera: () => {},
+  animateCamera: () => {},
+  viewportSize: [0, 0],
+});
 
-The line between them is important and easy to get wrong. Concretely:
+// 4. Visual selection — changes on click.
+export const SelectionContext = createContext<SelectionState>({
+  selection: null,
+  setSelection: () => {},
+});
 
-| Concept | Document or Application? | Notes |
+// 5. Content selection — changes on text-editing keystrokes.
+export const ContentSelectionContext = createContext<ContentSelectionState>({
+  contentSelection: null,
+  setContentSelection: () => {},
+  caret: null,
+  selectionRects: [],
+});
+```
+
+The corresponding hooks form the public API panels use:
+
+```typescript
+// packages/shell/src/state/hooks.ts
+
+export function useCanvasClient(): CanvasClient { /* throws if not in provider */ }
+export function useDocument(): DocumentState { /* ... */ }
+export function useCamera(): CameraState { /* ... */ }
+export function useSelection(): SelectionState { /* ... */ }
+export function useContentSelection(): ContentSelectionState { /* ... */ }
+
+// Composite — most panels want the whole editor handle.
+export function useVerso(): VersoEditor { /* aggregates the above */ }
+```
+
+### The mutation subscription consolidation
+
+In the current implementation, the `client.subscribe()` handler in `CanvasApp` listens for `mutationApplied` / `undoApplied` / `redoApplied` and, on receipt, re-queries caret + selection geometry from the worker. After the decomposition, this subscription moves into the `ContentSelectionProvider` — it is the natural owner of caret state.
+
+The reason this matters: if every panel that cares about mutations subscribes independently to the client, you end up with N copies of the same handler, all firing on every mutation, all racing. One central subscription per concern, publishing into contexts, is the correct pattern.
+
+### Application state vs document state — concrete table
+
+Drawing the line explicitly for the current code:
+
+| State | Classification | Notes |
 |---|---|---|
-| Position of a frame | Document | Persisted, undoable. |
-| Color of a fill | Document | Persisted, undoable. |
-| Which frame is selected | **Application** | Local to user. Cmd-Z does not un-select; it undoes the last *edit*. |
-| Current viewport zoom | **Application** | Each user has their own viewport. |
-| Active tool (text, select, etc.) | **Application** | Per-user. |
-| Which page is being viewed | **Application** | Per-user. In multiplayer, two users can view different pages. |
-| Pages list, page order | Document | Structural, persisted. |
-| A specific page's master assignment | Document | Persisted. |
-| Panel layout (docked, floating) | **Application** | Per-user, persisted to user settings, not to the document. |
-| A saved perspective | **Application** | Per-user (though shareable as a separate artifact). |
-| Whether a layer is locked | Document | Persisted in the document. |
-| Whether a layer is visible **in this user's view** | Application (in collaboration) | Subtle — see below. |
+| `handle` (DocumentHandle) | Document (read-only view) | Identifies the loaded document. Mutations go through `CanvasClient`, not React state. |
+| `snapshots` | Application (cache) | Derived from document, but the cache is per-user/per-session. |
+| `resolution` | Document (read-only view) | Same as handle. |
+| `camera` | Application | Per-user viewport. Each collaborator has their own. |
+| `viewportSize` | Application | Per-user container size. |
+| `selection` (visual) | Application | Per-user; the briefing's canonical case. |
+| `contentSelection` (text) | Application | Per-user. Two users can have different carets in the same story. |
+| `caret`, `selectionRects` | Application (derived) | Worker-computed from contentSelection; cached. |
+| `loading`, `status`, `warnings` | Application | UI affordance state. |
+| `gpuActive`, `layoutCacheStats`, `fps` | Application (instrumentation) | HUD-only. |
 
-The last row illustrates the subtlety. A layer's "visibility" toggle in the layers panel could mean either "this layer is hidden in the document" (document state, affects all collaborators, affects export) or "I have temporarily hidden this layer in my view" (application state, only affects this user). Most tools default to the former; some offer the latter as a separate "local visibility" concept. The decision is not architectural but is worth making explicit per-feature, because conflating the two creates exactly the kind of subtle bugs that make collaborative tools feel weird.
+The dev hook `window.__canvas` flattens these into a debugging-friendly snapshot. It stays during Step 3, with extended surface to expose the registries as well: `window.__canvas = { client, document, camera, selection, contentSelection, panels, commands }`.
 
-### Selection as the canonical case
+## The Docking Substrate
 
-Selection is application state. This has several consequences worth being explicit about:
+The single architectural commitment that absolutely cannot leak: **no code outside `DockviewSubstrate` imports from `dockview-react`**. The substrate is the seam.
 
-- **Cmd-Z does not unselect.** It undoes the last document edit. Most users expect this; conflating selection with document state creates the "why did my selection change when I pressed Ctrl-Z" frustration that some older tools have.
-- **In collaboration, each user has their own selection.** Two collaborators editing the same Verso document have independent selections and can simultaneously have different things selected. This is what every modern collaborative tool does.
-- **Selection is not in the operation log.** Selecting a node does not produce a `SetProperty` Operation on some "selection" field. Selection lives in the shell, stored as a typed value, mutated by tool commands and pointer events.
-- **Scripts can read and modify selection through a separate API.** `verso.selection.add(nodeId)`, `verso.selection.clear()` — these are part of the shell's API to bundles and scripts, distinct from the scene graph's Operation API.
+### Interface
 
-### Viewport and tools
+```typescript
+// packages/shell/src/docking/substrate.ts
 
-Viewport (pan, zoom, current page) and active tool are also application state. They follow the same rules as selection: per-user, not in the document, not in the operation log, exposed through a separate shell API.
+export interface DockingSubstrate {
+  /** Add a panel and return a handle. */
+  addPanel(spec: ResolvedPanelSpec): PanelHandle;
 
-Tools deserve a small clarification. A "tool" in the shell sense is a mode the user is in: text tool, select tool, hand tool. Tools are application state. But a tool *contributes* commands and gestures that, when used, produce Operations. The text tool, when active, makes clicks on the canvas produce "insert text frame" Operations. The tool itself is application state; what the tool *does* produces document state changes.
+  /** Remove a panel. */
+  removePanel(handle: PanelHandle): void;
 
-## The Bundle System
+  /** Move a panel to a different semantic location. */
+  movePanel(handle: PanelHandle, target: SemanticLocation): void;
 
-The Verso bundle system is modeled on VS Code's extension architecture, adapted to DTP. The model is mature and battle-tested at the scale of 40,000+ extensions, and there is no reason to invent something new at this layer.
+  /** Serialize the entire layout for persistence. */
+  serialize(): LayoutSnapshot;
 
-### Bundle structure
+  /** Restore a previously serialized layout. */
+  restore(snapshot: LayoutSnapshot): void;
 
-A bundle is a directory or archive containing:
+  /** Pop a group out into a separate browser window. */
+  popoutGroup(groupId: string): void;
 
+  /** Subscribe to layout changes (for auto-persistence). */
+  onLayoutChange(handler: () => void): Disposable;
+
+  /** Subscribe to group lifecycle (for SemanticGroupRegistry.forget). */
+  onGroupRemoved(handler: (groupId: string) => void): Disposable;
+}
+
+export interface ResolvedPanelSpec {
+  id: string;
+  title: string;
+  component: ComponentType<PanelProps>;
+  groupId: string;            // resolved by SemanticGroupRegistry
+  closable: boolean;
+  movable: boolean;
+  hideTabHeader?: boolean;    // true for the canvas
+}
+
+export interface PanelHandle {
+  readonly id: string;
+  readonly groupId: string;
+}
+
+export type LayoutSnapshot = unknown;   // opaque — depends on substrate
 ```
-my-bundle/
-├── manifest.json         # declarative contributions and metadata
-├── activate.js           # entry point, runs on activation
-├── deactivate.js         # optional cleanup, runs on deactivation
-├── panels/               # panel components
-├── commands/             # command implementations
-├── icons/                # bundle's icons
-├── themes/               # optional themes
-└── README.md             # human documentation
+
+### DockviewSubstrate implementation
+
+```typescript
+// packages/shell/src/docking/dockview-substrate.ts
+
+import { DockviewApi, IDockviewPanelProps } from "dockview-react";
+
+export class DockviewSubstrate implements DockingSubstrate {
+  constructor(
+    private api: DockviewApi,
+    private semanticGroups: SemanticGroupRegistry,
+  ) {
+    this.api.onDidLayoutChange(() => this.layoutChangeHandlers.forEach((h) => h()));
+    this.api.onDidRemoveGroup((g) => this.groupRemovedHandlers.forEach((h) => h(g.id)));
+  }
+
+  addPanel(spec: ResolvedPanelSpec): PanelHandle {
+    this.api.addPanel({
+      id: spec.id,
+      component: spec.id,             // we register components per panel id
+      title: spec.title,
+      tabComponent: spec.hideTabHeader ? "hidden" : undefined,
+      params: { panelId: spec.id },
+      position: { referenceGroup: spec.groupId },
+    });
+
+    const panel = this.api.getPanel(spec.id);
+    if (!panel) throw new Error(`dockview did not add panel ${spec.id}`);
+
+    // closable + movable handled via group constraints + tab component choices.
+    if (!spec.closable) {
+      // Suppress close button by using a custom tab component that omits it.
+    }
+
+    return { id: spec.id, groupId: spec.groupId };
+  }
+
+  // ... removePanel, movePanel, serialize, restore, popoutGroup, etc.
+}
 ```
 
-The manifest is the contract. The shell reads the manifest to know what the bundle contributes; the bundle's code runs only when activation events fire.
+The substrate registers each panel's component under its own name in dockview's component map, rather than using a single generic component-resolver. This keeps the dockview-side mental model simple: one panel id = one component = one registered name.
 
-### Manifest format
+### The wrapping discipline, restated
 
-```json
-{
-  "id": "verso.text-editing",
-  "version": "1.0.0",
-  "name": "Text Editing",
-  "description": "Text frame creation, editing, and typography controls.",
-  "publisher": "verso",
-  "license": "MIT",
-  "engines": {
-    "verso": "^1.0.0"
-  },
-  "activationEvents": [
-    "onNodeType:TextFrame",
-    "onCommand:text.insert",
-    "onPerspective:design"
-  ],
-  "main": "./activate.js",
-  "contributes": {
-    "panels": [
-      {
-        "id": "text.character",
-        "title": "Character",
-        "when": "selection.anyMatch(n => n.type === 'TextFrame')",
-        "defaultDock": "right",
-        "defaultGroup": "typography",
-        "icon": "icons/character.svg"
-      }
-    ],
-    "tools": [
-      {
-        "id": "text.tool",
-        "title": "Text",
-        "icon": "icons/text-tool.svg",
-        "cursor": "text",
-        "shortcut": "t",
-        "gestures": ["click-to-insert", "click-to-edit"]
-      }
-    ],
-    "commands": [
-      {
-        "id": "text.insert",
-        "title": "Insert Text Frame",
-        "category": "Text",
-        "icon": "icons/insert-text.svg"
-      }
-    ],
-    "menus": [
-      {
-        "menu": "edit",
-        "command": "text.insert",
-        "group": "1_modify",
-        "order": 10
-      }
-    ],
-    "keybindings": [
-      {
-        "key": "cmd+t",
-        "command": "text.insert"
-      }
-    ],
-    "settings": {
-      "text.defaultFont": {
-        "type": "string",
-        "default": "Inter",
-        "description": "Default font for new text frames."
-      }
+- `dockview-react` is imported in exactly one file: `dockview-substrate.ts`.
+- Bundles never call `DockingSubstrate` methods directly either — they go through `PanelRegistry.register()`, which the substrate observes.
+- The substrate's `LayoutSnapshot` type is `unknown` from the outside; only the substrate knows it's a dockview JSON blob.
+- If dockview is ever swapped for `rc-dock`, `flexlayout-react`, or a future library, the only file that changes is `dockview-substrate.ts`. Plus, of course, the theme bridge — see below.
+
+## The Panel Bridge
+
+The connection between the declarative `PanelRegistry` and the imperative `DockingSubstrate` is a small piece of glue that watches the registry and applies changes to the substrate.
+
+```typescript
+// packages/shell/src/docking/panel-bridge.ts
+
+export class PanelBridge {
+  private handles = new Map<string, PanelHandle>();
+
+  constructor(
+    private panels: PanelRegistry,
+    private substrate: DockingSubstrate,
+    private semanticGroups: SemanticGroupRegistry,
+  ) {
+    // Register existing panels.
+    for (const contribution of panels.list()) {
+      this.add(contribution);
+    }
+    // Track future changes.
+    panels.onChange((event) => {
+      if (event.kind === "registered") this.add(event.contribution);
+      if (event.kind === "unregistered") this.remove(event.id);
+    });
+  }
+
+  private add(contribution: PanelContribution) {
+    const groupId = this.semanticGroups.resolve(
+      contribution.defaultGroup ?? contribution.id,
+      contribution.defaultDock ?? "right",
+    );
+    const handle = this.substrate.addPanel({
+      id: contribution.id,
+      title: contribution.title,
+      component: contribution.component,
+      groupId,
+      closable: contribution.closable ?? true,
+      movable: contribution.movable ?? true,
+      hideTabHeader: contribution.id === "verso.canvas",  // the only special case
+    });
+    this.handles.set(contribution.id, handle);
+  }
+
+  private remove(id: string) {
+    const handle = this.handles.get(id);
+    if (handle) {
+      this.substrate.removePanel(handle);
+      this.handles.delete(id);
     }
   }
 }
 ```
 
-Built-in bundles use the `verso.*` namespace. Third-party bundles use their own publisher namespace. The `defaultDock` and `defaultGroup` fields on panel contributions are semantic — bundles declare intent ("this belongs near the typography panels on the right edge") and the shell translates that intent into dockview's concrete API. The mapping is described under "Bundle-to-dockview vocabulary" below.
+This is the seam where declarative meets imperative. The registry is data; the substrate is operations; the bridge translates one to the other.
 
-### Activation events
+## The Canvas as Center Panel
 
-Bundles do not run until needed. Activation events declare when the bundle's `activate.js` should be loaded and executed:
-
-- `onStartup` — runs immediately on Verso start. Use sparingly.
-- `onCommand:<id>` — runs when the named command is invoked.
-- `onNodeType:<type>` — runs when a node of the given type is selected or appears in the document.
-- `onPerspective:<id>` — runs when the named perspective is activated.
-- `onFileType:<extension>` — runs when a file of the given type is opened.
-- `onView:<panel-id>` — runs when the named panel becomes visible.
-- `onTool:<tool-id>` — runs when the user activates the named tool.
-
-Lazy activation keeps editor startup fast and isolates bundle bugs.
-
-### Activation lifecycle
-
-When activated, a bundle's `activate.js` receives the Verso Contribution API:
+The IDML viewport is a special panel: permanently present, non-closable, non-tab-grouped, occupying the center of the layout. It registers itself like any other panel, with three differences:
 
 ```typescript
-export function activate(verso: VersoEditor) {
-  const disposable = verso.commands.register('text.insert', async () => {
-    const point = await verso.tools.captureClick();
-    verso.scene.batch(() => {
-      const frame = verso.scene.insertNode('TextFrame', {
-        position: point,
-        size: { width: 200, height: 50 },
-      });
-      verso.selection.set([frame.id]);
-    });
-  });
-  
-  verso.panels.register({
-    id: 'text.character',
-    component: CharacterPanel,
-  });
-  
-  const subscription = verso.scene.on('selectionChange', (selection) => {
-    // ...
-  });
-  
-  verso.onDeactivate(() => {
-    disposable.dispose();
-    subscription.dispose();
-  });
-}
-```
-
-The shell guarantees that every registered contribution is removed when the bundle deactivates.
-
-### Bundle types
-
-Three categories worth distinguishing:
-
-**Built-in bundles** — shipped with Verso, signed by the publisher, run with full trust. Namespace: `verso.*`.
-
-**User-installed bundles** — installed from a registry or sideloaded, run with limited capabilities by default. Permission escalation requires explicit user approval.
-
-**Workspace bundles** — bound to a specific document or project, useful for team-specific automations and templates.
-
-Capability sandboxing (from the scripting briefing) applies to all bundles, with defaults varying by category.
-
-## The Verso Application Shell
-
-The shell is the empty container that hosts bundles. It owns:
-
-- The main window and its docking layout (via dockview).
-- The panel registry and panel lifecycle.
-- The command palette and command dispatch.
-- The menu bar and its dynamic population from contributions.
-- The keybinding manager.
-- The perspectives system (built on dockview's serialization).
-- The settings system.
-- The notification surface.
-- The bundle loader and lifecycle manager.
-- **Application state**: selection, viewport, active tool, panel layout. Stored locally, exposed via shell APIs.
-- **Pointer routing**: pointer events on the canvas are routed to the active tool's gesture handlers, which call the Gesture API on the renderer.
-
-The shell knows nothing about specific features. It can run with zero bundles loaded and will sit there empty, ready to accept contributions.
-
-### Docking via dockview
-
-The docking system is the shell's most user-visible feature and the part that most readily goes wrong if reinvented. **The recommendation is to use dockview** (dockview.dev) as the docking substrate, wrapped in a thin shell abstraction so bundles never depend on it directly.
-
-#### Why dockview specifically
-
-The library maps almost one-to-one onto Verso's needs:
-
-- **Layout serialization** via `toJSON()` and `fromJSON()` is exactly the primitive the perspectives system needs. A perspective becomes `{ name, description, layout: dockview.toJSON() }`. Saving and restoring perspectives is one line each direction.
-- **Popout windows** allow any panel group to be moved into a separate browser window while remaining connected to the layout. Designers on multi-monitor setups will absolutely want this. Without native support you would either build it yourself (which involves real complexity around `window.open`, cross-window message passing, and state sync) or skip it entirely. For a serious DTP tool this is closer to table-stakes than a nice-to-have.
-- **Floating panels** allow groups to be detached as freely-positioned overlays. Photoshop, Illustrator, and Affinity Publisher all use floating palettes in some workflows; designers expect this.
-- **Edge groups** are collapsible side panels docked to any edge — exactly the pattern needed for the tool palette on the left and the contextual property panel on the right.
-- **Tab groups** with color-coding are useful for grouping typography panels, color panels, etc. into named clusters within a tab strip.
-- **CSS variable theming** lets the shell skin dockview to match Verso's custom design system rather than living with its defaults.
-- **Multi-framework support** (React, Vue, Angular, vanilla TypeScript) means the docking substrate does not lock the shell into a specific UI framework forever.
-
-The two-to-three-week estimate for Step 3 of the build sequence (empty shell) assumes dockview is doing the docking heavy lifting. Without it, the equivalent step would be eight to twelve weeks of work and probably with rougher results.
-
-#### The wrapping abstraction (substrate-risk insurance)
-
-Dockview is primarily maintained by a single developer. The trajectory is positive (multi-framework support, dedicated documentation site, regular releases) but it is not a Microsoft-backed project with a guaranteed maintenance team. The realistic risk is "primary maintainer becomes unavailable for an extended period, project stalls."
-
-The mitigation is *not* to avoid dockview — it is the best option in this category and the alternatives (rc-dock, flexlayout-react, golden-layout) are all in similar or weaker positions. The mitigation is to **wrap dockview in a thin abstraction layer in the shell**, so that no bundle ever imports from dockview directly. Bundles register panels with the shell; the shell talks to dockview internally. If at some future point the project needed to migrate to a different docking library, that's a shell-internal refactor, not an ecosystem-breaking change.
-
-The wrapping layer is something the shell needs to build anyway, in order to translate between bundle semantic vocabulary and dockview's concrete vocabulary (described below). The substrate-risk insurance is a free side-effect of doing this translation, not extra work.
-
-The shape of the abstraction:
-
-```typescript
-// In the shell, internal
-interface DockingSubstrate {
-  addPanel(spec: SemanticPanelSpec): PanelHandle;
-  removePanel(handle: PanelHandle): void;
-  movePanel(handle: PanelHandle, target: SemanticLocation): void;
-  serialize(): LayoutSnapshot;
-  restore(snapshot: LayoutSnapshot): void;
-  popoutGroup(groupId: string): void;
-  // ... etc.
-}
-
-// One implementation, swappable
-class DockviewSubstrate implements DockingSubstrate { /* ... */ }
-```
-
-Bundles call `verso.panels.register(...)`; the shell's panel registry calls the substrate's `addPanel(...)`; only the `DockviewSubstrate` class touches dockview's API. Total code that imports from `dockview-react` should be measured in hundreds of lines, not thousands.
-
-#### Bundle-to-dockview vocabulary
-
-Bundles declare panels with semantic intent: `defaultDock: "right"`, `defaultGroup: "typography"`. Dockview operates on concrete groups identified by IDs, panels added to specific groups, sizes specified in pixels or fractions. The shell maintains a mapping between the two vocabularies.
-
-Concretely, the shell maintains a registry of *named semantic groups* — `"typography"`, `"color"`, `"pages"`, `"layers"`, `"inspection"` — each mapped to a dockview group ID at runtime. When a bundle registers a panel with `defaultGroup: "typography"`:
-
-1. The shell checks if a dockview group exists for the `"typography"` semantic name.
-2. If yes, the panel is added to that group as a new tab.
-3. If no, the shell creates a new dockview group docked to the bundle's `defaultDock` edge, registers it as the `"typography"` semantic group, and adds the panel.
-
-Users can rearrange freely after that — drag the typography panels to a different group, into a floating window, into a popout window. The semantic group concept is just for *initial placement*; once the user has rearranged, their custom layout wins.
-
-This pattern is what VS Code does internally (its `view containers` work analogously) and it's what makes the contribution model feel natural to bundle authors. Authors say "put my panel near the typography stuff" rather than having to know the user's current layout.
-
-#### The canvas as a permanent center panel
-
-The canvas — the WebGPU render surface where the Verso document is displayed — is a special panel in the dockview layout. It is always present, never closable, never tab-grouped with other content. Bundle-contributed panels dock around it (left, right, top, bottom, floating, popout) but the center is always the canvas.
-
-Configure this with dockview by initializing the layout with a permanently-pinned center panel that hosts the canvas component. The center panel's tab header is hidden (no tab strip for a single permanently-present panel). The center panel's closable property is set to false. Drag-target affordances for the center are disabled to prevent users from accidentally docking other content onto the canvas in a way that would obscure it.
-
-In practice this means the shell's layout initialization looks like:
-
-```typescript
-const dockview = createDockview({
-  components: { 'canvas': CanvasPanel, /* etc. */ },
-});
-
-dockview.addPanel({
-  id: 'main-canvas',
-  component: 'canvas',
-  position: { referencePanel: null }, // center
-  tabComponent: null,                  // no tab header
-});
-
-dockview.api.getPanel('main-canvas').api.setClosable(false);
-```
-
-All bundle-contributed panels are added after this and dock relative to the canvas.
-
-#### Pointer event routing through the canvas
-
-Pointer events that hit the canvas need to flow to the shell's tool router (which then calls the renderer's Gesture API), not be intercepted by dockview's drag-to-rearrange logic. This is mostly handled correctly by default: dockview's drag affordances are confined to tab headers, group borders, and edge handles. The canvas panel's content area receives pointer events normally.
-
-Two specific cases worth being deliberate about:
-
-**Pointer capture during a gesture.** When a gesture begins, the canvas should call `setPointerCapture` on the originating pointer so that subsequent move events are routed to the canvas even if the cursor strays outside it. This is standard direct-manipulation pattern and prevents dockview (or anything else) from intercepting the drag.
-
-**Drag-from-canvas to dock.** Some flows might want to support "drag an item from a panel and drop it onto the canvas" or vice versa (e.g., drag a swatch from the color panel onto a frame). Dockview's drag system is for *panels*, not for *content within panels*; these intra-content drags need their own implementation (standard HTML5 drag-and-drop, or custom pointer-based dragging). Don't try to extend dockview's drag system for this.
-
-#### Persistence scope: current layout vs saved perspectives
-
-Dockview's serialization captures everything: which panels are where, sizes, tab order, floating positions, popout windows. The shell needs to decide what's auto-persisted, what's explicit-snapshot, and what's transient.
-
-Recommended scope:
-
-- **Current layout** is auto-persisted to user-global local storage on every change (debounced). When Verso reopens, the user's last layout is restored. This is the always-on persistence so users don't lose their arrangement.
-- **Saved perspectives** are explicit, named snapshots. The user invokes "Save Perspective As..." from the command palette; the shell snapshots the current dockview layout and stores it as a perspective. Perspectives are exportable as JSON files.
-- **Transient state** like "which tab is active in this tab group" is part of the current layout (auto-persisted) but not part of saved perspectives. When applying a saved perspective, restore the layout structure but let active-tab state come from the user's current focus.
-
-This is roughly what VS Code does. It works.
-
-### The command palette
-
-The command palette is the shell's most important interaction surface and should be designed first, before the menu bar, before the toolbar.
-
-`cmd-K` opens a fuzzy-search input over every registered command, panel toggle, perspective switch, document property, and recently-used file. Result list grouped by category. Selecting a result invokes it.
-
-For Verso, the command palette extends to include:
-
-- Commands: `Insert Text Frame`, `Convert to Outlines`, `Export PDF/X-4`.
-- Panel toggles: `Show: Character`, `Hide: Layers`.
-- Perspectives: `Switch to: Design`, `Switch to: Production`.
-- Documents and recent files.
-- Node-level navigation: `Go to: Page 7`, `Select: Master Spread A`.
-- Settings: `Set: Default Font → Inter`.
-
-The command palette is also the entry point for natural-language commands later. An LLM that interprets "make all the headlines bigger" emits a sequence of script commands through the same dispatch system the palette uses.
-
-### The menu bar
-
-A light menu bar, recognizable to designers, but not the primary interaction surface. Six or seven top-level menus — File, Edit, View, Object, Type, Window, Help. Each menu has at most twelve items at the top level, with submenus used sparingly. Every menu item is also a command (findable via the palette).
-
-Menu items are contributed dynamically by bundles via the `menus` contribution point. Bundles do not directly manipulate the menu bar; they declare contributions and the shell renders them.
-
-### Keybindings
-
-Keybindings are a centralized resource managed by the shell. Bundles declare keybindings; the shell resolves conflicts and presents a unified UI for inspection and customization.
-
-The "standard creative tool" shortcuts come from a default keybindings file shipped with Verso — V for select, T for text, H for hand tool, space-drag for pan. These are conventions worth keeping because designers' hands know them.
-
-A keybindings inspector (accessible from the command palette) shows every binding, its source bundle, and conflicts.
-
-### Perspectives
-
-A perspective is a named, serialized layout state — concretely, a dockview `toJSON()` snapshot plus a name, description, and optional icon. Verso ships a small number of defaults:
-
-- **Design** — typography panel, color panel, alignment, pages.
-- **Production** — preflight, separations, color management, output preview, package.
-- **Data** — bindings, data sources, DuckDB query, variable preview.
-- **Review** — comments, version history, side-by-side diff.
-
-Switching perspectives is a `dockview.fromJSON(perspective.layout)` call, possibly with a transition animation. Users save their own perspectives via the command palette (`Save Perspective As: ...`). Perspectives are exportable JSON files, distributable as Verso ecosystem artifacts.
-
-### Settings
-
-Settings are scoped: user-global, workspace, document. Each level overrides the previous. Bundles declare settings in their manifest; the shell renders a unified settings UI.
-
-Settings are accessible via the command palette (`Set: text.defaultFont → Inter`).
-
-## The Contribution API
-
-The architecturally critical seam between the shell and bundles. Get this right and the modular story holds together.
-
-```typescript
-interface VersoEditor {
-  // The scene API — same one scripts use, for committed mutations.
-  scene: SceneAPI;
-  
-  // Application state — distinct from document state.
-  selection: SelectionAPI;
-  viewport: ViewportAPI;
-  
-  // Contribution registries.
-  panels: PanelRegistry;
-  tools: ToolRegistry;           // tools register gesture handlers here
-  commands: CommandRegistry;
-  menus: MenuRegistry;
-  keybindings: KeybindingRegistry;
-  themes: ThemeRegistry;
-  
-  // Application-level affordances.
-  notifications: NotificationAPI;
-  settings: SettingsAPI;
-  storage: BundleStorageAPI;
-  clipboard: ClipboardAPI;
-  
-  // Interaction primitives bundles compose.
-  toolInteractions: ToolInteractionAPI; // captureClick, captureDrag, etc.
-  dialogs: DialogAPI;
-  
-  // Lifecycle.
-  onDeactivate(handler: () => void): void;
-}
-```
-
-The surface is deliberately small. Bundles never reach into other bundles. They never manipulate the docking layout imperatively — they declare panel contributions and the shell handles placement via the dockview substrate. Cross-bundle communication happens through the scene graph or through shell-mediated events.
-
-Note that `PanelRegistry` does *not* expose dockview's API. Bundles do not call dockview methods. They register panels with semantic placement intent; the shell translates that into dockview operations internally. This is the wrapping abstraction in action — it keeps the dockview dependency contained to the shell.
-
-### What `SceneAPI` looks like
-
-The `SceneAPI` exposed to bundles is the same one exposed to scripts. The shape from the scripting briefing applies unchanged.
-
-```typescript
-interface SceneAPI {
-  document: DocumentView;
-  
-  insertNode(type: string, props: object, parent?: NodeId): NodeView;
-  removeNode(id: NodeId): void;
-  setProperty(id: NodeId, path: PropertyPath, value: any): void;
-  
-  batch<T>(fn: () => T): T;
-  
-  undo(): void;
-  redo(): void;
-  
-  query(sql: string): Promise<QueryResult>;
-  findAll(predicate: (node: NodeView) => boolean): NodeView[];
-  
-  on(event: SceneEvent, handler: Function): Subscription;
-}
-```
-
-The fact that a bundle's `verso.scene` is identical to a script's `verso.scene` is what makes "the GUI is its own first plugin" real. Note that selection is *not* part of `SceneAPI` — it's `verso.selection`, reflecting its status as application state.
-
-### What `SelectionAPI` looks like
-
-Selection is application state, exposed separately:
-
-```typescript
-interface SelectionAPI {
-  // Read
-  get(): NodeId[];
-  has(id: NodeId): boolean;
-  isEmpty(): boolean;
-  firstOf(type: string): NodeView | null;
-  anyMatch(predicate: (node: NodeView) => boolean): boolean;
-  
-  // Mutate (these do NOT produce Operations)
-  set(ids: NodeId[]): void;
-  add(id: NodeId): void;
-  remove(id: NodeId): void;
-  toggle(id: NodeId): void;
-  clear(): void;
-  
-  // Events
-  onChange(handler: (selection: NodeId[]) => void): Subscription;
-}
-```
-
-Selection mutations are *not* Operations. They are local state changes. Scripts can read and modify selection, but doing so does not produce undo entries, does not broadcast to collaborators, does not get persisted as part of the document.
-
-## Panel and GUI Component Definitions
-
-Bundles register panels declaratively. The component inside a panel is imperative — a React component that uses the Contribution API.
-
-### Panel component contract
-
-```typescript
-interface PanelProps {
-  verso: VersoEditor;
-  context: PanelContext;
-}
-
-const CharacterPanel: React.FC<PanelProps> = ({ verso, context }) => {
-  const selection = useSelection(verso);
-  const textFrame = selection.firstOf('TextFrame');
-  
-  if (!textFrame) {
-    return <EmptyState message="Select a text frame." />;
-  }
-  
-  return (
-    <PanelLayout>
-      <PropertyRow label="Font">
-        <FontSelector
-          value={textFrame.text.font}
-          onChange={(font) => textFrame.text.font = font}
-        />
-      </PropertyRow>
-      <PropertyRow label="Size">
-        <LengthInput
-          value={textFrame.text.size}
-          unit="pt"
-          onChange={(size) => textFrame.text.size = size}
-          onScrubStart={() => verso.scene.beginPropertyScrub(textFrame.id, ['text', 'size'])}
-          onScrubEnd={() => verso.scene.commitPropertyScrub()}
-        />
-      </PropertyRow>
-    </PanelLayout>
-  );
+// packages/shell/src/panels/canvas.ts
+
+export const canvasContribution: PanelContribution = {
+  id: "verso.canvas",
+  title: "Canvas",
+  component: CanvasPanel,
+  defaultDock: "center",
+  closable: false,
+  movable: false,
 };
 ```
 
-Several specific notes:
+`CanvasPanel` is essentially today's `ViewportCanvas`, with its props replaced by context hooks:
 
-- **`useSelection`, `useNode`, `useProperty` are shell-provided hooks.** They handle subscription to scene-graph changes and re-render on update. Bundles do not directly subscribe; they use these hooks.
-- **Discrete property mutations look like direct assignment.** `textFrame.text.font = font` internally constructs a `SetProperty` Operation. This is the Proxy pattern from the scripting briefing.
-- **Continuous property scrubbing uses the gesture lifecycle.** Dragging a slider begins a `PropertyScrub` gesture, updates at frame rate without producing Operations, and commits one Operation on release. The `LengthInput` component handles this internally, exposing `onScrubStart` and `onScrubEnd` hooks to the panel.
-- **Shared layout components** come from the Verso design system.
-- **The panel component is not aware of dockview.** It receives `PanelProps` from the shell and renders its content; how the panel is sized, where it is docked, whether it's floating or popped out — all of that is dockview's concern, mediated by the shell's wrapping layer.
+```typescript
+// packages/shell/src/panels/canvas-panel.tsx
 
-### The shared design system
+export function CanvasPanel(_: PanelProps) {
+  const client = useCanvasClient();
+  const { handle } = useDocument();
+  const { camera, setCamera, viewportSize } = useCamera();
+  const { selection, setSelection } = useSelection();
+  const { contentSelection, setContentSelection, caret, selectionRects } =
+    useContentSelection();
+  const fps = useFps();
+  const viewportRef = useRef<HTMLDivElement | null>(null);
 
-The shell ships a design system used by all built-in bundles. shadcn-style copy-into-project primitives, customized to Verso's visual language. This includes:
+  // ResizeObserver wiring stays — same as in CanvasApp today.
 
-- Layout: `PanelLayout`, `PropertyRow`, `ToolbarRow`, `Accordion`, `Tabs`, `Stack`.
-- Inputs: `LengthInput`, `ColorInput`, `FontSelector`, `EnumSelector`, `Toggle`, `Slider`, `NumberInput`.
-- Interaction: `Button`, `IconButton`, `Menu`, `ContextMenu`, `Popover`, `Tooltip`.
-- Display: `EmptyState`, `LoadingState`, `ErrorState`, `Thumbnail`, `Swatch`.
+  return (
+    <div ref={viewportRef} className="relative h-full w-full">
+      {handle && handle.pageCount > 0 ? (
+        <ViewportCanvas
+          client={client}
+          pageIds={handle.pageIds}
+          /* ... existing props, sourced from contexts ... */
+        />
+      ) : (
+        <EmptyState />
+      )}
+    </div>
+  );
+}
+```
 
-Inputs that support scrubbing (`LengthInput`, `NumberInput`, `Slider`) wire up the gesture lifecycle automatically. Bundle authors get scrubbing behavior for free.
+The dockview center panel hides its tab header (via the `tabComponent: "hidden"` mechanism — a tab component that renders `null`) and disables close + move. The shell adds it first, before any other panel, so the layout always has a center.
 
-## Visual Design Position
+## Built-in Panels: PageNavigator and Outline
 
-Verso's visual design should be **recognizably-of-the-genre without being a clone of any existing tool**. Designers who have used InDesign, Figma, Sketch, or Affinity Publisher should be able to sit down and start working without a tutorial. But nothing about the visual design should make them think "this is trying to be InDesign with a different engine."
+The two existing panels in `CanvasApp.tsx` migrate to the registry as built-in contributions:
 
-Every other architectural decision in Verso has been about *not being InDesign*. A UI that copies InDesign visually contradicts all of that.
+```typescript
+// packages/shell/src/panels/pages.ts
 
-The name itself supports the positioning. *Verso* — the left-hand page of a spread — is a publisher's word, drawing on the European publishing tradition that long predates Adobe. The product positions itself in that lineage, not as a successor to a 1999 Adobe product.
+export const pagesContribution: PanelContribution = {
+  id: "verso.pages",
+  title: "Pages",
+  component: PagesPanel,           // wraps PageNavigator, sources from contexts
+  defaultDock: "left",
+  defaultGroup: "structure",
+};
 
-### Keep these conventions
+// packages/shell/src/panels/outline.ts
 
-- Vertical tool palette on the left, with a tight curated tool set (8–12 tools, not 30).
-- Contextual property panel on the right that updates with selection.
-- Pages or navigator panel as a recognizable element.
-- Standard keyboard shortcuts shared across creative tools: V, T, H, space, etc.
-- Modifier conventions: shift to constrain, alt/opt to duplicate.
-- Marquee selection with click-drag.
-- Drag-to-resize handles on selected objects.
+export const outlineContribution: PanelContribution = {
+  id: "verso.outline",
+  title: "Outline",
+  component: OutlinePanel,         // wraps Outline, sources from contexts
+  defaultDock: "left",
+  defaultGroup: "structure",
+};
+```
 
-### Drop these InDesign-specific elements
+Both declare `defaultGroup: "structure"`, so they land in the same dockview group as tabs on the left edge. The user can drag them apart, tab them with other panels, float them, pop them out.
 
-- **The visual chrome.** Adobe's twenty-five-year visual accretion. Use modern, flat, neutral chrome — closer to Linear or Figma. Dockview's CSS-variable theming makes this configurable without forking the library.
-- **The menu structure.** Six levels of nesting, archaeological organization. Use a flat menu bar plus command palette.
-- **The panel proliferation.** Character, Paragraph, OpenType, Glyphs as four panels. Use a single typography panel with progressive disclosure.
-- **Tool-modal interaction.** Modern tools detect intent from context — click on text, you are in text mode.
-- **Workspace names that mimic InDesign.** Use names that reflect what Verso does.
+`PagesPanel` and `OutlinePanel` are thin wrappers around the existing `PageNavigator` and `Outline` components, sourcing camera + viewportSize + handle from contexts instead of props. The existing components themselves are unchanged.
 
-### How to talk about Verso externally
+In Step 4+, these become bundle-contributed instead of shell-internal. The registration call is the same; only the source of the call changes.
 
-Avoid:
-- "Open-source InDesign."
-- "InDesign for the web."
-- "InDesign-compatible editor."
+## shadcn/ui Integration
 
-Prefer:
-- "Verso — an open publishing platform built for structured data and modern workflows."
-- "Verso — design composition with native data bindings and full scriptability."
-- "Verso — a new kind of publishing tool, in the tradition that predates Adobe."
+shadcn is the foundation for the shell's chrome and the basis on which `@verso/ui` (the panel design system) is built. The substrate-isolation discipline mirrors dockview's: **no bundle code ever imports from `packages/shell/components/ui/*`**.
 
-## Build Sequence
+### Setup
 
-The right order: extensibility-first, with features added as bundles on top of a host that already works.
+```bash
+cd packages/shell
+pnpm dlx shadcn@latest init
+```
 
-### Step 1: Decide the visual design language
+Configuration choices for the init:
 
-An hour of mood-boarding and reference-gathering. The output is a written design brief, not a Figma mockup.
+- **Style:** "new-york" (denser, more appropriate for a creative tool than "default").
+- **Base color:** "neutral" — the actual Verso brand colors come later via CSS variable overrides.
+- **CSS variables:** yes — this is the entire point.
+- **Tailwind config:** customize `tailwind.config.ts` to extend the CSS-variable token set rather than hardcoding values.
 
-### Step 2: Pick the shell technology
+### Initial component set
 
-Recommended stack:
-- React 18+ with TypeScript.
-- Tailwind for utility CSS.
-- shadcn-style primitives for the inspector; custom design system for editor chrome.
-- **dockview** for docking, accessed via the `dockview-react` package, wrapped in a shell-internal abstraction layer.
-- ES modules for bundle loading.
-- Vite for the build.
+For Step 3, install:
 
-### Step 3: Build the empty shell
+```bash
+pnpm dlx shadcn@latest add button command dialog dropdown-menu input \
+  popover separator slider tabs tooltip
+```
 
-Empty window, dockview-based panel system, command palette, empty menu bar, keybinding manager. Runnable with zero bundles loaded.
+`command` is the highest-priority addition — the command palette is built on it.
 
-Specific deliverables for this step:
-- The `DockingSubstrate` abstraction with a `DockviewSubstrate` implementation.
-- The canvas as a permanently-pinned center panel.
-- The semantic-group registry mapping bundle vocabulary to dockview group IDs.
-- Auto-persistence of the current layout to local storage on every change.
-- The default "empty" perspective definition.
+### The @verso/ui boundary
 
-Two to three weeks.
+The panel design system is a separate package:
 
-### Step 4: Build the bundle loader and Contribution API
+```
+packages/ui/                       # @verso/ui
+├── package.json
+├── src/
+│   ├── layout/
+│   │   ├── PanelLayout.tsx
+│   │   ├── PropertyRow.tsx
+│   │   ├── ToolbarRow.tsx
+│   │   └── EmptyState.tsx
+│   ├── inputs/
+│   │   ├── NumberInput.tsx        # composite, scrub-aware in Step 5
+│   │   ├── EnumSelector.tsx
+│   │   └── (more, as needed)
+│   ├── display/
+│   │   ├── Thumbnail.tsx
+│   │   └── Swatch.tsx
+│   ├── hooks/
+│   │   └── (scrub gesture hook lands in Step 5)
+│   └── index.ts                   # public API surface
+└── tsconfig.json
+```
 
-Hello-world bundle first, then commands, then menus, then keybindings. The Contribution API surface is fully implemented at this stage, including the `selection` and `viewport` APIs. Two to three weeks.
+`@verso/ui` re-exports a curated subset of shadcn primitives plus its own composites. Bundles import from `@verso/ui`; the shell can import from both `@verso/ui` and `@/components/ui/*` (shadcn directly) for its own chrome.
 
-### Step 5: Wire up the canvas and gesture pipeline
+In Step 3, `@verso/ui` is intentionally minimal — just enough to support the existing panels' visual needs. The scrub-aware inputs (`LengthInput`, `NumberInput` with scrub, `ColorInput`) are deferred to Step 5 when the gesture pipeline lands and there's something for them to scrub against.
 
-Add the WebGPU surface inside the center panel. Connect pointer events to the shell's tool router. Wire the tool router to the renderer's Gesture API. Build the gesture lifecycle hooks. This is the bridge between the React shell and the WASM renderer for direct manipulation, and it's worth getting right before any tool bundle is built. Two to three weeks.
+### Why two layers (shadcn + @verso/ui)
 
-Deliverables:
-- WebGPU canvas element hosted in the dockview center panel.
-- Pointer capture on gesture begin, release on commit or cancel.
-- Pointer event routing to the active tool.
-- Tool router invoking the Gesture API on begin/update/commit/cancel.
-- Overlay layer for selection outlines, snap indicators, etc.
-- Pan/zoom viewport with application-state storage.
+Three reasons, same shape as the dockview wrapping:
 
-### Step 6: Ship the inspector as the first bundle
+1. **Curation.** Bundle authors should see a curated set of components designed for panel construction, not the full shadcn surface area. `PropertyRow` exists; `NavigationMenu` does not, because no panel needs it.
+2. **Composition.** `LengthInput` is not a shadcn component and never will be — it's a DTP composite of `Input` + scrub handle + unit toggle. These composites are what `@verso/ui` adds on top of shadcn primitives.
+3. **Substrate isolation.** If shadcn ever needs replacing (it won't, probably), or if the Verso visual language diverges far enough that components are rewritten from scratch, the bundle code is shielded.
 
-The inspector already exists. Refactor it into the bundle format as `verso.inspector`. One to two weeks.
+## Theming: One Variable Set, Two Substrates
 
-### Step 7: Build the core editor bundles
+shadcn defines its tokens as CSS variables. Dockview supports CSS-variable theming. Both are themed by a single `theme.css` that maps the shared semantic tokens onto each substrate's expected variable names.
 
-This is where Verso proper starts taking shape. Approximate order:
+```css
+/* packages/shell/src/styles/theme.css */
 
-1. **`verso.selection`** — the selection state model, marquee selection (using the gesture layer), click-to-select.
-2. **`verso.transform`** — move, rotate, scale (all using the gesture layer).
-3. **`verso.pages`** — page navigation and management.
-4. **`verso.text`** — text frames, character panel, paragraph panel, live text editing.
-5. **`verso.color`** — swatches, color picker, gradients.
-6. **`verso.images`** — image placement and properties.
-7. **`verso.shapes`** — rectangles, ellipses, lines, paths.
-8. **`verso.layers`** — layer panel and management.
-9. **`verso.export`** — PDF/X export, package, preflight.
+:root {
+  /* The semantic token layer — single source of truth. */
+  --verso-bg: 0 0% 100%;
+  --verso-fg: 0 0% 9%;
+  --verso-border: 0 0% 89%;
+  --verso-accent: 263 73% 43%;        /* Pimcore Purple, eventually */
+  --verso-muted: 0 0% 96%;
+  /* ... */
 
-Each is two to four weeks of focused work.
+  /* shadcn mapping. */
+  --background: var(--verso-bg);
+  --foreground: var(--verso-fg);
+  --border: var(--verso-border);
+  --primary: var(--verso-accent);
+  --muted: var(--verso-muted);
+  /* ... */
 
-### Step 8: Bundle SDK and third-party authoring
+  /* dockview mapping. */
+  --dv-background-color: hsl(var(--verso-bg));
+  --dv-tabs-and-actions-container-background-color: hsl(var(--verso-muted));
+  --dv-separator-border: hsl(var(--verso-border));
+  --dv-activegroup-visiblepanel-tab-color: hsl(var(--verso-accent));
+  /* ... */
+}
 
-Once the architecture is proven, publish the Verso Bundle SDK as a separate artifact. The SDK explicitly does not expose dockview — bundles work through the semantic panel-registration API only.
+.dark {
+  --verso-bg: 0 0% 9%;
+  --verso-fg: 0 0% 98%;
+  /* ... etc. */
+}
+```
 
-### Step 9: Verso is in production
+When the design language brief from Step 1 produces specific values, only the `--verso-*` tokens change. Both shadcn and dockview pick up the change automatically.
 
-Continued development is mostly building or refining bundles rather than touching shell code.
+### Theming dockview specifically
+
+Dockview ships with a few default themes (`dockview-theme-light`, `dockview-theme-abyss`, etc.). For Verso, write a custom theme class — `dockview-theme-verso` — that overrides dockview's CSS variables to read from `--verso-*` tokens. Apply this class to the `DockviewReact` root:
+
+```tsx
+<DockviewReact
+  className="dockview-theme-verso"
+  /* ... */
+/>
+```
+
+The custom theme file is roughly 30–50 lines of CSS variable mappings. The dockview docs publish the full list of CSS variables it accepts; the work is mechanical.
+
+## The Command Palette
+
+The command palette is the shell's most important interaction surface and the first feature to build after the skeleton exists.
+
+### Implementation
+
+```tsx
+// packages/shell/src/chrome/CommandPalette.tsx
+
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+
+export function CommandPalette() {
+  const [open, setOpen] = useState(false);
+  const commands = useCommandRegistry();
+  const verso = useVerso();
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        setOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  return (
+    <CommandDialog open={open} onOpenChange={setOpen}>
+      <CommandInput placeholder="Type a command…" />
+      <CommandList>
+        <CommandEmpty>No results.</CommandEmpty>
+        {Object.entries(groupBy(commands.list(), (c) => c.category ?? "Other"))
+          .map(([category, items]) => (
+            <CommandGroup key={category} heading={category}>
+              {items.map((cmd) => (
+                <CommandItem
+                  key={cmd.id}
+                  onSelect={() => {
+                    setOpen(false);
+                    commands.invoke(cmd.id);
+                  }}
+                >
+                  {cmd.title}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          ))}
+      </CommandList>
+    </CommandDialog>
+  );
+}
+```
+
+### Initial commands in Step 3
+
+Just one, reflecting the existing file-picker functionality:
+
+```typescript
+const fileOpenCommand: CommandContribution = {
+  id: "verso.file.openIdml",
+  title: "Open IDML…",
+  category: "File",
+  handler: async (verso) => {
+    const file = await pickFile({ accept: ".idml" });
+    if (file) await loadIdmlDocument(verso, file);
+  },
+};
+```
+
+The shell registers this on startup. The existing header file-drop affordance is preserved; it now invokes the command rather than calling `onFile` directly. Cmd-K → "Open IDML" works.
+
+In Step 4+, panel toggle commands (`Show: Pages`, `Hide: Outline`) are auto-generated from `PanelRegistry.list()`. In Step 5+, perspective switches and node-level navigation are added.
+
+## Layout Persistence
+
+Two storage scopes, distinct policies, both straightforward.
+
+### Current layout — auto-persisted
+
+```typescript
+// packages/shell/src/persistence/layout-persistence.ts
+
+const STORAGE_KEY = "verso.layout.current";
+const DEBOUNCE_MS = 500;
+
+export function setupLayoutPersistence(substrate: DockingSubstrate): Disposable {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  const sub = substrate.onLayoutChange(() => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      const snapshot = substrate.serialize();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+    }, DEBOUNCE_MS);
+  });
+
+  return {
+    dispose: () => {
+      if (timer) clearTimeout(timer);
+      sub.dispose();
+    },
+  };
+}
+
+export function restoreLayoutOrDefault(
+  substrate: DockingSubstrate,
+  defaultLayout: () => void,
+): void {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) {
+    defaultLayout();
+    return;
+  }
+  try {
+    const snapshot = JSON.parse(raw) as LayoutSnapshot;
+    substrate.restore(snapshot);
+  } catch (err) {
+    console.warn("verso: failed to restore layout, using default", err);
+    defaultLayout();
+  }
+}
+```
+
+The defensive fallback to `defaultLayout()` matters: schema changes between Verso versions will eventually invalidate stored snapshots. Better to fall back than to crash on startup.
+
+### Saved perspectives — deferred to Step 4+
+
+The explicit perspective save/load story (named, exportable as JSON, switchable from the command palette) is part of the broader command + menu work in Step 4. The data layer is already there — perspectives are just labeled `LayoutSnapshot`s — but the UI surface waits.
+
+## Monorepo Organization
+
+The shell + UI + canvas split implies a workspace. Recommended structure:
+
+```
+idml/
+├── apps/
+│   └── canvas/                     # existing — minimal changes
+│       ├── package.json
+│       └── src/
+│           ├── main.tsx            # mounts <VersoShell />, not <CanvasApp />
+│           ├── channel/
+│           │   ├── client.ts       # CanvasClient — unchanged orchestration
+│           │   ├── protocol.ts     # SHRUNK — re-exports tsify-generated types
+│           │   └── generated/      # tsify output, gitignored or vendored
+│           │       └── index.d.ts  # produced by wasm-bindgen + tsify
+│           └── ui/
+│               ├── CanvasApp.tsx   # deleted by end of Step 3
+│               ├── ViewportCanvas.tsx  # moved into shell/panels/
+│               ├── Navigator.tsx   # moved into shell/panels/
+│               ├── Outline.tsx     # moved into shell/panels/
+│               └── …
+├── crates/
+│   └── renderer/                   # existing Rust renderer (path may differ)
+│       ├── Cargo.toml              # tsify added as a dependency
+│       └── src/
+│           ├── protocol.rs         # all #[derive(Tsify)] types — source of truth
+│           └── …
+├── packages/
+│   ├── shell/                      # NEW — @verso/shell
+│   │   ├── package.json
+│   │   ├── tailwind.config.ts
+│   │   ├── components.json         # shadcn config
+│   │   └── src/
+│   │       ├── index.tsx           # <VersoShell /> root component
+│   │       ├── components/ui/      # shadcn primitives
+│   │       ├── chrome/
+│   │       │   ├── CommandPalette.tsx
+│   │       │   ├── Header.tsx
+│   │       │   └── DockviewRoot.tsx
+│   │       ├── docking/
+│   │       │   ├── substrate.ts          # interface
+│   │       │   ├── dockview-substrate.ts # impl — only file importing dockview
+│   │       │   ├── panel-bridge.ts
+│   │       │   └── semantic-group.ts
+│   │       ├── panels/
+│   │       │   ├── canvas-panel.tsx
+│   │       │   ├── pages-panel.tsx
+│   │       │   └── outline-panel.tsx
+│   │       ├── registries/
+│   │       │   ├── panel.ts
+│   │       │   ├── command.ts
+│   │       │   └── keybinding.ts
+│   │       ├── state/
+│   │       │   ├── contexts.tsx
+│   │       │   ├── hooks.ts
+│   │       │   └── document-loader.ts    # the file-load orchestration
+│   │       ├── styles/
+│   │       │   ├── theme.css
+│   │       │   └── dockview-theme-verso.css
+│   │       └── persistence/
+│   │           └── layout-persistence.ts
+│   └── ui/                         # NEW — @verso/ui
+│       ├── package.json
+│       └── src/
+│           ├── index.ts
+│           ├── layout/
+│           ├── inputs/
+│           └── display/
+├── package.json                    # workspace root
+├── pnpm-workspace.yaml             # or yarn workspaces / npm workspaces
+└── tsconfig.base.json
+```
+
+The reasoning for `packages/shell` vs `apps/canvas`:
+
+- `apps/canvas` is the *application* — the deployable artifact. It mounts the shell, provides the worker client, points to a particular set of built-in panels.
+- `packages/shell` is the *substrate* — the reusable bundle host. In principle it could host a different application some day (a different renderer, a different default panel set). In practice it never will, but the conceptual separation is what makes "the shell is its own first plugin" honest.
+
+A second app at some point — `apps/verso` proper, with a different default panel set — would consume the same `@verso/shell` and `@verso/ui` packages.
+
+## Migration Path from CanvasApp.tsx
+
+The cleanest sequence for the actual code transformation:
+
+### Step 3-pre: Migrate `protocol.ts` to tsify-generated types
+
+Do this first, before any shell work. It's a self-contained refactor on the renderer + protocol layer that touches no React code.
+
+1. Add `tsify`, `serde`, and `serde-wasm-bindgen` to the renderer crate's `Cargo.toml` (with the `js` feature on tsify).
+2. Add `#[derive(Tsify, Serialize, Deserialize)]` plus `#[tsify(into_wasm_abi, from_wasm_abi)]` plus `#[serde(rename_all = "camelCase")]` to each Rust type that has a counterpart in the existing `protocol.ts`.
+3. Build the renderer crate. Verify the generated `.d.ts` contains TypeScript types matching the hand-written ones structurally.
+4. In `apps/canvas/src/channel/protocol.ts`, replace each hand-written interface with a re-export of the corresponding generated type.
+5. Compile-check the whole app. Resolve any drift the migration surfaces (likely some field-rename mismatches where the hand-written types accidentally diverged from Rust — this is the bug class the migration is designed to eliminate).
+6. Verify Playwright tests still pass.
+
+Step 3-pre completes when `protocol.ts` is a thin re-export layer plus the `CanvasClient` class, and every shared type's source of truth is in the Rust renderer.
+
+### Step 3a: Set up the workspace skeleton
+
+Create `packages/shell` and `packages/ui` with their respective `package.json`, `tsconfig.json`, Tailwind config. Workspace tooling: pnpm workspaces, Turborepo or Nx if you want orchestrated builds (optional at this scale).
+
+Update `apps/canvas/package.json` to depend on `@verso/shell` and `@verso/ui` as workspace packages.
+
+### Step 3b: Lift state into contexts, no dockview yet
+
+Inside `packages/shell/src/state/`, write the five context providers and their hooks. Inside `packages/shell/src/state/document-loader.ts`, lift the file-loading orchestration out of `CanvasApp` (the `onFile`, snapshot loop, font fetch, status updates).
+
+Modify `apps/canvas/src/ui/CanvasApp.tsx` to wrap its existing JSX in the new providers, sourcing state from them. The component still uses flexbox; nothing visible has changed. This is the lowest-risk intermediate state.
+
+Verify Playwright tests still pass against `window.__canvas`.
+
+### Step 3c: Set up shadcn and the theme
+
+Run `shadcn init` inside `packages/shell`. Add the initial component set. Create `theme.css` with the variable mappings. Apply the theme class at the shell root.
+
+The flexbox layout in `CanvasApp` is unchanged but now uses Tailwind classes and reads colors from CSS variables. This is mostly mechanical and gives an early read on whether the visual direction works.
+
+### Step 3d: Build the registries
+
+`PanelRegistry`, `CommandRegistry`, `SemanticGroupRegistry`. Pure data layer, no rendering. Register the three built-in panels (canvas, pages, outline) and the one initial command (file open) as data.
+
+### Step 3e: Build the DockingSubstrate
+
+`DockingSubstrate` interface, `DockviewSubstrate` implementation. The substrate is *exercised* in tests at this stage but not yet mounted in `CanvasApp`.
+
+### Step 3f: Build the PanelBridge and DockviewRoot
+
+`PanelBridge` connects registry to substrate. `DockviewRoot` is the React component that mounts `DockviewReact`, instantiates the substrate, instantiates the bridge, restores persisted layout.
+
+### Step 3g: The swap
+
+Replace the flexbox layout in `CanvasApp` with `<DockviewRoot />`. `CanvasApp` is now ~50 lines: providers + header + dockview root. The three panels — canvas, pages, outline — appear via the registry-bridge-substrate path. Verify Playwright tests still pass.
+
+### Step 3h: Command palette and persistence
+
+Build `CommandPalette` and wire `Cmd+K`. Add layout auto-persistence. Add the file-open command. Verify the file picker works from both the header and the palette.
+
+### Step 3i: Delete CanvasApp.tsx
+
+Move `CanvasApp.tsx`'s remaining content into `packages/shell/src/index.tsx` as `<VersoShell />`. The `apps/canvas/src/main.tsx` now mounts `<VersoShell client={canvasClient}>...</VersoShell>` directly. `apps/canvas/src/ui/CanvasApp.tsx` is deleted.
 
 ## What Not to Do
 
-- **Don't build features directly into the shell.** Every feature is a bundle.
-- **Don't write a custom docking engine.** Use dockview.
-- **Don't expose dockview's API to bundles.** Bundles register panels via the shell's semantic panel-registration API. Only the shell's `DockviewSubstrate` class imports from `dockview-react`. This is the wrapping abstraction; preserving it is what insures against substrate risk.
-- **Don't add API surface to the Contribution API without deliberation.** Every addition is a permanent commitment.
-- **Don't let bundles reach into each other.** Cross-bundle communication is through the scene graph or shell-mediated events.
-- **Don't ship a marketplace before there are bundle authors.** Build the SDK first.
-- **Don't replicate InDesign's UI.** Conventions yes, clone no.
-- **Don't add menu items without also adding them as commands.** Every menu item is findable via the palette.
-- **Don't make direct manipulation produce per-frame Operations.** Use the gesture layer.
-- **Don't put document state in the shell.** Document state belongs in the scene graph, mutated through Operations.
-- **Don't put application state in the scene graph.** Selection, viewport, active tool stay in the shell.
-- **Don't expose the Gesture API to scripts.** Gestures are for direct manipulation by the GUI; scripts apply Operations.
-- **Don't let dockview's drag system intercept canvas pointer events.** Pointer capture on gesture begin; release on commit or cancel.
-- **Don't try to extend dockview's drag system to intra-panel content drags.** Use standard HTML5 drag-and-drop or custom pointer-based dragging for those.
+- **Don't keep hand-written TypeScript interfaces for types that have a Rust counterpart.** Every shared type goes through tsify; the generated `.d.ts` is the source. Hand-writing "just this one" is how the drift class of bug re-establishes itself.
+- **Don't use tsify's default `json` serialization backend.** Use the `js` feature. The JSON round-trip is wasteful for the geometry-heavy payloads this renderer emits.
+- **Don't tsify the camera-update path or future gesture-pipeline frame updates.** High-frequency continuous updates stay on SAB or raw numeric wasm-bindgen arguments. tsify is for discrete structured messages.
+- **Don't edit the tsify-generated `.d.ts` by hand.** If a type comes out wrong, fix the Rust side or use tsify's `#[tsify(type = "...")]` attribute to override.
+- **Don't commit the generated `.d.ts` to source control without a clear convention.** Either gitignore it (build artifact, regenerated on every build) or vendor it intentionally (review-visible, drift-detectable in PRs). Don't do both. The default recommendation is to vendor: regeneration is non-trivial, drift is review-relevant, and the file is small.
+- **Don't merge shadcn primitives and `@verso/ui` composites into one package.** The boundary is what protects bundle code from substrate churn. Even though `@verso/ui` will start out as a thin re-export layer, the indirection matters once composites accumulate.
+- **Don't import from `dockview-react` outside `dockview-substrate.ts`.** Same discipline as the briefing's general rule. The CI lint rule that enforces this should be in place from day one.
+- **Don't import from `@/components/ui/*` outside `packages/shell`.** Bundle code (eventually third-party) goes through `@verso/ui`.
+- **Don't combine the five state contexts into one mega-context.** Re-render isolation matters; selection changes shouldn't cause the camera context to re-render every consumer.
+- **Don't hardcode dockview group IDs anywhere.** All placement is by semantic group name.
+- **Don't ship saved perspectives or per-document UI configuration in Step 3.** Auto-persistence of the current layout is enough.
+- **Don't build the full KeybindingRegistry in Step 3.** Existing `useKeyboardShortcuts` is left in place; the registry comes with the bundle loader in Step 4.
+- **Don't theme dockview by editing its source or maintaining a fork.** Use only CSS variables. If a dockview style proves uncustomizable via CSS, file an upstream issue rather than working around it.
+- **Don't add a menu bar in Step 3.** The command palette covers Step 3's needs. Menus, contributed via the registry pattern, come in Step 4.
+- **Don't optimize the document-loading path.** The existing sequential snapshot loop is correct given the single-threaded worker; lift it as-is.
+- **Don't rename `window.__canvas` to `window.__verso` in Step 3.** Tests depend on the name. Renaming is free later if the name turns out to matter; renaming now while the surface is in flux is unnecessary churn.
 
-## Time Budget Sanity Check
+## Time Budget
 
 For solo or near-solo work:
 
-- Step 1 (design language brief): 1–2 days.
-- Step 2 (stack decisions): 1–2 days.
-- Step 3 (empty shell with dockview substrate): 2–3 weeks.
-- Step 4 (bundle loader + Contribution API): 2–3 weeks.
-- Step 5 (canvas + gesture pipeline): 2–3 weeks.
-- Step 6 (inspector as bundle): 1–2 weeks.
-- Step 7 (core editor bundles): 4–9 months total, depending on scope per bundle.
-- Step 8 (bundle SDK published): 1–2 weeks.
+- Step 3-pre (tsify migration of `protocol.ts`): 2–3 days.
+- Step 3a (workspace skeleton, shadcn init, theme stub): 2 days.
+- Step 3b (state contexts, document loader lift): 3 days.
+- Step 3c (shadcn integration, theme bridge, Tailwind migration of existing JSX): 2 days.
+- Step 3d (four registries as data layer): 2 days.
+- Step 3e (DockingSubstrate + DockviewSubstrate): 3 days.
+- Step 3f (PanelBridge, DockviewRoot, panel components wrapped): 3 days.
+- Step 3g (the swap): 1 day, plus 1–2 days of stabilization and Playwright fixes.
+- Step 3h (command palette, persistence, file-open command): 2 days.
+- Step 3i (final cleanup, CanvasApp deletion): 1 day.
 
-The shell, bundle loader, canvas pipeline, and inspector-as-bundle together are about eight to ten weeks of work producing no user-visible features but establishing the foundation everything else builds on. This is the right investment.
+Total: roughly three and a half weeks of focused work. The tsify migration adds 2–3 days up front but is a one-time investment; subsequent additions to the WASM boundary are free (annotate the Rust type, rebuild).
+
+## Acceptance Criteria
+
+Step 3 is complete when all of the following hold:
+
+1. `apps/canvas/src/ui/CanvasApp.tsx` no longer exists.
+2. The application starts and shows the IDML canvas in the center of a dockview layout.
+3. The Pages and Outline panels appear in the left dock group, as tabs, by default.
+4. The user can drag panels to different positions, float them, pop them out into separate browser windows, and the new layout persists across reloads.
+5. The canvas panel cannot be closed, cannot be moved, and has no tab header.
+6. `Cmd+K` opens the command palette. The "Open IDML…" command is listed and works.
+7. The header file picker still works.
+8. Playwright tests against `window.__canvas` continue to pass.
+9. Pan/zoom, text selection, text editing, undo/redo continue to work identically to the pre-decomposition behavior.
+10. The codebase contains exactly one file that imports from `dockview-react`: `packages/shell/src/docking/dockview-substrate.ts`.
+11. The codebase contains zero files outside `packages/shell` that import from `packages/shell/components/ui/*`.
+12. A lint rule (custom ESLint, or import boundaries enforced by `eslint-plugin-import-x` or similar) enforces both isolation rules above.
+13. Toggling a `.dark` class on the document root flips both shadcn and dockview into dark mode coherently.
+14. `apps/canvas/src/channel/protocol.ts` contains no hand-written interface declarations for types that exist in the renderer crate. Every shared type is imported from the tsify-generated `.d.ts`.
+15. Renaming a field on a Rust type that has `#[derive(Tsify)]` produces a TypeScript compile error on the consumer side after rebuild. (Verify with a deliberate temporary rename.)
+16. The renderer crate builds with the `js` feature on tsify (not the `json` default).
 
 ## Decision Triggers
 
-Four checkpoints to revisit this briefing:
+Four checkpoints to revisit this spec:
 
-1. **When the empty shell plus three bundles is in working condition** → review the Contribution API with real usage.
-2. **When the gesture pipeline is exercised by the first manipulation bundle (selection or transform)** → review the gesture types and the Gesture API ergonomics. Are common patterns awkward? Are there gestures that should be added to the closed set?
-3. **When five or more core bundles are in production** → review the design system and the application-state vs document-state line. Has it held up? Have bundles started smuggling document state into application state or vice versa?
-4. **Annually, or whenever dockview releases a major version** → review the wrapping abstraction. Is the `DockingSubstrate` interface still appropriate? Are there dockview features the shell could expose more directly? Is the substrate-risk picture changing (single maintainer becoming a team, project getting Microsoft-backed, etc.)?
+1. **After Step 3-pre (the tsify migration), before any shell work.** Pause and review the generated TypeScript types against the previous hand-written ones. If significant structural differences exist that aren't bug-fixes, the Rust types may need refactoring before they're a comfortable source of truth. Better to do that refactor here than after the shell depends on them.
+2. **After Step 3g (the swap), before Step 3h.** Pause and review whether the registry → bridge → substrate chain feels right in practice. If it feels overengineered for three built-in panels, the answer is "no, this is the floor; it pays off at panel #6, not panel #3." If it feels under-engineered (you keep wanting to add fields to `PanelContribution`), that's the time to add them.
+3. **When the first third-party-style bundle is being prototyped in Step 4.** This is the moment to assess whether the Contribution API surface is right. The shell's own panel registration is the rehearsal; the first external bundle is the real test.
+4. **When the gesture pipeline lands in Step 5 and the scrub-aware inputs are added to `@verso/ui`.** Reassess whether `@verso/ui` has the right granularity. The DTP composites are the components that will most stress the design system; they're the right moment to revise its shape. Also revisit the tsify/SAB split here — Step 5 introduces a lot of high-frequency wire traffic, and the "raw numeric args for gestures" rule will be exercised for the first time.
 
 ## Summary in One Paragraph
 
-Verso is not a monolithic application — it is a bundle host that happens to ship a bundle suite. The architecture has four layers: renderer and scene graph at the bottom, scripting layer above that, application shell on top, and bundles at the top. The shell talks to the scene graph through *two* channels: Operations (via the scripting layer) for committed mutations, and the Gesture API (directly) for ephemeral direct-manipulation state during drags. A one-second rotation produces one Operation at commit time, not sixty per second during the drag. Document state lives in the scene graph and is mutated only through Operations; application state — selection, viewport, active tool — lives in the shell and follows different rules. The shell uses **dockview** as its docking substrate, wrapped in a shell-internal `DockingSubstrate` abstraction so that no bundle ever depends on dockview directly — preserving freedom to swap substrates later and isolating the single-maintainer risk. The canvas is a permanently-pinned center panel; bundle-contributed panels dock around it via semantic group names that the shell translates into dockview operations. Perspectives are dockview `toJSON()` snapshots plus metadata, distributable as JSON artifacts. Bundles use the `verso.*` namespace if built-in or their own publisher namespace if third-party; they declare contributions via manifest and receive a small Contribution API on activation; cross-bundle communication is mediated by the shell. The visual design is recognizably-of-the-genre but explicitly not a clone of InDesign — Verso positions itself in the European publishing tradition that predates Adobe, not as a successor to a 1999 product. Build the empty shell first (with the dockview substrate and the canvas centering pattern), then the bundle loader, then the canvas and gesture pipeline, then refactor the inspector as the first bundle, then build core editor bundles in parallel. Add to the Contribution API and the Gesture API closed sets only with deliberation. The result is an editor whose entire feature surface is replaceable, extensible, and scriptable from day one, where direct manipulation feels right because it has its own architectural layer rather than being forced through a model built for discrete edits, and whose docking substrate is a swappable implementation detail rather than a permanent commitment.
+The Step 3 shell decomposes the existing 513-line `CanvasApp.tsx` into a declarative, configurable substrate: the WASM ↔ TypeScript type contract is unified via tsify, with Rust types in the renderer crate as the single source of truth for everything crossing the boundary and `apps/canvas/src/channel/protocol.ts` shrunk to a re-export layer plus the `CanvasClient` dispatch class; four registries (panels, commands, semantic groups, keybindings) hold contribution data; five React contexts (client, document, camera, selection, content-selection) hold application state; a `DockingSubstrate` abstraction wraps dockview such that exactly one file in the codebase imports `dockview-react`; a `PanelBridge` projects registry contributions onto the substrate; the canvas, pages panel, and outline panel are registered as data, not hardcoded; shadcn/ui provides the chrome and a curated subset is re-exposed as `@verso/ui` for bundles, with a parallel substrate-isolation discipline; a single set of CSS variables themes both shadcn and dockview through a custom `dockview-theme-verso` class; the command palette built on shadcn's `Command` primitive opens with `Cmd+K` and dispatches against the command registry; layout state auto-persists to `localStorage` with a defensive fallback to the default layout if the snapshot fails to restore. The tsify migration uses the `js` serialization backend for efficient marshaling of geometry-heavy payloads, while the camera-update SAB path and the future Step 5 gesture pipeline stay on raw numeric arguments because high-frequency continuous updates have different needs than discrete structured messages. By the end of Step 3, adding a panel means registering a manifest entry; rearranging the layout means dragging; replacing the docking substrate or the design system is a contained refactor; renaming a field on a Rust type produces a TypeScript compile error rather than a runtime bug; and the bundle loader in Step 4 has a clean place to plug into because the registration path it will use is the same path the shell uses to register its own built-in panels.
