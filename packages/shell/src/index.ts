@@ -131,6 +131,15 @@ export {
   type ScrubGestureOptions,
 } from "./gestures/use-scrub-gesture";
 
+export {
+  GestureBuffer,
+  GESTURE_SAB_BYTES,
+  GESTURE_MODIFIER_SHIFT,
+  GESTURE_MODIFIER_ALT,
+  supportsGestureSab,
+  type GestureUpdateRecord,
+} from "./gestures/gesture-sab";
+
 // ── Overlay layer ──────────────────────────────────────────────
 export {
   OverlayHost,
