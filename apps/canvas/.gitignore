@@ -1,6 +1,10 @@
 node_modules/
 dist/
-src/wasm/
+src/wasm/*
+# Vendor the tsify-generated typed contract so PR diffs show wire-
+# format changes. The .js loader and .wasm binary stay ignored —
+# they're rebuilt locally via `pnpm wasm`.
+!src/wasm/idml_canvas_wasm.d.ts
 *.local
 tsconfig.tsbuildinfo
 playwright-report/

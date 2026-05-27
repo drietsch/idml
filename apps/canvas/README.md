@@ -38,9 +38,19 @@ bash build-wasm.sh
 ```
 
 Outputs `src/wasm/idml_canvas_wasm.{js,d.ts}` and the binary
-`idml_canvas_wasm_bg.wasm` (~4.5 MB optimised). The `src/wasm/`
-directory is `.gitignore`'d — regenerate after every Rust change
-that touches `crates/idml-canvas*` or `crates/idml-gpu`.
+`idml_canvas_wasm_bg.wasm` (~4.5 MB optimised). The `.js` loader
+and the `.wasm` binary are `.gitignore`'d; the `.d.ts` is
+**vendored** because the tsify-generated type contract is review-
+visible and a CI check (`.github/workflows/protocol-version.yml`)
+fails any PR that changes it without bumping `PROTOCOL_VERSION` in
+`crates/idml-canvas/src/channel.rs`. Regenerate the .d.ts and
+commit it in the same PR as any Rust-side type change:
+
+```bash
+cd apps/canvas
+bash build-wasm.sh
+git add src/wasm/idml_canvas_wasm.d.ts
+```
 
 ## Run
 
