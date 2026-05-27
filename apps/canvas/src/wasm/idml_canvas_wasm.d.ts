@@ -641,11 +641,6 @@ export class CanvasWorker {
      */
     gpuReady(): boolean;
     /**
-     * Handle one main-thread message. Input is the JSON string
-     * the JS side produced via `JSON.stringify(msg)`. Output is
-     * the JSON string the JS side should `JSON.parse` and post
-     * back to the main thread. Returning a string (rather than
-     * a wasm-bindgen-serialised object) keeps the boundary
      * simple — no nested serde-wasm-bindgen conversions, just
      * `Vec<u8>` bytes in and bytes out.
      */
@@ -754,6 +749,24 @@ export class CanvasWorker {
      */
     setSceneCacheBudget(max_entries: number): void;
     /**
+     * Handle one main-thread message. Input is the JSON string
+     * the JS side produced via `JSON.stringify(msg)`. Output is
+     * the JSON string the JS side should `JSON.parse` and post
+     * back to the main thread. Returning a string (rather than
+     * a wasm-bindgen-serialised object) keeps the boundary
+     * Step 5d — raw-arg update-gesture entry. The worker drains
+     * the gesture SAB every tick and calls this without going
+     * through `handleMessage`'s JSON envelope. Returns `true` on
+     * success; `false` when no document is loaded or the gesture
+     * has gone stale. The worker silently drops the latter.
+     *
+     * The 64-bit handle arrives split into low/high words because
+     * JS Numbers can't represent the full u64 range cleanly.
+     * `modifier_bits`: bit 0 = shift, bit 1 = alt — matches the
+     * SAB layout in `packages/shell/src/gestures/gesture-sab.ts`.
+     */
+    updateGestureRaw(handle_lo: number, handle_hi: number, dx: number, dy: number, modifier_bits: number): boolean;
+    /**
      * Protocol version constant; the JS side compares against
      * its bundled value before sending `LoadDocument`.
      */
@@ -787,6 +800,7 @@ export interface InitOutput {
     readonly canvasworker_sceneCacheSize: (a: number) => number;
     readonly canvasworker_selectionGeometryJson: (a: number, b: number, c: number) => [number, number];
     readonly canvasworker_setSceneCacheBudget: (a: number, b: number) => void;
+    readonly canvasworker_updateGestureRaw: (a: number, b: number, c: number, d: number, e: number, f: number) => number;
     readonly on_start: () => void;
     readonly lut_inverse_interp16: (a: number, b: number, c: number) => number;
     readonly qcms_profile_precache_output_transform: (a: number) => void;

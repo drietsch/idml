@@ -29,6 +29,7 @@ import {
   type WorkerToMain,
 } from "./protocol";
 import { CameraBuffer, type Camera } from "./camera";
+import { GestureBuffer } from "@verso/shell";
 
 type PendingReply = (msg: WorkerToMain) => void;
 
@@ -38,6 +39,7 @@ export class CanvasClient {
   private readonly pending = new Map<number, PendingReply>();
   private readonly listeners = new Set<(msg: WorkerToMain) => void>();
   readonly camera: CameraBuffer;
+  readonly gestureSab: GestureBuffer;
 
   constructor() {
     this.worker = new Worker(new URL("../worker/worker.ts", import.meta.url), {
@@ -46,6 +48,11 @@ export class CanvasClient {
     this.worker.addEventListener("message", this.onMessage);
     this.camera = CameraBuffer.allocate();
     this.worker.postMessage({ kind: "cameraSab", buffer: this.camera.buffer });
+    this.gestureSab = GestureBuffer.allocate();
+    this.worker.postMessage({
+      kind: "gestureSab",
+      buffer: this.gestureSab.buffer,
+    });
   }
 
   /**
@@ -265,14 +272,28 @@ export class CanvasClient {
 
   /**
    * Phase B — push a pointer delta into the active gesture. Worker
-   * rewrites the preview + rebuilds. Phase E — the reply now also
-   * carries the active snap lines so the overlay can render them.
+   * rewrites the preview + rebuilds. Phase E — the reply carries
+   * the active snap lines so the overlay can render them.
+   *
+   * Step 5d — `mode: "sab"` routes the delta through the gesture
+   * SAB instead of postMessage. Fire-and-forget (no reply): the
+   * worker drains the SAB on its next tick and applies the latest
+   * delta via `updateGestureRaw`. Returns an empty result —
+   * callers that need snap-lines per update must stay on JSON.
+   * SAB-mode requires `supportsGestureSab()` (crossOriginIsolated +
+   * SharedArrayBuffer); the client silently falls back to JSON
+   * otherwise so legacy environments stay correct.
    */
   async updateGesture(
     handle: GestureHandle,
     delta: [number, number],
     modifiers: GestureModifiers,
+    mode: "json" | "sab" = "json",
   ): Promise<{ pageIds: PageId[]; snapLines: SnapLine[] }> {
+    if (mode === "sab" && this.gestureSab.buffer instanceof SharedArrayBuffer) {
+      this.gestureSab.push(BigInt(handle), delta[0], delta[1], modifiers);
+      return { pageIds: [], snapLines: [] };
+    }
     const reply = await this.send({
       kind: "updateGesture",
       payload: { handle, delta, modifiers },

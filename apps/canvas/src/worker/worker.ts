@@ -17,11 +17,20 @@
 import type { MainToWorker, WorkerToMain } from "../channel/protocol";
 import { PROTOCOL_VERSION } from "../channel/protocol";
 import { CameraBuffer } from "../channel/camera";
+import { GestureBuffer } from "@verso/shell";
 import { WorkerRenderer, type RendererWasm } from "./render";
 
 interface CanvasWorkerInstance {
   protocolVersion: number;
   handleMessage(input: string): string;
+  /** Step 5d — raw-arg updateGesture entry. Returns true on success. */
+  updateGestureRaw(
+    handleLo: number,
+    handleHi: number,
+    dx: number,
+    dy: number,
+    modifierBits: number,
+  ): boolean;
   pageCount(): number;
   pageInfo(index: number): unknown;
   renderTilePng(pageId: string, targetWidthPx: number): Uint8Array | undefined;
@@ -51,6 +60,8 @@ interface CanvasWasmModule {
 
 let worker: CanvasWorkerInstance | null = null;
 let cameraBuffer: CameraBuffer | null = null;
+let gestureBuffer: GestureBuffer | null = null;
+let gestureDrainHandle: ReturnType<typeof setTimeout> | null = null;
 let renderer: WorkerRenderer | null = null;
 /** Pending canvas attach that arrived before the wasm finished loading. */
 let pendingAttach:
@@ -103,6 +114,7 @@ const initPromise = init().catch((err) => {
 type IncomingMessage =
   | { kind: "channel"; msg: MainToWorker }
   | { kind: "cameraSab"; buffer: SharedArrayBuffer | ArrayBuffer }
+  | { kind: "gestureSab"; buffer: SharedArrayBuffer | ArrayBuffer }
   | {
       kind: "attachCanvas";
       canvas: OffscreenCanvas;
@@ -159,6 +171,11 @@ self.addEventListener("message", (event: MessageEvent) => {
 async function dispatch(data: IncomingMessage): Promise<void> {
   if (data.kind === "cameraSab") {
     cameraBuffer = new CameraBuffer(data.buffer);
+    return;
+  }
+  if (data.kind === "gestureSab") {
+    gestureBuffer = new GestureBuffer(data.buffer);
+    startGestureDrain();
     return;
   }
   if (data.kind === "attachCanvas") {
@@ -356,4 +373,35 @@ async function attachRenderer(
 
 function postBack(msg: WorkerToMain) {
   (self as unknown as DedicatedWorkerGlobalScope).postMessage(msg);
+}
+
+// Step 5d — gesture SAB drain loop. Polls the gesture buffer
+// every 8ms (~120 Hz so pointer-rate updates land in the next
+// tick). On a fresh record the wasm `updateGestureRaw` applies
+// the delta directly — no JSON envelope, no postMessage in. The
+// renderer's own tick observes the resulting page-cache
+// invalidation through the existing dirty-mark plumbing.
+//
+// Snap-line surfacing stays on the JSON channel (the
+// `gestureUpdated` reply): that's a cold-path concern of the
+// gesture's overlay, not the per-frame mutation. 5d is about
+// shaving the inbound postMessage cost on the hot path.
+const GESTURE_DRAIN_INTERVAL_MS = 8;
+
+function startGestureDrain() {
+  if (gestureDrainHandle !== null) return;
+  const tick = () => {
+    gestureDrainHandle = setTimeout(tick, GESTURE_DRAIN_INTERVAL_MS);
+    if (!worker || !gestureBuffer) return;
+    const record = gestureBuffer.drainLatest();
+    if (!record) return;
+    const handleLo = Number(record.handle & 0xffff_ffffn);
+    const handleHi = Number((record.handle >> 32n) & 0xffff_ffffn);
+    let mods = 0;
+    if (record.modifiers.shift) mods |= 0b01;
+    if (record.modifiers.alt) mods |= 0b10;
+    worker.updateGestureRaw(handleLo, handleHi, record.dx, record.dy, mods);
+    renderer?.markDirty();
+  };
+  tick();
 }
