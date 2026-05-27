@@ -47,6 +47,8 @@ export type {
   NumberingMap,
   Operation,
   PageId,
+  PathAnchorsResult,
+  PathAnchorTriple,
   PathPointAddress,
   PathPointRole,
   ProtocolVersion,

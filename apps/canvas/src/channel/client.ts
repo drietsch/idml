@@ -21,6 +21,7 @@ import {
   type MainToWorkerKind,
   type Mutation,
   type PageId,
+  type PathAnchorsResult,
   type SelectionMode,
   type SelectionRect,
   type SnapLine,
@@ -213,6 +214,23 @@ export class CanvasClient {
       payload: { groupId },
     });
     if (reply.kind === "groupLeaves") return reply.payload.ids;
+    throw new Error(`unexpected reply: ${reply.kind}`);
+  }
+
+  /**
+   * Step 5 — fetch the path-anchor table for an element so the
+   * path-edit overlay can draw one dot per anchor + Bezier-handle
+   * pair. Returns `null` when the element doesn't resolve or sits
+   * on a non-body page; returns a result with an empty `anchors`
+   * vector when the element carries no `<PathGeometry>` (e.g. a
+   * Rectangle declared via `GeometricBounds` only).
+   */
+  async pathAnchors(id: ElementId): Promise<PathAnchorsResult | null> {
+    const reply = await this.send({
+      kind: "requestPathAnchors",
+      payload: { id },
+    });
+    if (reply.kind === "pathAnchors") return reply.payload.result;
     throw new Error(`unexpected reply: ${reply.kind}`);
   }
 
