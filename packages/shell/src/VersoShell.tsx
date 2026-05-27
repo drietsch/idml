@@ -37,12 +37,14 @@ import { VersoEditorProvider } from "./state/verso-editor";
 import { useRegistries } from "./state/registries-context";
 import { CommandPalette } from "./chrome/CommandPalette";
 import { DockviewRoot } from "./docking/DockviewRoot";
+import { DockingSubstrateProvider } from "./docking/substrate-context";
 import { loadDocumentFile } from "./state/document-loader";
 import { buildOpenIdmlCommand } from "./state/commands/file-commands";
 import {
   PALETTE_TOGGLE_COMMAND,
   PALETTE_TOGGLE_KEYBINDING,
   PALETTE_TOGGLE_KEYBINDING_CTRL,
+  buildPanelToggleCommands,
 } from "./state/commands/built-in-commands";
 import type { PanelContribution } from "./registries/panel";
 import { useFps } from "./hooks/useFps";
@@ -72,9 +74,14 @@ export function VersoShell({
             <SelectionProvider>
               <ContentSelectionProvider>
                 <InstrumentationProvider>
-                  <VersoEditorProvider>
-                    <ShellChrome panels={panels}>{children}</ShellChrome>
-                  </VersoEditorProvider>
+                  {/* DockingSubstrateProvider above VersoEditorProvider so
+                   *  the editor handle (`verso.substrate`) sees the live
+                   *  substrate once DockviewRoot's onReady publishes it. */}
+                  <DockingSubstrateProvider>
+                    <VersoEditorProvider>
+                      <ShellChrome panels={panels}>{children}</ShellChrome>
+                    </VersoEditorProvider>
+                  </DockingSubstrateProvider>
                 </InstrumentationProvider>
               </ContentSelectionProvider>
             </SelectionProvider>
@@ -123,15 +130,21 @@ function ShellChrome({
     setFps(fps);
   }, [fps, setFps]);
 
-  // Register the supplied panels once. The ref guards against the
-  // StrictMode dev double-mount cycle even though we've disabled
-  // StrictMode at the root (dockview's lifecycle is the actual
-  // blocker); the guard also matches the dispose-on-unmount pattern.
+  // Register the supplied panels + auto-generate show/hide
+  // commands for each. The ref guards against the StrictMode
+  // double-mount cycle.
   const panelsRegistered = useRef(false);
   useEffect(() => {
     if (panelsRegistered.current) return;
     panelsRegistered.current = true;
-    const disposables = panels.map((p) => registries.panels.register(p));
+    const disposables = panels.flatMap((p) => {
+      const [show, hide] = buildPanelToggleCommands(p);
+      return [
+        registries.panels.register(p),
+        registries.commands.register(show),
+        registries.commands.register(hide),
+      ];
+    });
     return () => {
       for (const d of disposables) d.dispose();
       panelsRegistered.current = false;

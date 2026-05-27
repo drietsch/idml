@@ -20,10 +20,7 @@ import {
 import type { Disposable } from "../registries/types";
 import { DockviewSubstrate } from "./dockview-substrate";
 import { PanelBridge } from "./panel-bridge";
-import {
-  DockingSubstrateProvider,
-  useSetDockingSubstrate,
-} from "./substrate-context";
+import { useSetDockingSubstrate } from "./substrate-context";
 
 /** Component name dockview uses for every panel — a single stable
  * router rather than per-panel registrations. Each panel passes its
@@ -68,21 +65,12 @@ const DOCKVIEW_COMPONENTS = { [PANEL_COMPONENT_NAME]: PanelRouter };
 /**
  * Mounts dockview, builds the substrate on ready, and instantiates
  * the panel bridge. Must be wrapped inside the editor providers
- * (CanvasClientProvider, …, VersoEditorProvider) — it reads from
- * the registries and from `useVerso`.
- *
- * Wraps itself in a `DockingSubstrateProvider` so any nested
- * consumer can call `useDockingSubstrate()`.
+ * (CanvasClientProvider, …, VersoEditorProvider, and notably
+ * `DockingSubstrateProvider` — VersoShell mounts the substrate
+ * provider above VersoEditorProvider so the editor handle exposes
+ * the live substrate to command handlers).
  */
-export function DockviewRoot(props: { className?: string }) {
-  return (
-    <DockingSubstrateProvider>
-      <DockviewRootInner className={props.className} />
-    </DockingSubstrateProvider>
-  );
-}
-
-function DockviewRootInner({ className }: { className?: string }) {
+export function DockviewRoot({ className }: { className?: string }) {
   const { panels } = useRegistries();
   const setSubstrate = useSetDockingSubstrate();
   const bridgeRef = useRef<PanelBridge | null>(null);

@@ -16,6 +16,8 @@ import {
   useRegistries,
   type ShellRegistries,
 } from "./registries-context";
+import { useDockingSubstrate } from "../docking/substrate-context";
+import type { DockingSubstrate } from "../docking/substrate";
 
 // eslint-disable-next-line import/no-relative-parent-imports
 import type { CanvasClient } from "../../../../apps/canvas/src/channel/client";
@@ -45,6 +47,10 @@ export interface VersoEditor {
 
   /** The four shell registries. */
   registries: ShellRegistries;
+
+  /** Docking substrate. Null until DockviewRoot's `onReady` fires;
+   * commands that need the substrate should guard for that. */
+  substrate: DockingSubstrate | null;
 }
 
 /**
@@ -93,10 +99,19 @@ function VersoEditorBinder({
   const selection = useSelection();
   const contentSelection = useContentSelection();
   const registries = useRegistries();
+  const substrate = useDockingSubstrate();
 
   const editor = useMemo<VersoEditor>(
-    () => ({ client, document, camera, selection, contentSelection, registries }),
-    [client, document, camera, selection, contentSelection, registries],
+    () => ({
+      client,
+      document,
+      camera,
+      selection,
+      contentSelection,
+      registries,
+      substrate,
+    }),
+    [client, document, camera, selection, contentSelection, registries, substrate],
   );
   editorRef.current = editor;
 
