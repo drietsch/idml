@@ -110,6 +110,16 @@ export {
   setupLayoutPersistence,
 } from "./persistence/layout-persistence";
 
+// ── Bundles ────────────────────────────────────────────────────
+export {
+  loadBundle,
+  sampleBundleManifest,
+  type BundleHandle,
+  type BundleManifest,
+  type BundleToShell,
+  type ShellToBundle,
+} from "./bundles";
+
 // ── Docking substrate ──────────────────────────────────────────
 export {
   DockviewSubstrate,

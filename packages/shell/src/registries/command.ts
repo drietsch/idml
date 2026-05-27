@@ -11,7 +11,11 @@ export interface CommandContribution {
   title: string;
   category?: string;
   icon?: string;
-  handler: (verso: unknown, payload?: unknown) => void | Promise<void>;
+  /** Handler return is `unknown` rather than `void` so command
+   * implementations can surface a result through the registry's
+   * `invoke` (bundles use this for the round-trip RPC). Most
+   * shell-internal commands return nothing. */
+  handler: (verso: unknown, payload?: unknown) => unknown | Promise<unknown>;
   /** Optional enablement predicate. Disabled commands appear greyed. */
   when?: VisibilityPredicate;
 }
@@ -19,7 +23,7 @@ export interface CommandContribution {
 export interface CommandRegistry {
   register(contribution: CommandContribution): Disposable;
   unregister(id: string): void;
-  invoke(id: string, payload?: unknown): Promise<void>;
+  invoke(id: string, payload?: unknown): Promise<unknown>;
   get(id: string): CommandContribution | undefined;
   list(): CommandContribution[];
 }
@@ -58,7 +62,7 @@ export function createCommandRegistry(
         throw new Error(`CommandRegistry: unknown command "${id}"`);
       }
       const editor = getEditor();
-      await cmd.handler(editor, payload);
+      return await cmd.handler(editor, payload);
     },
     get(id) {
       return byId.get(id);
