@@ -1,0 +1,75 @@
+/* Verso theme bridge. One semantic token set drives shadcn (and,
+ * once Step 3e lands, dockview) — the only place a design refresh
+ * needs to edit is the `--verso-*` layer.
+ *
+ * HSL components (no `hsl()` wrapper) are the shadcn convention so
+ * components can compose `hsl(var(--token) / <alpha-value>)`.
+ */
+
+:root {
+  /* ── Verso semantic tokens ─────────────────────────────────── */
+  --verso-bg: 0 0% 100%;
+  --verso-fg: 0 0% 9%;
+  --verso-border: 0 0% 89%;
+  --verso-input: 0 0% 89%;
+  --verso-ring: 263 73% 43%;
+  --verso-muted: 0 0% 96%;
+  --verso-muted-fg: 0 0% 45%;
+  --verso-card: 0 0% 100%;
+  --verso-card-fg: 0 0% 9%;
+  --verso-popover: 0 0% 100%;
+  --verso-popover-fg: 0 0% 9%;
+  --verso-primary: 263 73% 43%;
+  --verso-primary-fg: 0 0% 98%;
+  --verso-secondary: 0 0% 96%;
+  --verso-secondary-fg: 0 0% 9%;
+  --verso-accent: 0 0% 96%;
+  --verso-accent-fg: 0 0% 9%;
+  --verso-destructive: 0 84% 60%;
+  --verso-destructive-fg: 0 0% 98%;
+  --verso-radius: 0.5rem;
+
+  /* ── shadcn variable bridge ────────────────────────────────── */
+  --background: var(--verso-bg);
+  --foreground: var(--verso-fg);
+  --card: var(--verso-card);
+  --card-foreground: var(--verso-card-fg);
+  --popover: var(--verso-popover);
+  --popover-foreground: var(--verso-popover-fg);
+  --primary: var(--verso-primary);
+  --primary-foreground: var(--verso-primary-fg);
+  --secondary: var(--verso-secondary);
+  --secondary-foreground: var(--verso-secondary-fg);
+  --muted: var(--verso-muted);
+  --muted-foreground: var(--verso-muted-fg);
+  --accent: var(--verso-accent);
+  --accent-foreground: var(--verso-accent-fg);
+  --destructive: var(--verso-destructive);
+  --destructive-foreground: var(--verso-destructive-fg);
+  --border: var(--verso-border);
+  --input: var(--verso-input);
+  --ring: var(--verso-ring);
+  --radius: var(--verso-radius);
+}
+
+.dark {
+  --verso-bg: 0 0% 9%;
+  --verso-fg: 0 0% 98%;
+  --verso-border: 0 0% 15%;
+  --verso-input: 0 0% 15%;
+  --verso-ring: 263 73% 60%;
+  --verso-muted: 0 0% 15%;
+  --verso-muted-fg: 0 0% 64%;
+  --verso-card: 0 0% 9%;
+  --verso-card-fg: 0 0% 98%;
+  --verso-popover: 0 0% 9%;
+  --verso-popover-fg: 0 0% 98%;
+  --verso-primary: 263 73% 60%;
+  --verso-primary-fg: 0 0% 9%;
+  --verso-secondary: 0 0% 15%;
+  --verso-secondary-fg: 0 0% 98%;
+  --verso-accent: 0 0% 15%;
+  --verso-accent-fg: 0 0% 98%;
+  --verso-destructive: 0 63% 31%;
+  --verso-destructive-fg: 0 0% 98%;
+}
