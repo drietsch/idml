@@ -17,7 +17,12 @@
 import type { MainToWorker, WorkerToMain } from "../channel/protocol";
 import { PROTOCOL_VERSION } from "../channel/protocol";
 import { CameraBuffer } from "../channel/camera";
-import { GestureBuffer } from "@verso/shell";
+// Deep-import bypasses the @verso/shell barrel — that re-exports
+// React components which Vite would otherwise pull into the worker
+// bundle, blocking worker startup (the `window` access in React's
+// scheduling code fails inside a worker).
+// eslint-disable-next-line import/no-relative-parent-imports
+import { GestureBuffer } from "../../../../packages/shell/src/gestures/gesture-sab";
 import { WorkerRenderer, type RendererWasm } from "./render";
 
 interface CanvasWorkerInstance {
