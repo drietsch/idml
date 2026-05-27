@@ -3,6 +3,10 @@ export { contentGrabberContribution } from "./content-grabber";
 export { hitMarkerContribution } from "./hit-marker";
 export { marqueeContribution } from "./marquee";
 export { pageDecorationsContribution } from "./page-decorations";
+export {
+  pathEditContribution,
+  elementSupportsPathEdit,
+} from "./path-edit";
 export { resizeHandlesContribution } from "./resize-handles";
 export { rotateHandleContribution } from "./rotate-handle";
 export { selectionChromeContribution } from "./selection-chrome";

@@ -7,6 +7,7 @@ import {
   hitMarkerContribution,
   marqueeContribution,
   pageDecorationsContribution,
+  pathEditContribution,
   resizeHandlesContribution,
   rotateHandleContribution,
   selectionChromeContribution,
@@ -26,6 +27,7 @@ import { NavigatorPanel } from "./panels/navigator-panel";
 import { OutlinePanel } from "./panels/outline-panel";
 import { useAnimatedCamera } from "./ui/useAnimatedCamera";
 import { useKeyboardShortcuts } from "./ui/useKeyboardShortcuts";
+import { usePathEditMode } from "./ui/usePathEditMode";
 import { useTextEditing } from "./ui/useTextEditing";
 import { ZoomField } from "./ui/ZoomField";
 
@@ -39,6 +41,7 @@ const BUILT_IN_OVERLAYS: OverlayContribution[] = [
   resizeHandlesContribution,
   rotateHandleContribution,
   contentGrabberContribution,
+  pathEditContribution,
   marqueeContribution,
   snapLinesContribution,
   caretContribution,
@@ -98,6 +101,7 @@ function CanvasAppIntegration() {
     selection: contentSelection,
     setSelection: setContentSelection,
   });
+  usePathEditMode();
 
   return null;
 }

@@ -28,6 +28,15 @@ interface SelectionContextValue {
   /** Active mode: select = element gestures, text = caret/typing. */
   activeTool: ActiveTool;
   setActiveTool: (tool: ActiveTool) => void;
+
+  /** Step 5c — path-edit mode. While `true`, the path-edit overlay
+   * renders anchor + handle dots on the selected polygon and the
+   * pointer routes hits through `hit_path_anchor` instead of the
+   * default frame hit. Enter on a single Polygon enters; Escape
+   * exits. The mode auto-exits when the selection clears or the
+   * active tool changes. */
+  pathEditMode: boolean;
+  setPathEditMode: (enabled: boolean) => void;
 }
 
 const Context = createContext<SelectionContextValue | null>(null);
@@ -38,6 +47,7 @@ export function SelectionProvider({ children }: PropsWithChildren) {
     [],
   );
   const [activeTool, setActiveTool] = useState<ActiveTool>("select");
+  const [pathEditMode, setPathEditMode] = useState<boolean>(false);
 
   const value = useMemo<SelectionContextValue>(
     () => ({
@@ -47,8 +57,10 @@ export function SelectionProvider({ children }: PropsWithChildren) {
       setElementGeometry,
       activeTool,
       setActiveTool,
+      pathEditMode,
+      setPathEditMode,
     }),
-    [elementSelection, elementGeometry, activeTool],
+    [elementSelection, elementGeometry, activeTool, pathEditMode],
   );
 
   return <Context.Provider value={value}>{children}</Context.Provider>;
