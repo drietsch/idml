@@ -34,6 +34,14 @@ export {
 } from "./state/content-selection-context";
 
 export {
+  OverlaySignalsProvider,
+  useOverlaySignals,
+  useOptionalOverlaySignals,
+  type MarqueeRectPageLocal,
+  type SelectionState,
+} from "./state/overlay-signals-context";
+
+export {
   InstrumentationProvider,
   useInstrumentation,
 } from "./state/instrumentation-context";
@@ -122,6 +130,21 @@ export {
   type ScrubGesture,
   type ScrubGestureOptions,
 } from "./gestures/use-scrub-gesture";
+
+// ── Built-in overlay contributions ─────────────────────────────
+export {
+  caretContribution,
+  contentGrabberContribution,
+  hitMarkerContribution,
+  marqueeContribution,
+  pageDecorationsContribution,
+  resizeHandlesContribution,
+  rotateHandleContribution,
+  selectionChromeContribution,
+  snapLinesContribution,
+  applyAffine,
+  type IdmlAffine,
+} from "./overlays";
 
 // ── Bundles ────────────────────────────────────────────────────
 export {
