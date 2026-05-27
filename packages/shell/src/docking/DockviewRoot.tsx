@@ -1,10 +1,7 @@
 import {
   useCallback,
   useEffect,
-  useMemo,
   useRef,
-  useState,
-  type ComponentType,
   type FunctionComponent,
 } from "react";
 import {
@@ -14,7 +11,6 @@ import {
 } from "dockview-react";
 import "dockview-react/dist/styles/dockview.css";
 
-import type { PanelProps } from "../registries/panel";
 import { useRegistries } from "../state/registries-context";
 import { useVerso } from "../state/verso-editor";
 import { DockviewSubstrate } from "./dockview-substrate";
@@ -24,30 +20,45 @@ import {
   useSetDockingSubstrate,
 } from "./substrate-context";
 
+/** Component name dockview uses for every panel — a single stable
+ * router rather than per-panel registrations. Each panel passes its
+ * id through `params.panelId`; the router resolves the contribution
+ * at render time. Avoids the components-map-capture issue where
+ * dockview snapshots the prop at mount and won't pick up later
+ * additions. */
+const PANEL_COMPONENT_NAME = "verso-panel";
+
 /**
- * Generic dockview panel wrapper. Each registered panel id maps
- * to a component-name registered with dockview; the actual React
- * component lives in the registry. This wrapper looks up the
- * panel-id from `params.panelId`, pulls the contribution, and
- * renders its `component` with the `PanelProps` shape.
+ * Single panel renderer registered with dockview. Looks up the panel
+ * id from `params.panelId`, pulls the contribution from the panel
+ * registry, and renders its `component` with `{ verso, api }`.
  *
- * Closing over `panelId` here (vs reading it from the registry on
- * each render) is wrong — registry changes wouldn't refresh the
- * dockview side. Instead the components map below is rebuilt when
- * the registry changes and each component captures the
- * contribution at build time.
+ * Defined at module scope so the components map passed to
+ * `DockviewReact` is referentially stable across renders.
  */
-function makePanelComponent(
-  panelId: string,
-  Component: ComponentType<PanelProps>,
-): FunctionComponent<IDockviewPanelProps> {
-  const Wrapper: FunctionComponent<IDockviewPanelProps> = () => {
-    const verso = useVerso();
-    return <Component verso={verso} api={{ id: panelId }} />;
-  };
-  Wrapper.displayName = `DockviewPanel(${panelId})`;
-  return Wrapper;
-}
+const PanelRouter: FunctionComponent<IDockviewPanelProps> = (props) => {
+  const verso = useVerso();
+  const { panels } = useRegistries();
+  const panelId = (props.params as { panelId?: string } | undefined)?.panelId;
+  if (!panelId) {
+    return <div style={{ padding: 12, opacity: 0.6 }}>Missing panel id.</div>;
+  }
+  const contribution = panels.get(panelId);
+  if (!contribution) {
+    return (
+      <div style={{ padding: 12, opacity: 0.6 }}>
+        Panel <code>{panelId}</code> not registered.
+      </div>
+    );
+  }
+  const Component = contribution.component;
+  return <Component verso={verso} api={{ id: panelId }} />;
+};
+
+// Stable components map. dockview captures the prop at mount and
+// doesn't refresh later additions, so we register a single router
+// and route by id at render time.
+const DOCKVIEW_COMPONENTS = { [PANEL_COMPONENT_NAME]: PanelRouter };
 
 /**
  * Mounts dockview, builds the substrate on ready, and instantiates
@@ -67,43 +78,21 @@ export function DockviewRoot(props: { className?: string }) {
 }
 
 function DockviewRootInner({ className }: { className?: string }) {
-  const { panels, semanticGroups } = useRegistries();
+  const { panels } = useRegistries();
   const setSubstrate = useSetDockingSubstrate();
-  const [registryVersion, setRegistryVersion] = useState(0);
   const bridgeRef = useRef<PanelBridge | null>(null);
   const substrateRef = useRef<DockviewSubstrate | null>(null);
 
-  // Re-render when the panel registry changes so the components
-  // map below picks up newly-registered contributions. The version
-  // counter is a cheap signal — we don't need to know what changed.
-  useEffect(() => {
-    const sub = panels.onChange(() => {
-      setRegistryVersion((v) => v + 1);
-    });
-    return () => sub.dispose();
-  }, [panels]);
-
-  // Build the dockview components map: one entry per panel id.
-  // Rebuilt whenever the registry version bumps.
-  const components = useMemo<Record<string, FunctionComponent<IDockviewPanelProps>>>(() => {
-    void registryVersion;
-    const out: Record<string, FunctionComponent<IDockviewPanelProps>> = {};
-    for (const c of panels.list()) {
-      out[c.id] = makePanelComponent(c.id, c.component);
-    }
-    return out;
-  }, [panels, registryVersion]);
-
   const onReady = useCallback(
     (event: DockviewReadyEvent) => {
-      const substrate = new DockviewSubstrate(event.api);
-      const bridge = new PanelBridge(panels, substrate, semanticGroups);
+      const substrate = new DockviewSubstrate(event.api, PANEL_COMPONENT_NAME);
+      const bridge = new PanelBridge(panels, substrate);
       substrateRef.current = substrate;
       bridgeRef.current = bridge;
       setSubstrate(substrate);
       // Layout-persistence wiring lands in 3h.
     },
-    [panels, semanticGroups, setSubstrate],
+    [panels, setSubstrate],
   );
 
   // Tear down bridge + substrate on unmount.
@@ -118,7 +107,7 @@ function DockviewRootInner({ className }: { className?: string }) {
 
   return (
     <DockviewReact
-      components={components}
+      components={DOCKVIEW_COMPONENTS}
       onReady={onReady}
       className={className ?? "dockview-theme-light"}
     />

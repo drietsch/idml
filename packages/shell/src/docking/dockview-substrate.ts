@@ -15,13 +15,6 @@ import type {
 } from "./substrate";
 import type { Disposable } from "../registries/types";
 
-let groupCounter = 0;
-
-function nextGroupId(): string {
-  groupCounter += 1;
-  return `verso-group-${groupCounter}`;
-}
-
 /**
  * Dockview-backed implementation of `DockingSubstrate`. Created by
  * `DockviewRoot` (Step 3f) after dockview-react fires its `onReady`
@@ -31,27 +24,61 @@ function nextGroupId(): string {
 export class DockviewSubstrate implements DockingSubstrate {
   private layoutChangeHandlers = new Set<() => void>();
   private groupRemovedHandlers = new Set<(groupId: string) => void>();
+  /** Maps a semantic group name (e.g. "structure") to the real
+   * dockview group id that hosts its panels. Re-populated lazily as
+   * the first panel of each semantic name arrives. */
+  private semanticToGroupId = new Map<string, string>();
 
-  constructor(private api: DockviewApi) {
+  constructor(private api: DockviewApi, private panelComponentName: string) {
     this.api.onDidLayoutChange(() => {
       for (const h of this.layoutChangeHandlers) h();
     });
     this.api.onDidRemoveGroup((group) => {
+      // Forget any semantic mapping that pointed to this group so the
+      // next panel of the same semantic name materialises fresh.
+      for (const [name, id] of this.semanticToGroupId) {
+        if (id === group.id) this.semanticToGroupId.delete(name);
+      }
       for (const h of this.groupRemovedHandlers) h(group.id);
     });
   }
 
   addPanel(spec: ResolvedPanelSpec): PanelHandle {
+    const existingGroupId = this.semanticToGroupId.get(spec.semanticGroup);
+
+    if (existingGroupId !== undefined) {
+      // Subsequent panel of an existing semantic group — drop it into
+      // the same dockview group.
+      this.api.addPanel({
+        id: spec.id,
+        component: this.panelComponentName,
+        title: spec.title,
+        params: { panelId: spec.id },
+        position: { referenceGroup: existingGroupId },
+        // hideTabHeader is honoured once a hidden-tab component is
+      // registered in DockviewRoot — Step 3g's swap is the first
+      // place tab chrome appears, and the canvas panel can live
+      // with a default tab until then.
+      });
+      return { id: spec.id, groupId: existingGroupId };
+    }
+
+    // First panel of this semantic group — place it with an absolute
+    // direction so dockview materialises a fresh group around it.
+    // `center` has no dockview equivalent; fall through to "right"
+    // (the first call ends up at the root regardless of direction).
+    const direction =
+      spec.defaultDock === "center" ? "right" : spec.defaultDock;
     this.api.addPanel({
       id: spec.id,
-      // Each panel registers under its own id in dockview's component
-      // map — see DockviewRoot for the `components` registration.
-      // Keeps the dockview-side mental model one-to-one.
-      component: spec.id,
+      component: this.panelComponentName,
       title: spec.title,
       params: { panelId: spec.id },
-      position: { referenceGroup: spec.groupId },
-      ...(spec.hideTabHeader ? { tabComponent: "hidden" } : {}),
+      position: { direction },
+      // hideTabHeader is honoured once a hidden-tab component is
+      // registered in DockviewRoot — Step 3g's swap is the first
+      // place tab chrome appears, and the canvas panel can live
+      // with a default tab until then.
     });
 
     const panel = this.api.getPanel(spec.id);
@@ -60,13 +87,9 @@ export class DockviewSubstrate implements DockingSubstrate {
         `DockviewSubstrate: dockview did not add panel ${spec.id}`,
       );
     }
-
-    // closable / movable enforcement: tab close is suppressed via
-    // the `hidden` tab component for the canvas; broader closable
-    // / movable constraints land alongside the locked-group work in
-    // Step 3f when there's a tab component to bind them to.
-
-    return { id: spec.id, groupId: spec.groupId };
+    const groupId = panel.group.id;
+    this.semanticToGroupId.set(spec.semanticGroup, groupId);
+    return { id: spec.id, groupId };
   }
 
   removePanel(handle: PanelHandle): void {
@@ -123,16 +146,12 @@ export class DockviewSubstrate implements DockingSubstrate {
   }
 
   createGroup(defaultDock: "left" | "right" | "top" | "bottom" | "center"): string {
-    // dockview requires either a relative reference (group/panel) or
-    // an absolute direction. Step 3 uses absolute placement for the
-    // initial group; bundle-driven panels will switch to relative
-    // when the bundle pipeline lands. `center` maps to "within"
-    // which isn't valid as absolute — fall through to "right".
+    // dockview auto-generates group IDs; we return its id rather
+    // than ours. dockview has no "center" direction — the first
+    // group becomes the root regardless of direction, so we use
+    // "right" as the canonical fallback for "center".
     const direction = defaultDock === "center" ? "right" : defaultDock;
-    const group = this.api.addGroup({
-      id: nextGroupId(),
-      direction,
-    });
+    const group = this.api.addGroup({ direction });
     return group.id;
   }
 }

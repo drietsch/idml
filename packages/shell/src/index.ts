@@ -33,6 +33,11 @@ export {
   useContentSelection,
 } from "./state/content-selection-context";
 
+export {
+  InstrumentationProvider,
+  useInstrumentation,
+} from "./state/instrumentation-context";
+
 // ── Editor handle + registries provider ────────────────────────
 export {
   VersoEditorProvider,

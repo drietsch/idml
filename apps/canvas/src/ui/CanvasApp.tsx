@@ -1,51 +1,74 @@
-// Phase 1 canvas shell.
+// Step 3g — the swap.
 //
-// Layout:
-//   ┌────────────────────────────────────────────────────────────┐
-//   │ header (status, file picker)                               │
-//   ├──────────┬─────────────────────────────────────────────────┤
-//   │ Navigator│ Viewport                                        │
-//   │ (thumbs) │ (pan / zoom over document-space pages)          │
-//   │          │                                                 │
-//   └──────────┴─────────────────────────────────────────────────┘
+// Layout structure stays roughly the same shape (header on top,
+// docked panels below) but the body is now mounted through
+// `<DockviewRoot />`. The three built-in panels (canvas, pages,
+// outline) register at shell startup; users can rearrange / close
+// them via dockview's standard tab interactions.
 //
-// Step 3b — state lives in `@verso/shell` contexts. The five
-// providers wrap the existing JSX so the visual shell is unchanged
-// while every cross-cutting bit of state (client, camera,
-// document, selection, content selection) becomes shell-owned.
-// Local-only state that doesn't fit one of the five contexts
-// (status text, warnings, GPU readiness, layout-cache HUD) stays
-// on this component as plain `useState` — Step 3d+ will lift that
-// into the registries.
+// All cross-cutting state continues to live in the `@verso/shell`
+// contexts; this file is now ~150 lines of providers + worker
+// message router + header chrome. Step 3i will move what remains
+// into packages/shell/src/index.tsx as `<VersoShell />`.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+/**
+ * Minimal error boundary so a panel / dockview crash leaves a
+ * visible diagnostic instead of unmounting the whole shell.
+ */
+class DebugErrorBoundary extends React.Component<
+  React.PropsWithChildren<{ label: string }>,
+  { error: Error | null }
+> {
+  state = { error: null as Error | null };
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  componentDidCatch(error: Error) {
+    // eslint-disable-next-line no-console
+    console.error(`[${this.props.label}] caught:`, error);
+    (globalThis as unknown as { __versoCrash?: string }).__versoCrash =
+      `[${this.props.label}] ${error.message}\n${error.stack ?? ""}`;
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <pre style={{ padding: 16, color: "#b91c1c", fontFamily: "monospace" }}>
+          [{this.props.label}] {this.state.error.message}
+          {"\n"}
+          {this.state.error.stack}
+        </pre>
+      );
+    }
+    return this.props.children;
+  }
+}
 import {
   CanvasClientProvider,
   CameraProvider,
   ContentSelectionProvider,
+  DockviewRoot,
   DocumentProvider,
+  InstrumentationProvider,
   SelectionProvider,
   VersoEditorProvider,
   buildOpenIdmlCommand,
   loadDocumentFile,
-  useCamera,
   useCanvasClient,
+  useCamera,
   useContentSelection,
   useDocument,
+  useInstrumentation,
   useRegistries,
   useSelection,
-  useVerso,
 } from "@verso/shell";
 import { CanvasClient } from "../channel/client";
 import { supportsSharedArrayBuffer } from "../channel/camera";
-import type {
-  LayoutCacheStats,
-  SelectionMode,
-  WorkerToMain,
-} from "../channel/protocol";
-import { Navigator as PageNavigator } from "./Navigator";
-import { Outline } from "./Outline";
-import { ViewportCanvas, type SelectionState } from "./ViewportCanvas";
+import type { WorkerToMain } from "../channel/protocol";
+import { CanvasPanel } from "../panels/canvas-panel";
+import { NavigatorPanel } from "../panels/navigator-panel";
+import { OutlinePanel } from "../panels/outline-panel";
 import { useAnimatedCamera } from "./useAnimatedCamera";
 import { useFps } from "./useFps";
 import { useKeyboardShortcuts } from "./useKeyboardShortcuts";
@@ -53,8 +76,8 @@ import { useTextEditing } from "./useTextEditing";
 
 /**
  * Top-level shell — owns the CanvasClient lifecycle and wraps the
- * inner shell in the five state contexts. The inner shell reads
- * everything from context hooks.
+ * inner shell in every provider. The inner shell reads everything
+ * from context hooks.
  */
 export function CanvasApp() {
   const [client, setClient] = useState<CanvasClient | null>(null);
@@ -82,87 +105,114 @@ export function CanvasApp() {
   }
 
   return (
-    <CanvasClientProvider client={client}>
-      <CameraProvider>
-        <DocumentProvider>
-          <SelectionProvider>
-            <ContentSelectionProvider>
-              <VersoEditorProvider>
-                <CanvasShell />
-              </VersoEditorProvider>
-            </ContentSelectionProvider>
-          </SelectionProvider>
-        </DocumentProvider>
-      </CameraProvider>
-    </CanvasClientProvider>
+    <DebugErrorBoundary label="canvas-app">
+      <CanvasClientProvider client={client}>
+        <CameraProvider>
+          <DocumentProvider>
+            <SelectionProvider>
+              <ContentSelectionProvider>
+                <InstrumentationProvider>
+                  <VersoEditorProvider>
+                    <CanvasShell />
+                  </VersoEditorProvider>
+                </InstrumentationProvider>
+              </ContentSelectionProvider>
+            </SelectionProvider>
+          </DocumentProvider>
+        </CameraProvider>
+      </CanvasClientProvider>
+    </DebugErrorBoundary>
   );
 }
 
 /**
- * Inner shell — reads from the five contexts. All worker-message
- * subscriptions consolidate here per the spec's
- * "mutation subscription consolidation" rule: one `client.subscribe`,
- * fan-out to context setters.
+ * Inner shell — runs the consolidated worker-message subscribe,
+ * registers the built-in panels, hosts the header. The actual
+ * panel UI mounts through DockviewRoot below.
  */
 function CanvasShell() {
   const client = useCanvasClient();
-  const { camera, setCamera, viewportSize, setViewportSize } = useCamera();
+  const { camera, setCamera, viewportSize } = useCamera();
   const {
     handle,
-    setHandle,
-    loading,
-    setLoading,
-    snapshots,
-    setSnapshots,
     snapshotsReady,
+    setHandle,
+    setLoading,
+    setSnapshots,
     setSnapshotsReady,
-    resolution,
     setResolution,
     resetForNewDocument,
   } = useDocument();
   const {
     elementSelection,
-    setElementSelection,
     elementGeometry,
-    setElementGeometry,
     activeTool,
     setActiveTool,
   } = useSelection();
   const {
     contentSelection,
     setContentSelection,
-    caret,
     setCaret,
-    selectionRects,
     setSelectionRects,
     contentSelectionRef,
   } = useContentSelection();
-
-  const verso = useVerso();
+  const { setFps, setGpuActive, setLayoutCacheStats } = useInstrumentation();
   const registries = useRegistries();
 
   const [status, setStatus] = useState<string>("initialising worker…");
   const [warnings, setWarnings] = useState<string[]>([]);
-  const [gpuActive, setGpuActive] = useState<boolean | null>(null);
-  const [layoutCacheStats, setLayoutCacheStats] =
-    useState<LayoutCacheStats | null>(null);
-  const [selection, setSelection] = useState<SelectionState | null>(null);
-  const viewportRef = useRef<HTMLDivElement | null>(null);
   const sabSupported = useMemo(() => supportsSharedArrayBuffer(), []);
+
+  // Sample FPS centrally and publish into the instrumentation
+  // context so the canvas panel's HUD can read it.
   const fps = useFps();
+  useEffect(() => {
+    setFps(fps);
+  }, [fps, setFps]);
+
+  // Register the three built-in panels exactly once. Disposal on
+  // unmount keeps the registry clean across Strict-Mode dev
+  // double-mounts.
+  const panelsRegistered = useRef(false);
+  useEffect(() => {
+    if (panelsRegistered.current) return;
+    panelsRegistered.current = true;
+    const disposables = [
+      registries.panels.register({
+        id: "verso.canvas",
+        title: "Canvas",
+        component: CanvasPanel,
+        defaultDock: "center",
+        defaultGroup: "center",
+        closable: false,
+        movable: false,
+      }),
+      registries.panels.register({
+        id: "verso.pages",
+        title: "Pages",
+        component: NavigatorPanel,
+        defaultDock: "left",
+        defaultGroup: "structure",
+      }),
+      registries.panels.register({
+        id: "verso.outline",
+        title: "Outline",
+        component: OutlinePanel,
+        defaultDock: "left",
+        defaultGroup: "structure",
+      }),
+    ];
+    return () => {
+      for (const d of disposables) d.dispose();
+      panelsRegistered.current = false;
+    };
+  }, [registries]);
 
   // Register the verso.file.openIdml command once the shell mounts.
-  // Step 3d ships this as the only registered command; Step 3h
-  // wires it into the Cmd+K palette. Headers' file-picker still
-  // calls onFile directly (its own DOM input drives the picker)
-  // so it doesn't need to round-trip through invoke.
   useEffect(() => {
     const handle = registries.commands.register(
       buildOpenIdmlCommand({
         pickFile: async () => {
-          // Programmatic file dialog. The drag-drop / `<input>` paths
-          // remain in the header for direct user interaction; this
-          // is the palette-driven entry point.
           return new Promise<File | null>((resolve) => {
             const input = document.createElement("input");
             input.type = "file";
@@ -180,12 +230,8 @@ function CanvasShell() {
   }, [registries]);
 
   // Dev-only test hook. Playwright + ad-hoc browser scripts read
-  // `window.__canvas` to drive the editor. `snapshotsReady` flips
-  // true after the navigator's own snapshot pre-fetch loop finishes
-  // so external scripts don't fire requestSnapshot concurrently
-  // (rustybuzz/wasm-bindgen would trip "recursive use of an object"
-  // and tear down the worker). Stripped from production bundles by
-  // Vite's dead-code elimination under `import.meta.env.PROD`.
+  // `window.__canvas`. Re-published on every render so it always
+  // reflects current state — used by tests to drive the editor.
   if (!import.meta.env.PROD) {
     (globalThis as unknown as { __canvas?: unknown }).__canvas = {
       client,
@@ -196,11 +242,11 @@ function CanvasShell() {
       elementGeometry,
       activeTool,
       setActiveTool,
-      verso,
       registries,
     };
   }
 
+  // Consolidated worker-message subscribe.
   useEffect(() => {
     const off = client.subscribe((msg: WorkerToMain) => {
       if (msg.kind === "warning") {
@@ -214,10 +260,6 @@ function CanvasShell() {
         msg.kind === "undoApplied" ||
         msg.kind === "redoApplied"
       ) {
-        // Mutation landed; worker has rebuilt. Re-query caret +
-        // selection geom so the overlay reflects the new layout.
-        // Use a microtask so we don't fire from inside the subscribe
-        // callback's stack.
         const sel = contentSelectionRef.current;
         if (sel) {
           void client.caretGeometry(sel).then(setCaret).catch(() => setCaret(null));
@@ -228,8 +270,6 @@ function CanvasShell() {
               .catch(() => setSelectionRects([]));
           }
         }
-        // Phase 4 instrumentation — surface the rebuild's cache
-        // stats so the HUD can show the incremental-layout win.
         setLayoutCacheStats(msg.payload.cacheStats);
       }
     });
@@ -250,14 +290,14 @@ function CanvasShell() {
     client,
     contentSelectionRef,
     setCaret,
+    setGpuActive,
     setLayoutCacheStats,
     setResolution,
     setSelectionRects,
   ]);
 
-  // Animated jumps for discrete navigation (navigator click,
-  // keyboard fit, goto-page). Direct pan/zoom from the viewport
-  // still goes through `setCamera` for one-frame responsiveness.
+  // Keyboard shortcuts (legacy hook; the bundle-loader registry
+  // takes over in Step 4).
   const animateCamera = useAnimatedCamera(camera, setCamera);
   useKeyboardShortcuts({
     pageIds: handle?.pageIds ?? [],
@@ -267,24 +307,13 @@ function CanvasShell() {
     animateCamera,
   });
 
+  // Text editing (caret + typing) — driven from the keyboard;
+  // unchanged from earlier steps.
   useTextEditing({
     client,
     selection: contentSelection,
     setSelection: setContentSelection,
   });
-
-  // Observe viewport size for the fit-to-page navigator jumps. Use
-  // ResizeObserver so window resizes update the camera math.
-  useEffect(() => {
-    if (!viewportRef.current) return;
-    const el = viewportRef.current;
-    const ro = new ResizeObserver(() => {
-      const r = el.getBoundingClientRect();
-      setViewportSize([r.width, r.height]);
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [setViewportSize]);
 
   const onFile = useCallback(
     (file: File) => {
@@ -340,158 +369,9 @@ function CanvasShell() {
         </ul>
       )}
 
-      <div style={mainStyle}>
-        {handle && handle.pageCount > 0 && (
-          <PageNavigator
-            pageIds={handle.pageIds}
-            pageSizesPt={handle.pageSizesPt}
-            snapshots={snapshots}
-            viewportSize={viewportSize}
-            onCameraChange={animateCamera}
-          />
-        )}
-        {handle && handle.pageCount > 0 && resolution && (
-          <Outline
-            resolution={resolution}
-            pageIds={handle.pageIds}
-            pageSizesPt={handle.pageSizesPt}
-            viewportSize={viewportSize}
-            onCameraChange={animateCamera}
-          />
-        )}
-        <div ref={viewportRef} style={viewportContainerStyle}>
-          {handle && handle.pageCount > 0 ? (
-            <ViewportCanvas
-              client={client}
-              pageIds={handle.pageIds}
-              pageSizesPt={handle.pageSizesPt}
-              camera={camera}
-              onCameraChange={setCamera}
-              activeTool={activeTool}
-              elementSelection={elementSelection}
-              elementGeometry={elementGeometry}
-              onHit={(s, modifiers) => {
-                setSelection(s);
-                // Phase A — when the select tool is active, route the
-                // click to the element-selection model. Modifier keys
-                // pick the mode: Shift = Add, Cmd/Ctrl = Toggle, plain
-                // click = Replace.
-                if (activeTool === "select") {
-                  const mode: SelectionMode = modifiers?.shift
-                    ? "add"
-                    : modifiers?.cmd
-                      ? "toggle"
-                      : "replace";
-                  if (s && s.hit.element) {
-                    void client
-                      .setElementSelection([s.hit.element], mode)
-                      .then((ids) => {
-                        setElementSelection(ids);
-                        return client.elementGeometry(ids);
-                      })
-                      .then(setElementGeometry)
-                      .catch(() => {
-                        /* worker reload / disconnect — fine */
-                      });
-                  } else if (!modifiers?.shift && !modifiers?.cmd) {
-                    // Empty click with no modifier → clear selection.
-                    void client
-                      .setElementSelection([], "replace")
-                      .then(() => {
-                        setElementSelection([]);
-                        setElementGeometry([]);
-                      })
-                      .catch(() => {});
-                  }
-                  // Text tool stays text-only; select tool does NOT
-                  // also drop into text-edit mode on a frame click —
-                  // that's a Phase B "enter text edit" gesture.
-                  setContentSelection(null);
-                  return;
-                }
-                // Phase 3 — text tool: click on text → caret at offset.
-                if (
-                  s &&
-                  s.hit.storyId &&
-                  s.hit.offsetWithinStory !== null &&
-                  s.hit.offsetWithinStory !== undefined
-                ) {
-                  setContentSelection({
-                    storyId: s.hit.storyId,
-                    start: s.hit.offsetWithinStory,
-                    end: s.hit.offsetWithinStory,
-                    affinity: false,
-                  });
-                } else {
-                  setContentSelection(null);
-                }
-              }}
-              onDoubleClickGroup={(groupId) => {
-                // Phase H — replace the element selection with the
-                // group's leaves so the user can grab the whole
-                // group as a unit via Phase G's union handles.
-                void client
-                  .groupLeaves(groupId)
-                  .then((ids) =>
-                    client.setElementSelection(ids, "replace"),
-                  )
-                  .then((ids) => {
-                    setElementSelection(ids);
-                    return client.elementGeometry(ids);
-                  })
-                  .then(setElementGeometry)
-                  .catch(() => {});
-              }}
-              onGestureCommitted={() => {
-                // Phase B — re-fetch geometry so the chrome lands at
-                // the committed bounds. Same shape as the post-hit
-                // refresh; reuses the existing elementGeometry RPC.
-                if (elementSelection.length === 0) return;
-                void client
-                  .elementGeometry(elementSelection)
-                  .then(setElementGeometry)
-                  .catch(() => {});
-              }}
-              onMarquee={(pageId, rect, modifiers) => {
-                const mode: SelectionMode = modifiers?.shift
-                  ? "add"
-                  : modifiers?.cmd
-                    ? "toggle"
-                    : "replace";
-                void client
-                  .marqueeHits(pageId, rect)
-                  .then((ids) => client.setElementSelection(ids, mode))
-                  .then((ids) => {
-                    setElementSelection(ids);
-                    return client.elementGeometry(ids);
-                  })
-                  .then(setElementGeometry)
-                  .catch(() => {});
-              }}
-              selection={selection}
-              fps={fps}
-              gpuActive={gpuActive}
-              resolution={resolution}
-              caret={caret}
-              selectionRects={selectionRects}
-              layoutCacheStats={layoutCacheStats}
-            />
-          ) : (
-            <EmptyState />
-          )}
-          {loading && <LoadingOverlay name={loading.name} bytes={loading.bytes} />}
-        </div>
+      <div style={dockviewContainerStyle}>
+        <DockviewRoot />
       </div>
-    </div>
-  );
-}
-
-function EmptyState() {
-  return (
-    <div style={emptyStyle}>
-      <p style={{ fontSize: 14, color: "#555" }}>
-        Drop an IDML file in the header to begin.
-      </p>
     </div>
   );
 }
@@ -537,44 +417,6 @@ function ToolToggle(props: {
       >
         T
       </button>
-    </div>
-  );
-}
-
-const toolToggleStyle: React.CSSProperties = {
-  display: "inline-flex",
-  border: "1px solid #d1d5db",
-  borderRadius: 4,
-  overflow: "hidden",
-};
-
-const toolButtonStyle: React.CSSProperties = {
-  width: 28,
-  height: 24,
-  background: "#fff",
-  border: "none",
-  borderRight: "1px solid #d1d5db",
-  fontSize: 12,
-  fontFamily: "ui-sans-serif, system-ui, sans-serif",
-  cursor: "pointer",
-  color: "#374151",
-};
-
-const toolButtonActiveStyle: React.CSSProperties = {
-  background: "#1f2937",
-  color: "#fff",
-};
-
-function LoadingOverlay(props: { name: string; bytes: number }) {
-  return (
-    <div style={loadingOverlayStyle}>
-      <div style={spinnerStyle} />
-      <div style={{ fontSize: 13, color: "#374151", marginTop: 12 }}>
-        Parsing <strong>{props.name}</strong>
-      </div>
-      <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
-        {(props.bytes / 1024).toFixed(1)} KiB
-      </div>
     </div>
   );
 }
@@ -627,47 +469,34 @@ const headerStyle: React.CSSProperties = {
   flexShrink: 0,
 };
 
-const mainStyle: React.CSSProperties = {
+const dockviewContainerStyle: React.CSSProperties = {
   flex: 1,
-  display: "flex",
-  flexDirection: "row",
   minHeight: 0,
-};
-
-const viewportContainerStyle: React.CSSProperties = {
-  flex: 1,
   position: "relative",
-  minWidth: 0,
 };
 
-const emptyStyle: React.CSSProperties = {
-  width: "100%",
-  height: "100%",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  background: "#f3f4f6",
+const toolToggleStyle: React.CSSProperties = {
+  display: "inline-flex",
+  border: "1px solid #d1d5db",
+  borderRadius: 4,
+  overflow: "hidden",
 };
 
-const loadingOverlayStyle: React.CSSProperties = {
-  position: "absolute",
-  inset: 0,
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "center",
-  justifyContent: "center",
-  background: "rgba(243, 244, 246, 0.85)",
-  zIndex: 10,
-  pointerEvents: "none",
+const toolButtonStyle: React.CSSProperties = {
+  width: 28,
+  height: 24,
+  background: "#fff",
+  border: "none",
+  borderRight: "1px solid #d1d5db",
+  fontSize: 12,
+  fontFamily: "ui-sans-serif, system-ui, sans-serif",
+  cursor: "pointer",
+  color: "#374151",
 };
 
-const spinnerStyle: React.CSSProperties = {
-  width: 32,
-  height: 32,
-  border: "3px solid #d1d5db",
-  borderTopColor: "#2563eb",
-  borderRadius: "50%",
-  animation: "idml-canvas-spin 0.9s linear infinite",
+const toolButtonActiveStyle: React.CSSProperties = {
+  background: "#1f2937",
+  color: "#fff",
 };
 
 const dropStyle: React.CSSProperties = {

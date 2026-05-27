@@ -38,7 +38,13 @@ export interface ResolvedPanelSpec {
   id: string;
   title: string;
   component: ComponentType<PanelProps>;
-  groupId: string;
+  /** Semantic group name (e.g. "structure", "center"). The substrate
+   * lazily creates a real dockview group the first time a panel of a
+   * given semantic name arrives; subsequent panels with the same
+   * name land in the existing group. */
+  semanticGroup: string;
+  /** Initial dock edge used when materialising the semantic group. */
+  defaultDock: "left" | "right" | "top" | "bottom" | "center";
   closable: boolean;
   movable: boolean;
   /** True for the canvas panel — suppresses the tab header so the
@@ -80,9 +86,4 @@ export interface DockingSubstrate {
   /** Subscribe to group lifecycle (the SemanticGroupRegistry
    * uses this to forget mappings when the user dissolves a group). */
   onGroupRemoved(handler: (groupId: string) => void): Disposable;
-
-  /** Create a new group docked at the given edge, returning its id.
-   * Used by the SemanticGroupRegistry's `resolve` factory callback
-   * to materialise a group the first time a semantic name appears. */
-  createGroup(defaultDock: "left" | "right" | "top" | "bottom" | "center"): string;
 }
