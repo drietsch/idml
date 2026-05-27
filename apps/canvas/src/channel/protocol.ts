@@ -4,7 +4,7 @@
 // bumps `PROTOCOL_VERSION`, this file must update in lockstep — the
 // worker rejects messages whose protocol differs.
 
-export const PROTOCOL_VERSION = 1 as const;
+export const PROTOCOL_VERSION = 2 as const;
 
 export type PageId = string;
 
@@ -64,7 +64,124 @@ export type MainToWorkerKind =
         bytes: number[];
       };
     }
-  | { kind: "clearFontRegistry" };
+  | { kind: "clearFontRegistry" }
+  | {
+      kind: "setElementSelection";
+      payload: { ids: ElementId[]; mode: SelectionMode };
+    }
+  | {
+      kind: "requestMarqueeHits";
+      payload: { pageId: PageId; rect: [number, number, number, number] };
+    }
+  | {
+      kind: "requestElementGeometry";
+      payload: { ids: ElementId[] };
+    }
+  | {
+      kind: "requestGroupLeaves";
+      payload: { groupId: string };
+    }
+  | {
+      kind: "beginGesture";
+      payload: {
+        nodes: ElementId[];
+        gesture: GestureType;
+        anchor?: GestureAnchor | null;
+        /** Phase G — px/pt at gesture start. Lets the snap pass keep
+         * its tolerance constant in screen px regardless of zoom. */
+        cameraScale?: number | null;
+      };
+    }
+  | {
+      kind: "updateGesture";
+      payload: {
+        handle: GestureHandle;
+        delta: [number, number];
+        modifiers: GestureModifiers;
+      };
+    }
+  | {
+      kind: "commitGesture";
+      payload: { handle: GestureHandle };
+    }
+  | {
+      kind: "cancelGesture";
+      payload: { handle: GestureHandle };
+    };
+
+/**
+ * Phase B — opaque, monotone handle returned by `beginGesture` and
+ * threaded through every subsequent update/commit/cancel. The wire
+ * shape mirrors `gesture::GestureHandle(u64)`.
+ */
+export type GestureHandle = number;
+
+/** Phase B/C/D/F/G/H — gesture kind discriminator. */
+export type GestureType =
+  | { kind: "translate" }
+  | { kind: "resize"; handle: ResizeHandle }
+  | { kind: "rotate" }
+  | { kind: "scale" }
+  | { kind: "translateContent" }
+  | { kind: "rotateContent" }
+  | { kind: "scaleContent" }
+  | { kind: "pathEdit"; address: PathPointAddress };
+
+/** Phase H — address of one Bezier handle inside a Polygon's
+ * PathPointArray. `index` is the flat anchor index across all
+ * subpaths (compound polygons concatenate subpaths into one array). */
+export interface PathPointAddress {
+  index: number;
+  role: "anchor" | "left" | "right";
+}
+
+/** Phase C — one of the eight resize handles on a selection bounding
+ * box. Cardinal handles move a single edge; diagonal handles move
+ * two edges at once. */
+export type ResizeHandle =
+  | "north"
+  | "south"
+  | "east"
+  | "west"
+  | "northEast"
+  | "northWest"
+  | "southEast"
+  | "southWest";
+
+/** Phase D — pointer position at gesture start, in page-local coords
+ * + the page id. Required for Rotate / Scale (the rotation pivot is
+ * computed from the snapshot's centroid; the anchor is the second
+ * point that fixes the initial angle). Optional for Translate /
+ * Resize. */
+export interface GestureAnchor {
+  pageId: PageId;
+  pointInPage: [number, number];
+}
+
+/** Phase B — modifier state captured on each pointer event. */
+export interface GestureModifiers {
+  shift: boolean;
+  alt: boolean;
+}
+
+/**
+ * Phase A — page item identifier the user can select. Mirrors the
+ * Rust `ElementId` enum: a discriminated union over kind + raw id.
+ */
+export type ElementId =
+  | { kind: "textFrame"; id: string }
+  | { kind: "rectangle"; id: string }
+  | { kind: "oval"; id: string }
+  | { kind: "polygon"; id: string }
+  | { kind: "graphicLine"; id: string }
+  | { kind: "group"; id: string };
+
+/**
+ * Phase A — how a `setElementSelection` request combines with the
+ * worker's current set. `replace` = plain click; `add` = Shift-click;
+ * `toggle` = Cmd/Ctrl-click.
+ */
+export type SelectionMode = "replace" | "add" | "toggle";
 
 export interface ContentSelection {
   storyId: string;
@@ -163,7 +280,75 @@ export type WorkerToMainKind =
       };
     }
   | { kind: "fontRegistered"; payload: { family: string } }
-  | { kind: "fontRegistryCleared" };
+  | { kind: "fontRegistryCleared" }
+  | { kind: "elementSelectionApplied"; payload: { ids: ElementId[] } }
+  | { kind: "marqueeHits"; payload: { ids: ElementId[] } }
+  | { kind: "elementGeometry"; payload: { items: ElementGeometryItem[] } }
+  | { kind: "groupLeaves"; payload: { ids: ElementId[] } }
+  | { kind: "gestureBegun"; payload: { handle: GestureHandle } }
+  | {
+      kind: "gestureUpdated";
+      payload: {
+        handle: GestureHandle;
+        pageIds: PageId[];
+        /** Phase E — active snap guides for the overlay. */
+        snapLines?: SnapLine[];
+      };
+    }
+  | {
+      kind: "gestureCommitted";
+      payload: {
+        handle: GestureHandle;
+        appliedSeq: number;
+        pageIds: PageId[];
+        cacheStats: LayoutCacheStats;
+      };
+    }
+  | {
+      kind: "gestureCancelled";
+      payload: { handle: GestureHandle; pageIds: PageId[] };
+    }
+  | { kind: "gestureFailed"; payload: { error: GestureFailure } };
+
+/** Phase E — one active snap guide. `axis: "x"` is a vertical guide
+ * (snaps the x coordinate); `"y"` is horizontal. `position` is in
+ * page-local pt on `pageId`. */
+export interface SnapLine {
+  axis: "x" | "y";
+  position: number;
+  pageId: PageId;
+}
+
+/** Phase B/D — wire-format gesture lifecycle errors. */
+export type GestureFailure =
+  | { kind: "noDocument" }
+  | { kind: "unsupportedGesture"; details: { reason: string } }
+  | { kind: "alreadyActive"; details: { handle: GestureHandle } }
+  | { kind: "handleMismatch" }
+  | { kind: "elementNotFound"; details: { id: ElementId } }
+  | { kind: "rotatedFrameUnsupported" }
+  | { kind: "emptySelection" }
+  | { kind: "missingAnchor" }
+  | { kind: "unknownAnchorPage"; details: { pageId: PageId } }
+  | { kind: "other"; details: { message: string } };
+
+/**
+ * Phase A — oriented geometry for one selected element. `bounds` is
+ * raw `[top, left, bottom, right]` (content-box space) and
+ * `itemTransform` is the composed `[a, b, c, d, tx, ty]` affine. The
+ * overlay multiplies bounds corners by the transform to draw the
+ * oriented selection chrome.
+ */
+export interface ElementGeometryItem {
+  id: ElementId;
+  pageId: PageId;
+  bounds: [number, number, number, number];
+  itemTransform: [number, number, number, number, number, number] | null;
+  /** Phase F — true when the element hosts a placed image, so the
+   * UI can route Cmd-body-drag to `TranslateContent`. Optional in
+   * the wire shape because old workers don't emit it. */
+  hasImage?: boolean;
+}
 
 /**
  * Phase 4 Step 2 — layout-cache stats sent piggyback on each
@@ -261,6 +446,14 @@ export interface HitResult {
   storyId: string | null;
   offsetWithinStory: number | null;
   frameBounds: FrameBounds | null;
+  /** Phase A — typed element identifier, new canonical handle. */
+  element: ElementId | null;
+  /** Phase A — raw bounds `[top, left, bottom, right]` (content-box space). */
+  bounds: [number, number, number, number] | null;
+  /** Phase A — composed affine `[a, b, c, d, tx, ty]`. */
+  itemTransform: [number, number, number, number, number, number] | null;
+  /** Phase A — group ancestry, outer-most first. */
+  groupChain: string[];
 }
 
 export interface FrameBounds {

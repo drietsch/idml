@@ -10,12 +10,20 @@ import {
   type CaretGeometry,
   type ContentSelection,
   type DocumentHandle,
+  type ElementGeometryItem,
+  type ElementId,
+  type GestureAnchor,
+  type GestureHandle,
+  type GestureModifiers,
+  type GestureType,
   type LodTier,
   type MainToWorker,
   type MainToWorkerKind,
   type Mutation,
   type PageId,
+  type SelectionMode,
   type SelectionRect,
+  type SnapLine,
   type SnapshotPng,
   type WorkerToMain,
 } from "./protocol";
@@ -143,6 +151,164 @@ export class CanvasClient {
   /** Phase 3 — replace the worker's selection state. */
   async setSelection(selection: ContentSelection | null): Promise<WorkerToMain> {
     return this.send({ kind: "setSelection", payload: { selection } });
+  }
+
+  /**
+   * Phase A — apply an element-selection update with the given mode.
+   * Resolves to the post-update set (which may differ from the
+   * request when mode is `add`/`toggle`).
+   */
+  async setElementSelection(
+    ids: ElementId[],
+    mode: SelectionMode,
+  ): Promise<ElementId[]> {
+    const reply = await this.send({
+      kind: "setElementSelection",
+      payload: { ids, mode },
+    });
+    if (reply.kind === "elementSelectionApplied") return reply.payload.ids;
+    throw new Error(`unexpected reply: ${reply.kind}`);
+  }
+
+  /**
+   * Phase A — return every selectable element whose oriented bounds
+   * intersect `rect` (page-local `[top, left, bottom, right]`). Returns
+   * ids in paint order, top-first.
+   */
+  async marqueeHits(
+    pageId: PageId,
+    rect: [number, number, number, number],
+  ): Promise<ElementId[]> {
+    const reply = await this.send({
+      kind: "requestMarqueeHits",
+      payload: { pageId, rect },
+    });
+    if (reply.kind === "marqueeHits") return reply.payload.ids;
+    throw new Error(`unexpected reply: ${reply.kind}`);
+  }
+
+  /**
+   * Phase A — fetch oriented geometry (raw bounds + composed transform
+   * + host page) for one or more elements. Used by the overlay to
+   * draw selection chrome without re-deriving the affine math in TS.
+   */
+  async elementGeometry(ids: ElementId[]): Promise<ElementGeometryItem[]> {
+    const reply = await this.send({
+      kind: "requestElementGeometry",
+      payload: { ids },
+    });
+    if (reply.kind === "elementGeometry") return reply.payload.items;
+    throw new Error(`unexpected reply: ${reply.kind}`);
+  }
+
+  /**
+   * Phase H — return every leaf descendant of the named group (no
+   * groups; nested groups are descended). The canvas selects this
+   * list when the user double-clicks a frame whose hit `group_chain`
+   * is non-empty.
+   */
+  async groupLeaves(groupId: string): Promise<ElementId[]> {
+    const reply = await this.send({
+      kind: "requestGroupLeaves",
+      payload: { groupId },
+    });
+    if (reply.kind === "groupLeaves") return reply.payload.ids;
+    throw new Error(`unexpected reply: ${reply.kind}`);
+  }
+
+  /**
+   * Phase B — begin a gesture against the listed elements. Resolves
+   * to the worker's handle; pass it to subsequent
+   * `updateGesture` / `commitGesture` / `cancelGesture` calls.
+   * Rejects when the worker reports a `gestureFailed` envelope.
+   */
+  async beginGesture(
+    nodes: ElementId[],
+    gesture: GestureType,
+    anchor: GestureAnchor | null = null,
+  ): Promise<GestureHandle> {
+    // Phase G — read the current camera scale from the SAB so the
+    // snap pass can keep its tolerance constant in screen px. The
+    // value is snapshot-locked for the gesture's lifetime (a mid-
+    // gesture zoom doesn't retune snap tolerance — that's a
+    // deliberate UX choice; consistency within a drag wins).
+    const camera = this.camera.read();
+    const cameraScale = camera.scale > 0 ? camera.scale : null;
+    const reply = await this.send({
+      kind: "beginGesture",
+      payload: { nodes, gesture, anchor, cameraScale },
+    });
+    if (reply.kind === "gestureBegun") return reply.payload.handle;
+    if (reply.kind === "gestureFailed") {
+      throw new Error(`beginGesture failed: ${reply.payload.error.kind}`);
+    }
+    throw new Error(`unexpected reply: ${reply.kind}`);
+  }
+
+  /**
+   * Phase B — push a pointer delta into the active gesture. Worker
+   * rewrites the preview + rebuilds. Phase E — the reply now also
+   * carries the active snap lines so the overlay can render them.
+   */
+  async updateGesture(
+    handle: GestureHandle,
+    delta: [number, number],
+    modifiers: GestureModifiers,
+  ): Promise<{ pageIds: PageId[]; snapLines: SnapLine[] }> {
+    const reply = await this.send({
+      kind: "updateGesture",
+      payload: { handle, delta, modifiers },
+    });
+    if (reply.kind === "gestureUpdated") {
+      return {
+        pageIds: reply.payload.pageIds,
+        snapLines: reply.payload.snapLines ?? [],
+      };
+    }
+    if (reply.kind === "gestureFailed") {
+      throw new Error(`updateGesture failed: ${reply.payload.error.kind}`);
+    }
+    throw new Error(`unexpected reply: ${reply.kind}`);
+  }
+
+  /**
+   * Phase B — commit the active gesture. Returns the new applied_seq
+   * + dirty pages so the caller can update the HUD / undo state.
+   */
+  async commitGesture(handle: GestureHandle): Promise<{
+    appliedSeq: number;
+    pageIds: PageId[];
+  }> {
+    const reply = await this.send({
+      kind: "commitGesture",
+      payload: { handle },
+    });
+    if (reply.kind === "gestureCommitted") {
+      return {
+        appliedSeq: reply.payload.appliedSeq,
+        pageIds: reply.payload.pageIds,
+      };
+    }
+    if (reply.kind === "gestureFailed") {
+      throw new Error(`commitGesture failed: ${reply.payload.error.kind}`);
+    }
+    throw new Error(`unexpected reply: ${reply.kind}`);
+  }
+
+  /**
+   * Phase B — discard the active gesture. Worker reverts the preview;
+   * resolves to the dirty pages set so the overlay can clear.
+   */
+  async cancelGesture(handle: GestureHandle): Promise<PageId[]> {
+    const reply = await this.send({
+      kind: "cancelGesture",
+      payload: { handle },
+    });
+    if (reply.kind === "gestureCancelled") return reply.payload.pageIds;
+    if (reply.kind === "gestureFailed") {
+      throw new Error(`cancelGesture failed: ${reply.payload.error.kind}`);
+    }
+    throw new Error(`unexpected reply: ${reply.kind}`);
   }
 
   /** Phase 3 — fetch the caret rectangle for a selection. */

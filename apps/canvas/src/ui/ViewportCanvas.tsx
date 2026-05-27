@@ -15,17 +15,23 @@
 // `<canvas>` is opaque from React's perspective after the
 // `transferControlToOffscreen` call.
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CanvasClient } from "../channel/client";
 import { viewportToDoc, type Camera } from "../channel/camera";
 import type {
   CaretGeometry,
+  ElementGeometryItem,
+  ElementId,
+  GestureHandle,
+  GestureType,
   HitResult,
   LayoutCacheStats,
   PageId,
+  ResizeHandle,
   ResolutionResult,
   RunningHeader,
   SelectionRect,
+  SnapLine,
 } from "../channel/protocol";
 import { documentBounds, fitCamera, layoutPages, zoomAt, type PageRect } from "./layout";
 import { Overlay } from "./Overlay";
@@ -37,6 +43,21 @@ export interface SelectionState {
   hit: HitResult;
 }
 
+export interface PointerModifiers {
+  /** Shift held → add to selection. */
+  shift: boolean;
+  /** Cmd (macOS) or Ctrl (other) held → toggle. */
+  cmd: boolean;
+}
+
+/** Phase A — page-local marquee rect emitted on pointerup with the
+ * select tool, ready to feed `client.marqueeHits`. */
+export interface MarqueeRectPageLocal {
+  pageId: PageId;
+  /** `[top, left, bottom, right]` in page-local pt. */
+  rect: [number, number, number, number];
+}
+
 export interface ViewportCanvasProps {
   client: CanvasClient;
   pageIds: ReadonlyArray<PageId>;
@@ -44,7 +65,14 @@ export interface ViewportCanvasProps {
   camera: Camera;
   onCameraChange: (cam: Camera) => void;
   /** Called when the user clicks (not drags) on a page. */
-  onHit?: (selection: SelectionState | null) => void;
+  onHit?: (selection: SelectionState | null, modifiers?: PointerModifiers) => void;
+  /** Phase A — called when the user finishes a marquee drag with the
+   * select tool. Payload is page-local `[top, left, bottom, right]`. */
+  onMarquee?: (
+    pageId: PageId,
+    rect: [number, number, number, number],
+    modifiers?: PointerModifiers,
+  ) => void;
   /** Current selection; used by the overlay to highlight the hit point + page. */
   selection?: SelectionState | null;
   /** Main-thread FPS, sampled via rAF. Shown in the HUD. */
@@ -59,6 +87,23 @@ export interface ViewportCanvasProps {
   selectionRects?: ReadonlyArray<SelectionRect>;
   /** Phase 4 Step 2 — last rebuild's layout-cache stats; HUD badge. */
   layoutCacheStats?: LayoutCacheStats | null;
+  /** Phase A — active tool. Default is `select`; `text` falls back to
+   * the existing caret/typing pathway. */
+  activeTool?: "select" | "text";
+  /** Phase A — currently-selected element ids (worker-mirrored). */
+  elementSelection?: ReadonlyArray<ElementId>;
+  /** Phase A — geometry per selected id for the overlay chrome. */
+  elementGeometry?: ReadonlyArray<ElementGeometryItem>;
+  /** Phase B — called when the active gesture (translate, …) commits.
+   * Caller refreshes the cached element geometry so the chrome lands
+   * at the committed position. */
+  onGestureCommitted?: () => void;
+  /** Phase H — called when the user double-clicks a frame whose hit
+   * is nested inside a group. `groupId` is the outermost containing
+   * group (group_chain[0]). The caller fetches the group's leaves
+   * and replaces the element selection with them so the user can
+   * grab the whole group as a unit. */
+  onDoubleClickGroup?: (groupId: string) => void;
 }
 
 const CLICK_DRAG_THRESHOLD_PX = 4;
@@ -70,11 +115,45 @@ export function ViewportCanvas(props: ViewportCanvasProps) {
   const transferredRef = useRef(false);
 
   const dragStateRef = useRef<{
+    /** `pan` is camera-translate; `marquee` is the element-selection
+     * rect drag; `gesture` is an in-flight worker gesture (translate,
+     * resize, …). Click-vs-drag still uses `maxDelta` for routing
+     * through the hit tester. */
+    mode: "pan" | "marquee" | "gesture";
     startCam: Camera;
+    /** Anchor in doc-space pt (already camera-inverted) — used so the
+     * pointer→doc delta survives mid-gesture camera changes. */
+    startDoc: [number, number];
     startPointer: [number, number];
     /** Largest pointer-delta seen during this gesture, in CSS px. */
     maxDelta: number;
+    /** Modifier state captured at pointerdown. */
+    modifiers: PointerModifiers;
+    /** Phase A — anchor + page for marquee mode. `null` when the
+     * pointer started outside any page (we still allow the drag to
+     * resolve as a pan-style cancellation on release). */
+    marqueeAnchor: {
+      pageId: PageId;
+      pageX: number;
+      pageY: number;
+    } | null;
+    /** Phase B — gesture-mode bookkeeping. `handle` is `null` until
+     * the worker confirms the gesture started; updates that arrive
+     * before then are buffered into `pendingDelta`. */
+    gestureState?: {
+      handle: GestureHandle | null;
+      pendingDelta: [number, number];
+      target: ElementId[];
+    };
   } | null>(null);
+
+  /** Phase A — page-local marquee rect rendered live by the overlay. */
+  const [marqueeRect, setMarqueeRect] = useState<MarqueeRectPageLocal | null>(
+    null,
+  );
+
+  /** Phase E — active snap guides; refreshed on each gesture update. */
+  const [snapLines, setSnapLines] = useState<ReadonlyArray<SnapLine>>([]);
 
   // Document-space layout — only used to compute initial fit-to-document.
   const rects = useMemo(
@@ -149,13 +228,171 @@ export function ViewportCanvas(props: ViewportCanvasProps) {
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (e.button !== 0 && e.button !== 1) return;
       e.currentTarget.setPointerCapture(e.pointerId);
+      const modifiers: PointerModifiers = {
+        shift: e.shiftKey,
+        cmd: e.metaKey || e.ctrlKey,
+      };
+      const tool = props.activeTool ?? "select";
+      const rect = e.currentTarget.getBoundingClientRect();
+      const cx = e.clientX - rect.left;
+      const cy = e.clientY - rect.top;
+      const [docX, docY] = viewportToDoc(props.camera, cx, cy);
+      const containing = findContainingPage(rects, props.pageIds, docX, docY);
+      // Phase B — middle-button always pans (the convention every
+      // creative tool follows). With the select tool: if the pointer
+      // landed inside a currently-selected element, start a Translate
+      // gesture; otherwise fall through to marquee. Text tool stays
+      // pan so the existing typing UX is undisturbed.
+      let mode: "pan" | "marquee" | "gesture" = "pan";
+      let gestureState:
+        | NonNullable<typeof dragStateRef.current>["gestureState"]
+        | undefined;
+      if (e.button === 1) {
+        mode = "pan";
+      } else if (tool === "select") {
+        // Phase C/D/G — if the pointer landed on a handle (resize
+        // handle or the rotation handle), begin the matching gesture
+        // for the currently-selected element(s). Single-select uses
+        // bounds-resize on corners (Phase C); multi-select corners
+        // route to matrix Scale because per-element bounds resize
+        // can't compose into a coherent union resize.
+        const handleAttr = readHandleAttr(e.target);
+        const selection = props.elementSelection ?? [];
+        const geometry = props.elementGeometry ?? [];
+        const selectedGeom = geometry.length === 1 ? geometry[0] : null;
+        const isMultiSelect = geometry.length > 1;
+        const bodyHitElement = !handleAttr && containing
+          ? findSelectedElementUnderPointer(
+              selection,
+              geometry,
+              containing[0],
+              [docX - containing[1].x, docY - containing[1].y],
+            )
+          : null;
+        // Phase F — Cmd-drag on the body of a single-selected
+        // image-bearing frame triggers `TranslateContent` (content
+        // grabber). Plain body-drag stays Translate; Cmd-drag on a
+        // resize handle stays Scale (Phase D).
+        const bodyHitIsImage =
+          !handleAttr &&
+          selectedGeom?.id.kind === "rectangle" &&
+          selectedGeom?.hasImage === true;
+        // Build gestureSpec + target list.
+        let gestureSpec: GestureType | null = null;
+        let targets: ElementId[] = [];
+        if (handleAttr === "rotate" && (selectedGeom || isMultiSelect)) {
+          gestureSpec = { kind: "rotate" };
+          targets = selectedGeom ? [selectedGeom.id] : selection.slice();
+        } else if (handleAttr && handleAttr !== "rotate") {
+          if (isMultiSelect) {
+            // Phase G — multi-select handle drag is always matrix
+            // Scale (rotated or not). Holding Cmd still does Scale —
+            // it's the only sensible per-element op for N>1.
+            gestureSpec = { kind: "scale" };
+            targets = selection.slice();
+          } else if (selectedGeom) {
+            gestureSpec = modifiers.cmd
+              ? { kind: "scale" }
+              : { kind: "resize", handle: handleAttr };
+            targets = [selectedGeom.id];
+          }
+        } else if (bodyHitElement) {
+          // Body drag. For multi-select, move ALL selected items
+          // together; for single-select, just the one.
+          if (isMultiSelect) {
+            gestureSpec = { kind: "translate" };
+            targets = selection.slice();
+          } else if (modifiers.cmd && bodyHitIsImage) {
+            gestureSpec = { kind: "translateContent" };
+            targets = [bodyHitElement];
+          } else {
+            gestureSpec = { kind: "translate" };
+            targets = [bodyHitElement];
+          }
+        }
+        const hit = gestureSpec ? targets[0] ?? null : null;
+        if (hit && gestureSpec && targets.length > 0) {
+          mode = "gesture";
+          gestureState = {
+            handle: null,
+            pendingDelta: [0, 0],
+            target: targets,
+          };
+          // Phase D — Rotate / Scale need an anchor (pointer position
+          // at gesture start, in the clicked page's local coords).
+          // Translate / Resize don't need one but we send it anyway
+          // for future use.
+          const anchor = containing
+            ? {
+                pageId: containing[0],
+                pointInPage: [
+                  docX - containing[1].x,
+                  docY - containing[1].y,
+                ] as [number, number],
+              }
+            : null;
+          // Fire-and-forget — the handle returns asynchronously; any
+          // pointermove events that arrive before it does are
+          // accumulated into `pendingDelta` and flushed on resolve.
+          void props.client
+            .beginGesture(targets, gestureSpec, anchor)
+            .then((handle) => {
+              const drag = dragStateRef.current;
+              if (!drag || drag.mode !== "gesture" || !drag.gestureState) {
+                // Pointer released or escape fired before the worker
+                // confirmed; cancel immediately to keep worker state
+                // clean.
+                void props.client.cancelGesture(handle).catch(() => {});
+                return;
+              }
+              drag.gestureState.handle = handle;
+              const pending = drag.gestureState.pendingDelta;
+              if (pending[0] !== 0 || pending[1] !== 0) {
+                void props.client
+                  .updateGesture(handle, pending, { shift: false, alt: false })
+                  .then((r) => setSnapLines(r.snapLines))
+                  .catch(() => {});
+              }
+            })
+            .catch(() => {
+              // Worker rejected — typically a rotated frame in Phase B.
+              // Downgrade to pan so the drag still does *something*
+              // sensible.
+              const drag = dragStateRef.current;
+              if (drag) drag.mode = "pan";
+            });
+        } else {
+          mode = "marquee";
+        }
+      }
+      const marqueeAnchor =
+        mode === "marquee" && containing
+          ? {
+              pageId: containing[0],
+              pageX: docX - containing[1].x,
+              pageY: docY - containing[1].y,
+            }
+          : null;
       dragStateRef.current = {
+        mode,
         startCam: props.camera,
+        startDoc: [docX, docY],
         startPointer: [e.clientX, e.clientY],
         maxDelta: 0,
+        modifiers,
+        marqueeAnchor,
+        gestureState,
       };
     },
-    [props.camera],
+    [
+      props.activeTool,
+      props.camera,
+      props.client,
+      props.elementGeometry,
+      props.elementSelection,
+      props.pageIds,
+      rects,
+    ],
   );
 
   const onPointerMove = useCallback(
@@ -166,13 +403,63 @@ export function ViewportCanvas(props: ViewportCanvasProps) {
       const dy = e.clientY - drag.startPointer[1];
       const delta = Math.hypot(dx, dy);
       if (delta > drag.maxDelta) drag.maxDelta = delta;
-      props.onCameraChange({
-        scale: drag.startCam.scale,
-        tx: drag.startCam.tx + dx,
-        ty: drag.startCam.ty + dy,
-      });
+      if (drag.mode === "pan") {
+        props.onCameraChange({
+          scale: drag.startCam.scale,
+          tx: drag.startCam.tx + dx,
+          ty: drag.startCam.ty + dy,
+        });
+      } else if (drag.mode === "gesture") {
+        if (drag.maxDelta <= CLICK_DRAG_THRESHOLD_PX) return;
+        // Re-derive the doc-space delta from the original anchor so
+        // the gesture stays correct even if the user panned mid-drag.
+        const rect = e.currentTarget.getBoundingClientRect();
+        const cx = e.clientX - rect.left;
+        const cy = e.clientY - rect.top;
+        const [docX, docY] = viewportToDoc(props.camera, cx, cy);
+        const docDelta: [number, number] = [
+          docX - drag.startDoc[0],
+          docY - drag.startDoc[1],
+        ];
+        if (!drag.gestureState) return;
+        if (drag.gestureState.handle === null) {
+          // Begin hasn't resolved yet — buffer the delta; the
+          // resolver flushes it once the handle lands.
+          drag.gestureState.pendingDelta = docDelta;
+        } else {
+          void props.client
+            .updateGesture(drag.gestureState.handle, docDelta, {
+              shift: e.shiftKey,
+              alt: e.altKey,
+            })
+            .then((r) => setSnapLines(r.snapLines))
+            .catch(() => {});
+        }
+      } else if (drag.mode === "marquee") {
+        if (drag.maxDelta <= CLICK_DRAG_THRESHOLD_PX) return;
+        const anchor = drag.marqueeAnchor;
+        if (!anchor) return;
+        const rect = e.currentTarget.getBoundingClientRect();
+        const cx = e.clientX - rect.left;
+        const cy = e.clientY - rect.top;
+        const [docX, docY] = viewportToDoc(props.camera, cx, cy);
+        // Clamp the marquee to the anchor's page so the rect we
+        // commit is page-local. The hit-tester only knows pages.
+        const pageRect = rects[props.pageIds.indexOf(anchor.pageId)];
+        if (!pageRect) return;
+        const currentX = clamp(docX - pageRect.x, 0, pageRect.w);
+        const currentY = clamp(docY - pageRect.y, 0, pageRect.h);
+        const top = Math.min(anchor.pageY, currentY);
+        const left = Math.min(anchor.pageX, currentX);
+        const bottom = Math.max(anchor.pageY, currentY);
+        const right = Math.max(anchor.pageX, currentX);
+        setMarqueeRect({
+          pageId: anchor.pageId,
+          rect: [top, left, bottom, right],
+        });
+      }
     },
-    [props],
+    [props, rects],
   );
 
   const onPointerUp = useCallback(
@@ -181,40 +468,189 @@ export function ViewportCanvas(props: ViewportCanvasProps) {
       if (!drag) return;
       e.currentTarget.releasePointerCapture(e.pointerId);
       dragStateRef.current = null;
+      // Modifier state can change between down and up (user lifts
+      // Shift before releasing). Take whichever was held at either
+      // edge — matches industry convention.
+      const modifiers: PointerModifiers = {
+        shift: drag.modifiers.shift || e.shiftKey,
+        cmd: drag.modifiers.cmd || e.metaKey || e.ctrlKey,
+      };
       // Click vs drag: if the pointer barely moved, treat it as a
-      // click and route through the worker's hit-tester.
-      if (drag.maxDelta <= CLICK_DRAG_THRESHOLD_PX && props.onHit) {
+      // click and route through the worker's hit-tester. If a
+      // gesture was started at pointerdown (and never moved past the
+      // threshold), cancel it so the worker doesn't hold a stale
+      // handle.
+      if (drag.maxDelta <= CLICK_DRAG_THRESHOLD_PX) {
+        setMarqueeRect(null);
+        if (drag.mode === "gesture" && drag.gestureState) {
+          const stale = drag.gestureState.handle;
+          if (stale !== null) {
+            void props.client.cancelGesture(stale).catch(() => {});
+          }
+        }
+        if (!props.onHit) return;
         const rect = e.currentTarget.getBoundingClientRect();
         const cx = e.clientX - rect.left;
         const cy = e.clientY - rect.top;
-        // Camera maps doc-space (pt) → viewport CSS px; invert for
-        // the hit-test query.
         const [docX, docY] = viewportToDoc(props.camera, cx, cy);
         const containing = findContainingPage(rects, props.pageIds, docX, docY);
         if (containing) {
           const [pageId, pageRect] = containing;
           const docPoint: [number, number] = [docX - pageRect.x, docY - pageRect.y];
+          const filter = (props.activeTool ?? "select") === "text" ? "text" : "any";
           void (async () => {
             try {
               const reply = await props.client.send({
                 kind: "hitTest",
-                payload: { pageId, docPoint, filter: "any" },
+                payload: { pageId, docPoint, filter },
               });
               if (reply.kind === "hitResult") {
-                props.onHit?.({ pageId, docPoint, hit: reply.payload });
+                props.onHit?.({ pageId, docPoint, hit: reply.payload }, modifiers);
               }
             } catch (err) {
               console.warn("hitTest failed:", err);
             }
           })();
         } else {
-          // Clicked on the inter-page grey — clear the selection.
-          props.onHit?.(null);
+          props.onHit?.(null, modifiers);
+        }
+        return;
+      }
+      // Drag committed. Pan needs no commit work; marquee hands the
+      // final rect to the caller; gesture commits via the worker.
+      if (drag.mode === "marquee") {
+        if (marqueeRect && props.onMarquee) {
+          props.onMarquee(marqueeRect.pageId, marqueeRect.rect, modifiers);
+        }
+        setMarqueeRect(null);
+      } else if (drag.mode === "gesture" && drag.gestureState) {
+        const handle = drag.gestureState.handle;
+        if (handle === null) {
+          // Begin hasn't resolved — the resolver path will see the
+          // dragState gone and cancel. Nothing to do here.
+        } else {
+          void props.client
+            .commitGesture(handle)
+            .then(() => {
+              setSnapLines([]);
+              props.onGestureCommitted?.();
+            })
+            .catch(() => {});
         }
       }
     },
-    [props, rects],
+    [props, rects, marqueeRect],
   );
+
+  // Phase B — Escape cancels the active gesture. Listen at document
+  // level so it works while pointer capture is in flight on the
+  // wrapper.
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      const drag = dragStateRef.current;
+      if (!drag || drag.mode !== "gesture" || !drag.gestureState) return;
+      const handle = drag.gestureState.handle;
+      drag.mode = "pan";
+      drag.gestureState = undefined;
+      if (handle !== null) {
+        void props.client
+          .cancelGesture(handle)
+          .then(() => {
+            setSnapLines([]);
+            props.onGestureCommitted?.();
+          })
+          .catch(() => {});
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [props]);
+
+  function clamp(v: number, lo: number, hi: number): number {
+    return v < lo ? lo : v > hi ? hi : v;
+  }
+
+  /** Phase B — return the first selected element whose AABB
+   * (transformed corners → axis-aligned bbox) contains the page-local
+   * pointer. AABB rather than oriented-rect: fast, no transform math
+   * in TS, and a false positive at the AABB corner of a rotated frame
+   * is acceptable since the worker's `begin_gesture` then rejects it.
+   * Matches what the renderer paints for the selection chrome at the
+   * same point in time. */
+  function findSelectedElementUnderPointer(
+    selection: ReadonlyArray<ElementId>,
+    geometry: ReadonlyArray<ElementGeometryItem>,
+    pageId: PageId,
+    pageLocal: [number, number],
+  ): ElementId | null {
+    const inSel = new Set(selection.map((e) => `${e.kind}:${e.id}`));
+    for (const g of geometry) {
+      if (g.pageId !== pageId) continue;
+      if (!inSel.has(`${g.id.kind}:${g.id.id}`)) continue;
+      const [top, left, bottom, right] = g.bounds;
+      const corners: Array<[number, number]> = [
+        applyAffineLocal(g.itemTransform, left, top),
+        applyAffineLocal(g.itemTransform, right, top),
+        applyAffineLocal(g.itemTransform, right, bottom),
+        applyAffineLocal(g.itemTransform, left, bottom),
+      ];
+      let minX = Infinity,
+        maxX = -Infinity,
+        minY = Infinity,
+        maxY = -Infinity;
+      for (const [x, y] of corners) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+      if (
+        pageLocal[0] >= minX &&
+        pageLocal[0] <= maxX &&
+        pageLocal[1] >= minY &&
+        pageLocal[1] <= maxY
+      ) {
+        return g.id;
+      }
+    }
+    return null;
+  }
+
+  function applyAffineLocal(
+    m: [number, number, number, number, number, number] | null,
+    x: number,
+    y: number,
+  ): [number, number] {
+    if (!m) return [x, y];
+    return [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]];
+  }
+
+  /** Phase C/D — read the `data-handle` attribute from a pointer
+   * event target. Returns the matching `ResizeHandle`, `"rotate"`
+   * for the Phase D rotation handle, or `null`. The Overlay tags
+   * both the visible handle and a larger hit-area rect with the same
+   * attribute, so a pointerdown anywhere in the grab zone fires
+   * this branch. */
+  function readHandleAttr(target: EventTarget | null): ResizeHandle | "rotate" | null {
+    if (!(target instanceof Element)) return null;
+    const v = target.getAttribute("data-handle");
+    if (!v) return null;
+    if (
+      v === "north" ||
+      v === "south" ||
+      v === "east" ||
+      v === "west" ||
+      v === "northEast" ||
+      v === "northWest" ||
+      v === "southEast" ||
+      v === "southWest" ||
+      v === "rotate"
+    ) {
+      return v;
+    }
+    return null;
+  }
 
   function findContainingPage(
     rects: ReadonlyArray<PageRect>,
@@ -250,6 +686,42 @@ export function ViewportCanvas(props: ViewportCanvasProps) {
     [props],
   );
 
+  const onDoubleClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      // Phase H — double-click on a frame nested inside a group →
+      // select the whole outermost containing group as a unit.
+      if (!props.onDoubleClickGroup) return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      const cx = e.clientX - rect.left;
+      const cy = e.clientY - rect.top;
+      const [docX, docY] = viewportToDoc(props.camera, cx, cy);
+      const containing = findContainingPage(rects, props.pageIds, docX, docY);
+      if (!containing) return;
+      const [pageId, pageRect] = containing;
+      void (async () => {
+        try {
+          const reply = await props.client.send({
+            kind: "hitTest",
+            payload: {
+              pageId,
+              docPoint: [docX - pageRect.x, docY - pageRect.y],
+              filter: "any",
+            },
+          });
+          if (reply.kind !== "hitResult") return;
+          const chain = reply.payload.groupChain ?? [];
+          if (chain.length > 0) {
+            props.onDoubleClickGroup?.(chain[0]);
+          }
+        } catch (err) {
+          // Same fail-quiet approach as the click hitTest.
+          console.warn("doubleClick hitTest failed:", err);
+        }
+      })();
+    },
+    [props, rects],
+  );
+
   return (
     <div
       ref={wrapperRef}
@@ -259,6 +731,7 @@ export function ViewportCanvas(props: ViewportCanvasProps) {
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
       onWheel={onWheel}
+      onDoubleClick={onDoubleClick}
     >
       <canvas ref={canvasRef} style={canvasStyle} />
       <Overlay
@@ -269,6 +742,10 @@ export function ViewportCanvas(props: ViewportCanvasProps) {
         resolution={props.resolution ?? null}
         caret={props.caret ?? null}
         selectionRects={props.selectionRects ?? []}
+        elementSelection={props.elementSelection ?? []}
+        elementGeometry={props.elementGeometry ?? []}
+        marqueeRect={marqueeRect}
+        snapLines={snapLines}
         width={wrapperRef.current?.clientWidth ?? 0}
         height={wrapperRef.current?.clientHeight ?? 0}
       />

@@ -34,9 +34,12 @@ import type {
   CaretGeometry,
   ContentSelection,
   DocumentHandle,
+  ElementGeometryItem,
+  ElementId,
   LayoutCacheStats,
   PageId,
   ResolutionResult,
+  SelectionMode,
   SelectionRect,
   WorkerToMain,
 } from "../channel/protocol";
@@ -71,6 +74,15 @@ export function CanvasApp() {
   // Phase 4 Step 2 — last rebuild's layout-cache stats. Shown in HUD.
   const [layoutCacheStats, setLayoutCacheStats] =
     useState<LayoutCacheStats | null>(null);
+  // Phase A — element selection + active tool. Default tool is
+  // 'select' so a fresh canvas behaves like a design tool, not a text
+  // editor. Swap to 'text' (V/T toggle) to fall back to the existing
+  // caret/typing pathway in useTextEditing.
+  const [elementSelection, setElementSelection] = useState<ElementId[]>([]);
+  const [elementGeometry, setElementGeometry] = useState<ElementGeometryItem[]>(
+    [],
+  );
+  const [activeTool, setActiveTool] = useState<"select" | "text">("select");
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const [viewportSize, setViewportSize] = useState<[number, number]>([0, 0]);
   const sabSupported = useMemo(() => supportsSharedArrayBuffer(), []);
@@ -91,6 +103,10 @@ export function CanvasApp() {
       handle,
       ready: handle != null,
       snapshotsReady,
+      elementSelection,
+      elementGeometry,
+      activeTool,
+      setActiveTool,
     };
   }
 
@@ -289,6 +305,7 @@ export function CanvasApp() {
       <header style={headerStyle}>
         <h1 style={{ margin: 0, fontSize: 16 }}>IDML canvas</h1>
         <FileDrop onFile={onFile} compact />
+        <ToolToggle active={activeTool} onChange={setActiveTool} />
         <span style={{ marginLeft: "auto", opacity: 0.7, fontSize: 12 }}>
           {status}
         </span>
@@ -337,9 +354,54 @@ export function CanvasApp() {
               pageSizesPt={handle.pageSizesPt}
               camera={camera}
               onCameraChange={setCamera}
-              onHit={(s) => {
+              activeTool={activeTool}
+              elementSelection={elementSelection}
+              elementGeometry={elementGeometry}
+              onHit={(s, modifiers) => {
                 setSelection(s);
-                // Phase 3 — click on text → caret at the offset.
+                const client = clientRef.current;
+                // Phase A — when the select tool is active, route the
+                // click to the element-selection model. Modifier keys
+                // pick the mode: Shift = Add, Cmd/Ctrl = Toggle, plain
+                // click = Replace.
+                if (activeTool === "select") {
+                  const mode: SelectionMode = modifiers?.shift
+                    ? "add"
+                    : modifiers?.cmd
+                      ? "toggle"
+                      : "replace";
+                  if (s && s.hit.element) {
+                    if (client) {
+                      void client
+                        .setElementSelection([s.hit.element], mode)
+                        .then((ids) => {
+                          setElementSelection(ids);
+                          return client.elementGeometry(ids);
+                        })
+                        .then(setElementGeometry)
+                        .catch(() => {
+                          /* worker reload / disconnect — fine */
+                        });
+                    }
+                  } else if (!modifiers?.shift && !modifiers?.cmd) {
+                    // Empty click with no modifier → clear selection.
+                    if (client) {
+                      void client
+                        .setElementSelection([], "replace")
+                        .then(() => {
+                          setElementSelection([]);
+                          setElementGeometry([]);
+                        })
+                        .catch(() => {});
+                    }
+                  }
+                  // Text tool stays text-only; select tool does NOT
+                  // also drop into text-edit mode on a frame click —
+                  // that's a Phase B "enter text edit" gesture.
+                  setContentSelection(null);
+                  return;
+                }
+                // Phase 3 — text tool: click on text → caret at offset.
                 if (
                   s &&
                   s.hit.storyId &&
@@ -355,6 +417,53 @@ export function CanvasApp() {
                 } else {
                   setContentSelection(null);
                 }
+              }}
+              onDoubleClickGroup={(groupId) => {
+                // Phase H — replace the element selection with the
+                // group's leaves so the user can grab the whole
+                // group as a unit via Phase G's union handles.
+                const client = clientRef.current;
+                if (!client) return;
+                void client
+                  .groupLeaves(groupId)
+                  .then((ids) =>
+                    client.setElementSelection(ids, "replace"),
+                  )
+                  .then((ids) => {
+                    setElementSelection(ids);
+                    return client.elementGeometry(ids);
+                  })
+                  .then(setElementGeometry)
+                  .catch(() => {});
+              }}
+              onGestureCommitted={() => {
+                // Phase B — re-fetch geometry so the chrome lands at
+                // the committed bounds. Same shape as the post-hit
+                // refresh; reuses the existing elementGeometry RPC.
+                const client = clientRef.current;
+                if (!client || elementSelection.length === 0) return;
+                void client
+                  .elementGeometry(elementSelection)
+                  .then(setElementGeometry)
+                  .catch(() => {});
+              }}
+              onMarquee={(pageId, rect, modifiers) => {
+                const client = clientRef.current;
+                if (!client) return;
+                const mode: SelectionMode = modifiers?.shift
+                  ? "add"
+                  : modifiers?.cmd
+                    ? "toggle"
+                    : "replace";
+                void client
+                  .marqueeHits(pageId, rect)
+                  .then((ids) => client.setElementSelection(ids, mode))
+                  .then((ids) => {
+                    setElementSelection(ids);
+                    return client.elementGeometry(ids);
+                  })
+                  .then(setElementGeometry)
+                  .catch(() => {});
               }}
               selection={selection}
               fps={fps}
@@ -383,6 +492,75 @@ function EmptyState() {
     </div>
   );
 }
+
+/**
+ * Phase A — thin select/text toggle. Deliberately *not* the shell
+ * toolbox (that depends on the bundle infrastructure which isn't
+ * built yet); this is the minimum chrome the user needs to flip
+ * between frame-selection and caret/typing on the same canvas. V/T
+ * keys also work; see useKeyboardShortcuts in a future iteration.
+ */
+function ToolToggle(props: {
+  active: "select" | "text";
+  onChange: (t: "select" | "text") => void;
+}) {
+  return (
+    <div role="tablist" style={toolToggleStyle}>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={props.active === "select"}
+        title="Selection tool (V)"
+        onClick={() => props.onChange("select")}
+        style={
+          props.active === "select"
+            ? { ...toolButtonStyle, ...toolButtonActiveStyle }
+            : toolButtonStyle
+        }
+      >
+        V
+      </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={props.active === "text"}
+        title="Text tool (T)"
+        onClick={() => props.onChange("text")}
+        style={
+          props.active === "text"
+            ? { ...toolButtonStyle, ...toolButtonActiveStyle }
+            : toolButtonStyle
+        }
+      >
+        T
+      </button>
+    </div>
+  );
+}
+
+const toolToggleStyle: React.CSSProperties = {
+  display: "inline-flex",
+  border: "1px solid #d1d5db",
+  borderRadius: 4,
+  overflow: "hidden",
+};
+
+const toolButtonStyle: React.CSSProperties = {
+  width: 28,
+  height: 24,
+  background: "#fff",
+  border: "none",
+  borderRight: "1px solid #d1d5db",
+  fontSize: 12,
+  fontFamily: "ui-sans-serif, system-ui, sans-serif",
+  cursor: "pointer",
+  color: "#374151",
+};
+
+const toolButtonActiveStyle: React.CSSProperties = {
+  background: "#1f2937",
+  color: "#fff",
+};
 
 function LoadingOverlay(props: { name: string; bytes: number }) {
   return (
