@@ -85,6 +85,16 @@ export {
   type DocumentLoaderCallbacks,
 } from "./state/document-loader";
 
+// ── Chrome ─────────────────────────────────────────────────────
+export { CommandPalette } from "./chrome/CommandPalette";
+
+// ── Persistence ────────────────────────────────────────────────
+export {
+  clearStoredLayout,
+  restoreLayoutOrDefault,
+  setupLayoutPersistence,
+} from "./persistence/layout-persistence";
+
 // ── Docking substrate ──────────────────────────────────────────
 export {
   DockviewSubstrate,

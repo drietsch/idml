@@ -13,6 +13,11 @@ import "dockview-react/dist/styles/dockview.css";
 
 import { useRegistries } from "../state/registries-context";
 import { useVerso } from "../state/verso-editor";
+import {
+  restoreLayoutOrDefault,
+  setupLayoutPersistence,
+} from "../persistence/layout-persistence";
+import type { Disposable } from "../registries/types";
 import { DockviewSubstrate } from "./dockview-substrate";
 import { PanelBridge } from "./panel-bridge";
 import {
@@ -82,15 +87,33 @@ function DockviewRootInner({ className }: { className?: string }) {
   const setSubstrate = useSetDockingSubstrate();
   const bridgeRef = useRef<PanelBridge | null>(null);
   const substrateRef = useRef<DockviewSubstrate | null>(null);
+  const persistRef = useRef<Disposable | null>(null);
 
   const onReady = useCallback(
     (event: DockviewReadyEvent) => {
       const substrate = new DockviewSubstrate(event.api, PANEL_COMPONENT_NAME);
-      const bridge = new PanelBridge(panels, substrate);
       substrateRef.current = substrate;
+
+      // Restore a persisted layout if one exists; otherwise fall
+      // through to the bridge's initial-mount path which iterates
+      // panels.list() and adds each via substrate.addPanel.
+      let restored = false;
+      restoreLayoutOrDefault(substrate, () => {
+        /* default = bridge's initial mount below */
+      });
+      // restoreLayoutOrDefault calls substrate.restore on success;
+      // we infer "restored" from the substrate's current panels. If
+      // dockview has any panels after restore, treat it as restored.
+      restored = (event.api.panels?.length ?? 0) > 0;
+
+      const bridge = new PanelBridge(panels, substrate, {
+        skipInitialMount: restored,
+      });
       bridgeRef.current = bridge;
       setSubstrate(substrate);
-      // Layout-persistence wiring lands in 3h.
+
+      // Start the debounced-write persistence loop.
+      persistRef.current = setupLayoutPersistence(substrate);
     },
     [panels, setSubstrate],
   );
@@ -98,6 +121,8 @@ function DockviewRootInner({ className }: { className?: string }) {
   // Tear down bridge + substrate on unmount.
   useEffect(() => {
     return () => {
+      persistRef.current?.dispose();
+      persistRef.current = null;
       bridgeRef.current?.dispose();
       bridgeRef.current = null;
       substrateRef.current = null;

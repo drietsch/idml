@@ -47,6 +47,7 @@ class DebugErrorBoundary extends React.Component<
 import {
   CanvasClientProvider,
   CameraProvider,
+  CommandPalette,
   ContentSelectionProvider,
   DockviewRoot,
   DocumentProvider,
@@ -372,6 +373,8 @@ function CanvasShell() {
       <div style={dockviewContainerStyle}>
         <DockviewRoot />
       </div>
+
+      <CommandPalette />
     </div>
   );
 }

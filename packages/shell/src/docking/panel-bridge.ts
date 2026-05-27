@@ -22,12 +22,17 @@ export class PanelBridge {
   constructor(
     private panels: PanelRegistry,
     private substrate: DockingSubstrate,
+    options: { skipInitialMount?: boolean } = {},
   ) {
-    // Re-mount every panel already in the registry (the order of
-    // bridge construction vs. panel registration isn't guaranteed,
-    // and re-mount-on-mount is the safe interpretation).
-    for (const contribution of this.panels.list()) {
-      this.mount(contribution);
+    // Re-mount every panel already in the registry unless the
+    // caller restored a persisted layout (which already populated
+    // the substrate). The order of bridge construction vs. panel
+    // registration isn't guaranteed; re-mount-on-mount is the safe
+    // interpretation when there's no existing layout.
+    if (!options.skipInitialMount) {
+      for (const contribution of this.panels.list()) {
+        this.mount(contribution);
+      }
     }
 
     this.registryUnsub = this.panels.onChange((event) => {
