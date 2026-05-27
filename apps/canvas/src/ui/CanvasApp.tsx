@@ -25,12 +25,16 @@ import {
   ContentSelectionProvider,
   DocumentProvider,
   SelectionProvider,
+  VersoEditorProvider,
+  buildOpenIdmlCommand,
   loadDocumentFile,
   useCamera,
   useCanvasClient,
   useContentSelection,
   useDocument,
+  useRegistries,
   useSelection,
+  useVerso,
 } from "@verso/shell";
 import { CanvasClient } from "../channel/client";
 import { supportsSharedArrayBuffer } from "../channel/camera";
@@ -83,7 +87,9 @@ export function CanvasApp() {
         <DocumentProvider>
           <SelectionProvider>
             <ContentSelectionProvider>
-              <CanvasShell />
+              <VersoEditorProvider>
+                <CanvasShell />
+              </VersoEditorProvider>
             </ContentSelectionProvider>
           </SelectionProvider>
         </DocumentProvider>
@@ -132,6 +138,9 @@ function CanvasShell() {
     contentSelectionRef,
   } = useContentSelection();
 
+  const verso = useVerso();
+  const registries = useRegistries();
+
   const [status, setStatus] = useState<string>("initialising worker…");
   const [warnings, setWarnings] = useState<string[]>([]);
   const [gpuActive, setGpuActive] = useState<boolean | null>(null);
@@ -141,6 +150,34 @@ function CanvasShell() {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const sabSupported = useMemo(() => supportsSharedArrayBuffer(), []);
   const fps = useFps();
+
+  // Register the verso.file.openIdml command once the shell mounts.
+  // Step 3d ships this as the only registered command; Step 3h
+  // wires it into the Cmd+K palette. Headers' file-picker still
+  // calls onFile directly (its own DOM input drives the picker)
+  // so it doesn't need to round-trip through invoke.
+  useEffect(() => {
+    const handle = registries.commands.register(
+      buildOpenIdmlCommand({
+        pickFile: async () => {
+          // Programmatic file dialog. The drag-drop / `<input>` paths
+          // remain in the header for direct user interaction; this
+          // is the palette-driven entry point.
+          return new Promise<File | null>((resolve) => {
+            const input = document.createElement("input");
+            input.type = "file";
+            input.accept =
+              ".idml,application/vnd.adobe.indesign-idml-package";
+            input.onchange = () => resolve(input.files?.[0] ?? null);
+            input.click();
+          });
+        },
+        setStatus,
+        pushWarning: (w) => setWarnings((prev) => [...prev, w]),
+      }),
+    );
+    return () => handle.dispose();
+  }, [registries]);
 
   // Dev-only test hook. Playwright + ad-hoc browser scripts read
   // `window.__canvas` to drive the editor. `snapshotsReady` flips
@@ -159,6 +196,8 @@ function CanvasShell() {
       elementGeometry,
       activeTool,
       setActiveTool,
+      verso,
+      registries,
     };
   }
 

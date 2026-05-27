@@ -3,6 +3,7 @@
 // substrate, and command palette per
 // `docs/verso/editor-architecture.md` §17.
 
+// ── State contexts ─────────────────────────────────────────────
 export {
   CanvasClientProvider,
   useCanvasClient,
@@ -32,6 +33,48 @@ export {
   useContentSelection,
 } from "./state/content-selection-context";
 
+// ── Editor handle + registries provider ────────────────────────
+export {
+  VersoEditorProvider,
+  useVerso,
+  useOptionalVerso,
+  type VersoEditor,
+} from "./state/verso-editor";
+
+export {
+  RegistriesProvider,
+  useRegistries,
+  type ShellRegistries,
+} from "./state/registries-context";
+
+// ── Registry primitives ────────────────────────────────────────
+export {
+  type CommandContribution,
+  type CommandRegistry,
+  type DockEdge,
+  type Disposable,
+  type KeybindingContribution,
+  type KeybindingRegistry,
+  type PanelApi,
+  type PanelContribution,
+  type PanelProps,
+  type PanelRegistry,
+  type PanelRegistryEvent,
+  type SemanticGroupRegistry,
+  type VisibilityPredicate,
+  createPanelRegistry,
+  createCommandRegistry,
+  createSemanticGroupRegistry,
+  createKeybindingRegistry,
+} from "./registries";
+
+// ── Built-in commands ──────────────────────────────────────────
+export {
+  buildOpenIdmlCommand,
+  VERSO_FILE_OPEN_IDML,
+} from "./state/commands/file-commands";
+
+// ── Loaders ────────────────────────────────────────────────────
 export {
   loadDocumentFile,
   type DocumentLoaderCallbacks,
