@@ -44,6 +44,24 @@ export class DockviewSubstrate implements DockingSubstrate {
   }
 
   addPanel(spec: ResolvedPanelSpec): PanelHandle {
+    // Idempotency: if a previously-restored layout already contains a
+    // panel with this id, reuse it. Re-add would throw — dockview's
+    // panel-id uniqueness check fires before any of our state. This
+    // case fires every reload once layout persistence is on: restore
+    // re-creates the panel, then the registry's "registered" event
+    // arrives and the bridge tries to mount it again.
+    const existingPanel = this.api.getPanel(spec.id);
+    if (existingPanel) {
+      const groupId = existingPanel.group.id;
+      // Track the semantic mapping so subsequent panels of the same
+      // semantic group land in this group rather than spawning a
+      // duplicate group.
+      if (!this.semanticToGroupId.has(spec.semanticGroup)) {
+        this.semanticToGroupId.set(spec.semanticGroup, groupId);
+      }
+      return { id: spec.id, groupId };
+    }
+
     const existingGroupId = this.semanticToGroupId.get(spec.semanticGroup);
 
     if (existingGroupId !== undefined) {

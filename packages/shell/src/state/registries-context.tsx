@@ -1,6 +1,7 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   type PropsWithChildren,
@@ -45,14 +46,26 @@ export function RegistriesProvider({
   // because we want guaranteed identity even if React invokes the
   // memo factory twice (Strict Mode does this in dev).
   const ref = useRef<ShellRegistries | null>(null);
+  const keybindingsDisposeRef = useRef<(() => void) | null>(null);
   if (!ref.current) {
+    const commands = createCommandRegistry(getEditor);
+    const keybindings = createKeybindingRegistry(commands);
+    keybindingsDisposeRef.current = () => keybindings.dispose();
     ref.current = {
       panels: createPanelRegistry(),
-      commands: createCommandRegistry(getEditor),
+      commands,
       semanticGroups: createSemanticGroupRegistry(),
-      keybindings: createKeybindingRegistry(),
+      keybindings,
     };
   }
+
+  // Tear down the global keydown listener on unmount.
+  useEffect(() => {
+    return () => {
+      keybindingsDisposeRef.current?.();
+      keybindingsDisposeRef.current = null;
+    };
+  }, []);
 
   // Wrap in useMemo so consumers see a stable object reference.
   const value = useMemo(() => ref.current!, []);

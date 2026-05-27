@@ -39,6 +39,11 @@ import { CommandPalette } from "./chrome/CommandPalette";
 import { DockviewRoot } from "./docking/DockviewRoot";
 import { loadDocumentFile } from "./state/document-loader";
 import { buildOpenIdmlCommand } from "./state/commands/file-commands";
+import {
+  PALETTE_TOGGLE_COMMAND,
+  PALETTE_TOGGLE_KEYBINDING,
+  PALETTE_TOGGLE_KEYBINDING_CTRL,
+} from "./state/commands/built-in-commands";
 import type { PanelContribution } from "./registries/panel";
 import { useFps } from "./hooks/useFps";
 
@@ -152,6 +157,21 @@ function ShellChrome({
       }),
     );
     return () => handle.dispose();
+  }, [registries]);
+
+  // Register the palette-toggle command + Cmd+K keybinding. The
+  // command body (notifyPalette) is shell-internal; binding via
+  // the registry means it shows up in the palette itself (handy
+  // for discovery) and lets bundles re-bind the key if needed.
+  useEffect(() => {
+    const cmd = registries.commands.register(PALETTE_TOGGLE_COMMAND);
+    const k1 = registries.keybindings.register(PALETTE_TOGGLE_KEYBINDING);
+    const k2 = registries.keybindings.register(PALETTE_TOGGLE_KEYBINDING_CTRL);
+    return () => {
+      cmd.dispose();
+      k1.dispose();
+      k2.dispose();
+    };
   }, [registries]);
 
   // Dev hook. Playwright + ad-hoc browser scripts read
