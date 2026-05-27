@@ -17,6 +17,7 @@ import { OutlinePanel } from "./panels/outline-panel";
 import { useAnimatedCamera } from "./ui/useAnimatedCamera";
 import { useKeyboardShortcuts } from "./ui/useKeyboardShortcuts";
 import { useTextEditing } from "./ui/useTextEditing";
+import { ZoomField } from "./ui/ZoomField";
 
 // The three built-in panels for the canvas app. Bundle authors
 // register additional panels through the registry once Step 4's
@@ -106,7 +107,11 @@ function CanvasAppRoot() {
   }
 
   return (
-    <VersoShell client={client} panels={BUILT_IN_PANELS}>
+    <VersoShell
+      client={client}
+      panels={BUILT_IN_PANELS}
+      headerExtras={<ZoomField />}
+    >
       <CanvasAppIntegration />
     </VersoShell>
   );

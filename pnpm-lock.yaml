@@ -229,12 +229,21 @@ importers:
 
   packages/ui:
     dependencies:
+      '@verso/shell':
+        specifier: workspace:*
+        version: link:../shell
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
       react:
         specifier: ^18.3.0
         version: 18.3.1
       react-dom:
         specifier: ^18.3.0
         version: 18.3.1(react@18.3.1)
+      tailwind-merge:
+        specifier: ^3.6.0
+        version: 3.6.0
     devDependencies:
       '@types/react':
         specifier: ^18.3.12

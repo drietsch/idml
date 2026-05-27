@@ -18,6 +18,7 @@ import React, {
   useRef,
   useState,
   type PropsWithChildren,
+  type ReactNode,
 } from "react";
 
 // eslint-disable-next-line import/no-relative-parent-imports
@@ -70,6 +71,11 @@ export interface VersoShellProps {
   client: CanvasClient;
   /** Panel contributions to register at shell startup. */
   panels: PanelContribution[];
+  /** Optional extra chrome inserted into the header between the
+   * menu bar and the file picker. Apps use this for shell-host-
+   * specific controls (zoom indicator, color profile selector,
+   * fps badge, …) that don't fit the panel-or-menu pattern. */
+  headerExtras?: ReactNode;
 }
 
 /**
@@ -81,6 +87,7 @@ export interface VersoShellProps {
 export function VersoShell({
   client,
   panels,
+  headerExtras,
   children,
 }: PropsWithChildren<VersoShellProps>) {
   return (
@@ -96,7 +103,9 @@ export function VersoShell({
                    *  substrate once DockviewRoot's onReady publishes it. */}
                   <DockingSubstrateProvider>
                     <VersoEditorProvider>
-                      <ShellChrome panels={panels}>{children}</ShellChrome>
+                      <ShellChrome panels={panels} headerExtras={headerExtras}>
+                        {children}
+                      </ShellChrome>
                     </VersoEditorProvider>
                   </DockingSubstrateProvider>
                 </InstrumentationProvider>
@@ -117,8 +126,12 @@ export function VersoShell({
  */
 function ShellChrome({
   panels,
+  headerExtras,
   children,
-}: PropsWithChildren<{ panels: PanelContribution[] }>) {
+}: PropsWithChildren<{
+  panels: PanelContribution[];
+  headerExtras?: ReactNode;
+}>) {
   const client = useCanvasClient();
   const {
     handle,
@@ -391,6 +404,7 @@ function ShellChrome({
         <MenuBar />
         <FileDrop onFile={onFile} compact />
         <ToolToggle active={activeTool} onChange={setActiveTool} />
+        {headerExtras}
         <span style={{ marginLeft: "auto", opacity: 0.7, fontSize: 12 }}>
           {status}
         </span>

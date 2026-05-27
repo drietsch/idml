@@ -110,6 +110,13 @@ export {
   setupLayoutPersistence,
 } from "./persistence/layout-persistence";
 
+// ── Gestures ───────────────────────────────────────────────────
+export {
+  useScrubGesture,
+  type ScrubGesture,
+  type ScrubGestureOptions,
+} from "./gestures/use-scrub-gesture";
+
 // ── Bundles ────────────────────────────────────────────────────
 export {
   loadBundle,
