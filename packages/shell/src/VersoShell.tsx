@@ -1,112 +1,66 @@
-// Step 3g — the swap.
+// The shell root. Composes every provider, registers the supplied
+// panels + the built-in file-open command, hosts the chrome
+// (header, warnings, command palette), and mounts DockviewRoot
+// as the main work area.
 //
-// Layout structure stays roughly the same shape (header on top,
-// docked panels below) but the body is now mounted through
-// `<DockviewRoot />`. The three built-in panels (canvas, pages,
-// outline) register at shell startup; users can rearrange / close
-// them via dockview's standard tab interactions.
-//
-// All cross-cutting state continues to live in the `@verso/shell`
-// contexts; this file is now ~150 lines of providers + worker
-// message router + header chrome. Step 3i will move what remains
-// into packages/shell/src/index.tsx as `<VersoShell />`.
+// Apps render `<VersoShell client={...} panels={...}>{integration}</VersoShell>`
+// where `integration` is a (renderless) component that uses the
+// editor hooks to install canvas-app-specific keyboard / camera /
+// text-editing behavior. Keeping that outside VersoShell preserves
+// the shell's app-agnostic surface — the canvas-specific hooks
+// import from `apps/canvas/src/ui/` without dragging shell into
+// canvas internals.
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PropsWithChildren,
+} from "react";
 
-/**
- * Minimal error boundary so a panel / dockview crash leaves a
- * visible diagnostic instead of unmounting the whole shell.
- */
-class DebugErrorBoundary extends React.Component<
-  React.PropsWithChildren<{ label: string }>,
-  { error: Error | null }
-> {
-  state = { error: null as Error | null };
-  static getDerivedStateFromError(error: Error) {
-    return { error };
-  }
-  componentDidCatch(error: Error) {
-    // eslint-disable-next-line no-console
-    console.error(`[${this.props.label}] caught:`, error);
-    (globalThis as unknown as { __versoCrash?: string }).__versoCrash =
-      `[${this.props.label}] ${error.message}\n${error.stack ?? ""}`;
-  }
-  render() {
-    if (this.state.error) {
-      return (
-        <pre style={{ padding: 16, color: "#b91c1c", fontFamily: "monospace" }}>
-          [{this.props.label}] {this.state.error.message}
-          {"\n"}
-          {this.state.error.stack}
-        </pre>
-      );
-    }
-    return this.props.children;
-  }
+// eslint-disable-next-line import/no-relative-parent-imports
+import type { CanvasClient } from "../../../apps/canvas/src/channel/client";
+// eslint-disable-next-line import/no-relative-parent-imports
+import { supportsSharedArrayBuffer } from "../../../apps/canvas/src/channel/camera";
+// eslint-disable-next-line import/no-relative-parent-imports
+import type { WorkerToMain } from "../../../apps/canvas/src/channel/protocol";
+
+import { CanvasClientProvider, useCanvasClient } from "./state/canvas-client-context";
+import { CameraProvider } from "./state/camera-context";
+import { ContentSelectionProvider, useContentSelection } from "./state/content-selection-context";
+import { DocumentProvider, useDocument } from "./state/document-context";
+import { InstrumentationProvider, useInstrumentation } from "./state/instrumentation-context";
+import { SelectionProvider, useSelection } from "./state/selection-context";
+import { VersoEditorProvider } from "./state/verso-editor";
+import { useRegistries } from "./state/registries-context";
+import { CommandPalette } from "./chrome/CommandPalette";
+import { DockviewRoot } from "./docking/DockviewRoot";
+import { loadDocumentFile } from "./state/document-loader";
+import { buildOpenIdmlCommand } from "./state/commands/file-commands";
+import type { PanelContribution } from "./registries/panel";
+import { useFps } from "./hooks/useFps";
+
+export interface VersoShellProps {
+  client: CanvasClient;
+  /** Panel contributions to register at shell startup. */
+  panels: PanelContribution[];
 }
-import {
-  CanvasClientProvider,
-  CameraProvider,
-  CommandPalette,
-  ContentSelectionProvider,
-  DockviewRoot,
-  DocumentProvider,
-  InstrumentationProvider,
-  SelectionProvider,
-  VersoEditorProvider,
-  buildOpenIdmlCommand,
-  loadDocumentFile,
-  useCanvasClient,
-  useCamera,
-  useContentSelection,
-  useDocument,
-  useInstrumentation,
-  useRegistries,
-  useSelection,
-} from "@verso/shell";
-import { CanvasClient } from "../channel/client";
-import { supportsSharedArrayBuffer } from "../channel/camera";
-import type { WorkerToMain } from "../channel/protocol";
-import { CanvasPanel } from "../panels/canvas-panel";
-import { NavigatorPanel } from "../panels/navigator-panel";
-import { OutlinePanel } from "../panels/outline-panel";
-import { useAnimatedCamera } from "./useAnimatedCamera";
-import { useFps } from "./useFps";
-import { useKeyboardShortcuts } from "./useKeyboardShortcuts";
-import { useTextEditing } from "./useTextEditing";
 
 /**
- * Top-level shell — owns the CanvasClient lifecycle and wraps the
- * inner shell in every provider. The inner shell reads everything
- * from context hooks.
+ * Top-level shell. Wraps the chrome in every provider so consumers
+ * (including the `integration` child) have access to the editor
+ * hooks. `client` is created by the app and passed in — VersoShell
+ * doesn't own the worker lifecycle.
  */
-export function CanvasApp() {
-  const [client, setClient] = useState<CanvasClient | null>(null);
-
-  useEffect(() => {
-    const c = new CanvasClient();
-    setClient(c);
-    return () => {
-      c.dispose();
-      setClient(null);
-    };
-  }, []);
-
-  if (!client) {
-    return (
-      <div style={shellStyle}>
-        <header style={headerStyle}>
-          <h1 style={{ margin: 0, fontSize: 16 }}>IDML canvas</h1>
-          <span style={{ marginLeft: "auto", opacity: 0.7, fontSize: 12 }}>
-            initialising worker…
-          </span>
-        </header>
-      </div>
-    );
-  }
-
+export function VersoShell({
+  client,
+  panels,
+  children,
+}: PropsWithChildren<VersoShellProps>) {
   return (
-    <DebugErrorBoundary label="canvas-app">
+    <DebugErrorBoundary label="verso-shell">
       <CanvasClientProvider client={client}>
         <CameraProvider>
           <DocumentProvider>
@@ -114,7 +68,7 @@ export function CanvasApp() {
               <ContentSelectionProvider>
                 <InstrumentationProvider>
                   <VersoEditorProvider>
-                    <CanvasShell />
+                    <ShellChrome panels={panels}>{children}</ShellChrome>
                   </VersoEditorProvider>
                 </InstrumentationProvider>
               </ContentSelectionProvider>
@@ -127,13 +81,16 @@ export function CanvasApp() {
 }
 
 /**
- * Inner shell — runs the consolidated worker-message subscribe,
- * registers the built-in panels, hosts the header. The actual
- * panel UI mounts through DockviewRoot below.
+ * Inner shell — reads from the contexts and renders the actual
+ * chrome. Registers the supplied panels + the file-open command at
+ * mount; runs the consolidated worker-message subscribe; publishes
+ * fps into the instrumentation context.
  */
-function CanvasShell() {
+function ShellChrome({
+  panels,
+  children,
+}: PropsWithChildren<{ panels: PanelContribution[] }>) {
   const client = useCanvasClient();
-  const { camera, setCamera, viewportSize } = useCamera();
   const {
     handle,
     snapshotsReady,
@@ -144,19 +101,10 @@ function CanvasShell() {
     setResolution,
     resetForNewDocument,
   } = useDocument();
-  const {
-    elementSelection,
-    elementGeometry,
-    activeTool,
-    setActiveTool,
-  } = useSelection();
-  const {
-    contentSelection,
-    setContentSelection,
-    setCaret,
-    setSelectionRects,
-    contentSelectionRef,
-  } = useContentSelection();
+  const { elementSelection, elementGeometry, activeTool, setActiveTool } =
+    useSelection();
+  const { setCaret, setSelectionRects, contentSelectionRef } =
+    useContentSelection();
   const { setFps, setGpuActive, setLayoutCacheStats } = useInstrumentation();
   const registries = useRegistries();
 
@@ -164,65 +112,41 @@ function CanvasShell() {
   const [warnings, setWarnings] = useState<string[]>([]);
   const sabSupported = useMemo(() => supportsSharedArrayBuffer(), []);
 
-  // Sample FPS centrally and publish into the instrumentation
-  // context so the canvas panel's HUD can read it.
+  // Publish main-thread FPS for the canvas HUD.
   const fps = useFps();
   useEffect(() => {
     setFps(fps);
   }, [fps, setFps]);
 
-  // Register the three built-in panels exactly once. Disposal on
-  // unmount keeps the registry clean across Strict-Mode dev
-  // double-mounts.
+  // Register the supplied panels once. The ref guards against the
+  // StrictMode dev double-mount cycle even though we've disabled
+  // StrictMode at the root (dockview's lifecycle is the actual
+  // blocker); the guard also matches the dispose-on-unmount pattern.
   const panelsRegistered = useRef(false);
   useEffect(() => {
     if (panelsRegistered.current) return;
     panelsRegistered.current = true;
-    const disposables = [
-      registries.panels.register({
-        id: "verso.canvas",
-        title: "Canvas",
-        component: CanvasPanel,
-        defaultDock: "center",
-        defaultGroup: "center",
-        closable: false,
-        movable: false,
-      }),
-      registries.panels.register({
-        id: "verso.pages",
-        title: "Pages",
-        component: NavigatorPanel,
-        defaultDock: "left",
-        defaultGroup: "structure",
-      }),
-      registries.panels.register({
-        id: "verso.outline",
-        title: "Outline",
-        component: OutlinePanel,
-        defaultDock: "left",
-        defaultGroup: "structure",
-      }),
-    ];
+    const disposables = panels.map((p) => registries.panels.register(p));
     return () => {
       for (const d of disposables) d.dispose();
       panelsRegistered.current = false;
     };
-  }, [registries]);
+  }, [registries, panels]);
 
-  // Register the verso.file.openIdml command once the shell mounts.
+  // Register the built-in file-open command. Programmatic file
+  // dialog so the palette can invoke it without depending on the
+  // header's `<input type="file">`.
   useEffect(() => {
     const handle = registries.commands.register(
       buildOpenIdmlCommand({
-        pickFile: async () => {
-          return new Promise<File | null>((resolve) => {
+        pickFile: async () =>
+          new Promise<File | null>((resolve) => {
             const input = document.createElement("input");
             input.type = "file";
-            input.accept =
-              ".idml,application/vnd.adobe.indesign-idml-package";
+            input.accept = ".idml,application/vnd.adobe.indesign-idml-package";
             input.onchange = () => resolve(input.files?.[0] ?? null);
             input.click();
-          });
-        },
+          }),
         setStatus,
         pushWarning: (w) => setWarnings((prev) => [...prev, w]),
       }),
@@ -230,10 +154,15 @@ function CanvasShell() {
     return () => handle.dispose();
   }, [registries]);
 
-  // Dev-only test hook. Playwright + ad-hoc browser scripts read
+  // Dev hook. Playwright + ad-hoc browser scripts read
   // `window.__canvas`. Re-published on every render so it always
-  // reflects current state — used by tests to drive the editor.
-  if (!import.meta.env.PROD) {
+  // reflects current state. Stripped from production builds via
+  // Vite's `import.meta.env.PROD` constant — typed loosely here so
+  // shell's tsconfig (which doesn't include Vite's ambient types)
+  // still passes.
+  const isProd = ((import.meta as unknown as { env?: { PROD?: boolean } }).env
+    ?.PROD) === true;
+  if (!isProd) {
     (globalThis as unknown as { __canvas?: unknown }).__canvas = {
       client,
       handle,
@@ -247,11 +176,16 @@ function CanvasShell() {
     };
   }
 
-  // Consolidated worker-message subscribe.
+  // Consolidated worker-message subscribe. Routes the discrete
+  // events into the right contexts; bulk traffic (camera, gestures)
+  // bypasses this path via SAB / direct method calls.
   useEffect(() => {
     const off = client.subscribe((msg: WorkerToMain) => {
       if (msg.kind === "warning") {
-        setWarnings((prev) => [...prev, `${msg.payload.kind}: ${msg.payload.details}`]);
+        setWarnings((prev) => [
+          ...prev,
+          `${msg.payload.kind}: ${msg.payload.details}`,
+        ]);
       } else if (msg.kind === "attachReady") {
         setGpuActive(msg.payload.gpuActive);
       } else if (msg.kind === "resolutionDone") {
@@ -263,7 +197,10 @@ function CanvasShell() {
       ) {
         const sel = contentSelectionRef.current;
         if (sel) {
-          void client.caretGeometry(sel).then(setCaret).catch(() => setCaret(null));
+          void client
+            .caretGeometry(sel)
+            .then(setCaret)
+            .catch(() => setCaret(null));
           if (sel.start !== sel.end) {
             void client
               .selectionGeometry(sel)
@@ -296,25 +233,6 @@ function CanvasShell() {
     setResolution,
     setSelectionRects,
   ]);
-
-  // Keyboard shortcuts (legacy hook; the bundle-loader registry
-  // takes over in Step 4).
-  const animateCamera = useAnimatedCamera(camera, setCamera);
-  useKeyboardShortcuts({
-    pageIds: handle?.pageIds ?? [],
-    pageSizesPt: handle?.pageSizesPt ?? [],
-    camera,
-    viewportSize,
-    animateCamera,
-  });
-
-  // Text editing (caret + typing) — driven from the keyboard;
-  // unchanged from earlier steps.
-  useTextEditing({
-    client,
-    selection: contentSelection,
-    setSelection: setContentSelection,
-  });
 
   const onFile = useCallback(
     (file: File) => {
@@ -375,17 +293,48 @@ function CanvasShell() {
       </div>
 
       <CommandPalette />
+
+      {/* Canvas-app-specific integration: legacy hooks (keyboard
+       *   shortcuts, camera tweens, text editing) that read from
+       *   the editor contexts but live in apps/canvas because they
+       *   key off canvas-specific helpers. Renders nothing. */}
+      {children}
     </div>
   );
 }
 
 /**
- * Phase A — thin select/text toggle. Deliberately *not* the shell
- * toolbox (that depends on the bundle infrastructure which isn't
- * built yet); this is the minimum chrome the user needs to flip
- * between frame-selection and caret/typing on the same canvas. V/T
- * keys also work; see useKeyboardShortcuts in a future iteration.
+ * Minimal error boundary so a panel / dockview crash leaves a
+ * visible diagnostic instead of unmounting the whole shell.
  */
+class DebugErrorBoundary extends React.Component<
+  React.PropsWithChildren<{ label: string }>,
+  { error: Error | null }
+> {
+  state = { error: null as Error | null };
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  componentDidCatch(error: Error) {
+    // eslint-disable-next-line no-console
+    console.error(`[${this.props.label}] caught:`, error);
+    (globalThis as unknown as { __versoCrash?: string }).__versoCrash =
+      `[${this.props.label}] ${error.message}\n${error.stack ?? ""}`;
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <pre style={{ padding: 16, color: "#b91c1c", fontFamily: "monospace" }}>
+          [{this.props.label}] {this.state.error.message}
+          {"\n"}
+          {this.state.error.stack}
+        </pre>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function ToolToggle(props: {
   active: "select" | "text";
   onChange: (t: "select" | "text") => void;

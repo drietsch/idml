@@ -1,6 +1,116 @@
+import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
+import {
+  VersoShell,
+  useCamera,
+  useCanvasClient,
+  useContentSelection,
+  useDocument,
+  type PanelContribution,
+} from "@verso/shell";
 import "@verso/shell/styles/globals.css";
-import { CanvasApp } from "./ui/CanvasApp";
+
+import { CanvasClient } from "./channel/client";
+import { CanvasPanel } from "./panels/canvas-panel";
+import { NavigatorPanel } from "./panels/navigator-panel";
+import { OutlinePanel } from "./panels/outline-panel";
+import { useAnimatedCamera } from "./ui/useAnimatedCamera";
+import { useKeyboardShortcuts } from "./ui/useKeyboardShortcuts";
+import { useTextEditing } from "./ui/useTextEditing";
+
+// The three built-in panels for the canvas app. Bundle authors
+// register additional panels through the registry once Step 4's
+// loader lands; for now these are the entire panel set.
+const BUILT_IN_PANELS: PanelContribution[] = [
+  {
+    id: "verso.canvas",
+    title: "Canvas",
+    component: CanvasPanel,
+    defaultDock: "center",
+    defaultGroup: "center",
+    closable: false,
+    movable: false,
+  },
+  {
+    id: "verso.pages",
+    title: "Pages",
+    component: NavigatorPanel,
+    defaultDock: "left",
+    defaultGroup: "structure",
+  },
+  {
+    id: "verso.outline",
+    title: "Outline",
+    component: OutlinePanel,
+    defaultDock: "left",
+    defaultGroup: "structure",
+  },
+];
+
+/**
+ * Canvas-app integration: legacy keyboard + camera + text-editing
+ * hooks that read from the shell contexts but key off canvas
+ * specifics (page rect math, IDML mutation API). Renders nothing —
+ * mounted inside VersoShell as a side-effect-only child.
+ */
+function CanvasAppIntegration() {
+  const client = useCanvasClient();
+  const { camera, setCamera, viewportSize } = useCamera();
+  const { handle } = useDocument();
+  const { contentSelection, setContentSelection } = useContentSelection();
+
+  const animateCamera = useAnimatedCamera(camera, setCamera);
+  useKeyboardShortcuts({
+    pageIds: handle?.pageIds ?? [],
+    pageSizesPt: handle?.pageSizesPt ?? [],
+    camera,
+    viewportSize,
+    animateCamera,
+  });
+  useTextEditing({
+    client,
+    selection: contentSelection,
+    setSelection: setContentSelection,
+  });
+
+  return null;
+}
+
+/**
+ * Root: owns the CanvasClient lifecycle and hands it to VersoShell.
+ */
+function CanvasAppRoot() {
+  const [client, setClient] = useState<CanvasClient | null>(null);
+
+  useEffect(() => {
+    const c = new CanvasClient();
+    setClient(c);
+    return () => {
+      c.dispose();
+      setClient(null);
+    };
+  }, []);
+
+  if (!client) {
+    return (
+      <div
+        style={{
+          fontFamily:
+            'system-ui, -apple-system, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif',
+          padding: 16,
+        }}
+      >
+        initialising worker…
+      </div>
+    );
+  }
+
+  return (
+    <VersoShell client={client} panels={BUILT_IN_PANELS}>
+      <CanvasAppIntegration />
+    </VersoShell>
+  );
+}
 
 const root = document.getElementById("root");
 if (!root) {
@@ -10,4 +120,4 @@ if (!root) {
 // lifecycle isn't StrictMode-safe — its components are disposed
 // twice on dev double-mount and throw `resource already disposed`.
 // Re-enable once dockview ships a StrictMode-aware fix.
-createRoot(root).render(<CanvasApp />);
+createRoot(root).render(<CanvasAppRoot />);

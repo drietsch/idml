@@ -85,6 +85,9 @@ export {
   type DocumentLoaderCallbacks,
 } from "./state/document-loader";
 
+// ── Shell root ─────────────────────────────────────────────────
+export { VersoShell, type VersoShellProps } from "./VersoShell";
+
 // ── Chrome ─────────────────────────────────────────────────────
 export { CommandPalette } from "./chrome/CommandPalette";
 
