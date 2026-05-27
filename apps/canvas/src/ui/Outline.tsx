@@ -37,7 +37,7 @@ export function Outline(props: OutlineProps) {
       out.push({
         anchorId,
         text: pos.text || `(unnamed anchor ${anchorId})`,
-        level: pos.level,
+        level: pos.level ?? 0,
         pageNumber: pos.pageNumber,
         pageId: pos.pageId,
       });

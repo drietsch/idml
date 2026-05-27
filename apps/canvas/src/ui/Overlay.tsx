@@ -261,8 +261,8 @@ function AnchorBadges(props: {
     const list = byPage.get(pos.pageId) ?? [];
     list.push({
       anchorId,
-      text: pos.text,
-      level: pos.level,
+      text: pos.text ?? "",
+      level: pos.level ?? 0,
       pageNumber: pos.pageNumber,
     });
     byPage.set(pos.pageId, list);
@@ -489,7 +489,7 @@ function MarqueeChrome(props: {
 }
 
 function applyAffine(
-  m: [number, number, number, number, number, number] | null,
+  m: [number, number, number, number, number, number] | null | undefined,
   x: number,
   y: number,
 ): [number, number] {

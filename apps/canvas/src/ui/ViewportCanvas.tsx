@@ -618,7 +618,7 @@ export function ViewportCanvas(props: ViewportCanvasProps) {
   }
 
   function applyAffineLocal(
-    m: [number, number, number, number, number, number] | null,
+    m: [number, number, number, number, number, number] | null | undefined,
     x: number,
     y: number,
   ): [number, number] {
