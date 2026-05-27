@@ -60,6 +60,9 @@ export {
   type Disposable,
   type KeybindingContribution,
   type KeybindingRegistry,
+  type MenuItemContribution,
+  type MenuRegistry,
+  type MenuRegistryEvent,
   type PanelApi,
   type PanelContribution,
   type PanelProps,
@@ -71,6 +74,7 @@ export {
   createCommandRegistry,
   createSemanticGroupRegistry,
   createKeybindingRegistry,
+  createMenuRegistry,
 } from "./registries";
 
 // ── Built-in commands ──────────────────────────────────────────
@@ -90,11 +94,19 @@ export { VersoShell, type VersoShellProps } from "./VersoShell";
 
 // ── Chrome ─────────────────────────────────────────────────────
 export { CommandPalette } from "./chrome/CommandPalette";
+export { MenuBar } from "./chrome/MenuBar";
 
 // ── Persistence ────────────────────────────────────────────────
 export {
+  PERSPECTIVES_CHANGED_EVENT,
   clearStoredLayout,
+  deletePerspective,
+  exportPerspective,
+  getPerspective,
+  importPerspective,
+  listPerspectives,
   restoreLayoutOrDefault,
+  savePerspective,
   setupLayoutPersistence,
 } from "./persistence/layout-persistence";
 

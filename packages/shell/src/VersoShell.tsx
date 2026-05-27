@@ -39,14 +39,31 @@ import { CommandPalette } from "./chrome/CommandPalette";
 import { DockviewRoot } from "./docking/DockviewRoot";
 import { DockingSubstrateProvider } from "./docking/substrate-context";
 import { loadDocumentFile } from "./state/document-loader";
-import { buildOpenIdmlCommand } from "./state/commands/file-commands";
+import {
+  VERSO_FILE_OPEN_IDML,
+  buildOpenIdmlCommand,
+} from "./state/commands/file-commands";
 import {
   PALETTE_TOGGLE_COMMAND,
   PALETTE_TOGGLE_KEYBINDING,
   PALETTE_TOGGLE_KEYBINDING_CTRL,
+  PERSPECTIVE_EXPORT_COMMAND,
+  PERSPECTIVE_IMPORT_COMMAND,
+  PERSPECTIVE_SAVE_AS_COMMAND,
+  VERSO_PALETTE_TOGGLE,
+  VERSO_PERSPECTIVE_EXPORT,
+  VERSO_PERSPECTIVE_IMPORT,
+  VERSO_PERSPECTIVE_SAVE_AS,
   buildPanelToggleCommands,
+  buildPerspectiveLifecycleCommands,
 } from "./state/commands/built-in-commands";
+import {
+  PERSPECTIVES_CHANGED_EVENT,
+  listPerspectives,
+} from "./persistence/layout-persistence";
+import { MenuBar } from "./chrome/MenuBar";
 import type { PanelContribution } from "./registries/panel";
+import type { Disposable } from "./registries/types";
 import { useFps } from "./hooks/useFps";
 
 export interface VersoShellProps {
@@ -187,6 +204,79 @@ function ShellChrome({
     };
   }, [registries]);
 
+  // Perspective save/export/import commands — the always-on triplet.
+  // Per-perspective load/delete commands are auto-generated below.
+  useEffect(() => {
+    const cmds = [
+      registries.commands.register(PERSPECTIVE_SAVE_AS_COMMAND),
+      registries.commands.register(PERSPECTIVE_EXPORT_COMMAND),
+      registries.commands.register(PERSPECTIVE_IMPORT_COMMAND),
+    ];
+    return () => {
+      for (const c of cmds) c.dispose();
+    };
+  }, [registries]);
+
+  // Auto-generate verso.perspective.load.<name> + delete.<name>
+  // commands from the persisted list. Re-runs on the custom
+  // `verso:perspectives-changed` event the persistence layer emits
+  // every time a perspective is saved/deleted/imported.
+  useEffect(() => {
+    let disposables: Disposable[] = [];
+    const refresh = () => {
+      for (const d of disposables) d.dispose();
+      disposables = listPerspectives().flatMap((name) => {
+        const [load, del] = buildPerspectiveLifecycleCommands(name);
+        return [
+          registries.commands.register(load),
+          registries.commands.register(del),
+        ];
+      });
+    };
+    refresh();
+    window.addEventListener(PERSPECTIVES_CHANGED_EVENT, refresh);
+    return () => {
+      window.removeEventListener(PERSPECTIVES_CHANGED_EVENT, refresh);
+      for (const d of disposables) d.dispose();
+    };
+  }, [registries]);
+
+  // Default menu items. Static — they reference always-on commands;
+  // per-panel and per-perspective entries are deferred to the
+  // command registry surface (the palette already shows them).
+  useEffect(() => {
+    const items = registries.menus;
+    const handles = [
+      items.register({ path: "File/Open IDML…", command: VERSO_FILE_OPEN_IDML, order: 10 }),
+      items.register({
+        path: "View/Toggle Command Palette",
+        command: VERSO_PALETTE_TOGGLE,
+        order: 10,
+      }),
+      items.register({
+        path: "View/Save Perspective…",
+        command: VERSO_PERSPECTIVE_SAVE_AS,
+        order: 90,
+        group: "perspective",
+      }),
+      items.register({
+        path: "View/Export Perspective…",
+        command: VERSO_PERSPECTIVE_EXPORT,
+        order: 91,
+        group: "perspective",
+      }),
+      items.register({
+        path: "View/Import Perspective…",
+        command: VERSO_PERSPECTIVE_IMPORT,
+        order: 92,
+        group: "perspective",
+      }),
+    ];
+    return () => {
+      for (const h of handles) h.dispose();
+    };
+  }, [registries]);
+
   // Dev hook. Playwright + ad-hoc browser scripts read
   // `window.__canvas`. Re-published on every render so it always
   // reflects current state. Stripped from production builds via
@@ -298,6 +388,7 @@ function ShellChrome({
     <div style={shellStyle}>
       <header style={headerStyle}>
         <h1 style={{ margin: 0, fontSize: 16 }}>IDML canvas</h1>
+        <MenuBar />
         <FileDrop onFile={onFile} compact />
         <ToolToggle active={activeTool} onChange={setActiveTool} />
         <span style={{ marginLeft: "auto", opacity: 0.7, fontSize: 12 }}>

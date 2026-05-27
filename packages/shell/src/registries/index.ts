@@ -25,3 +25,10 @@ export {
   type KeybindingContribution,
   type KeybindingRegistry,
 } from "./keybinding";
+
+export {
+  createMenuRegistry,
+  type MenuItemContribution,
+  type MenuRegistry,
+  type MenuRegistryEvent,
+} from "./menu";

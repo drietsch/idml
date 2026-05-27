@@ -3,6 +3,13 @@
 // toggles without writing them itself.
 
 import { notifyPalette } from "../../chrome/CommandPalette";
+import {
+  deletePerspective,
+  exportPerspective,
+  getPerspective,
+  importPerspective,
+  savePerspective,
+} from "../../persistence/layout-persistence";
 import type { PanelContribution, CommandContribution } from "../../registries";
 import type { VersoEditor } from "../verso-editor";
 
@@ -91,4 +98,120 @@ export function buildPanelToggleCommands(
     },
   };
   return [show, hide];
+}
+
+// ── Perspective commands ──────────────────────────────────────
+
+export const VERSO_PERSPECTIVE_SAVE_AS = "verso.perspective.saveAs";
+export const VERSO_PERSPECTIVE_EXPORT = "verso.perspective.export";
+export const VERSO_PERSPECTIVE_IMPORT = "verso.perspective.import";
+
+/**
+ * Prompt the user for a perspective name, then snapshot the current
+ * layout into it. `window.prompt` is the placeholder UX until the
+ * palette grows an input-prompt mode (Step 4 follow-up).
+ */
+export const PERSPECTIVE_SAVE_AS_COMMAND: CommandContribution = {
+  id: VERSO_PERSPECTIVE_SAVE_AS,
+  title: "Save Perspective…",
+  category: "View",
+  handler: (verso) => {
+    const editor = verso as VersoEditor;
+    const substrate = editor.substrate;
+    if (!substrate) return;
+    const name = window.prompt("Save perspective as:");
+    if (!name) return;
+    savePerspective(name, substrate.serialize());
+  },
+};
+
+/** Export the named perspective as a downloadable JSON file. */
+export const PERSPECTIVE_EXPORT_COMMAND: CommandContribution = {
+  id: VERSO_PERSPECTIVE_EXPORT,
+  title: "Export Perspective…",
+  category: "View",
+  handler: () => {
+    const name = window.prompt("Export perspective named:");
+    if (!name) return;
+    const json = exportPerspective(name);
+    if (json === null) {
+      window.alert(`Perspective "${name}" not found.`);
+      return;
+    }
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `verso-perspective-${name}-${Date.now()}.json`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+  },
+};
+
+/** Open a file picker, read the JSON, save under a user-supplied
+ * name. The embedded `name` field is ignored — the user names it on
+ * import so existing perspectives aren't accidentally clobbered. */
+export const PERSPECTIVE_IMPORT_COMMAND: CommandContribution = {
+  id: VERSO_PERSPECTIVE_IMPORT,
+  title: "Import Perspective…",
+  category: "View",
+  handler: async () => {
+    const file = await new Promise<File | null>((resolve) => {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "application/json,.json";
+      input.onchange = () => resolve(input.files?.[0] ?? null);
+      input.click();
+    });
+    if (!file) return;
+    const json = await file.text();
+    const name = window.prompt(
+      "Import this perspective under what name?",
+      file.name.replace(/\.json$/i, ""),
+    );
+    if (!name) return;
+    try {
+      importPerspective(name, json);
+    } catch (err) {
+      window.alert(`Import failed: ${String(err)}`);
+    }
+  },
+};
+
+/**
+ * Build a load/delete command pair for a named perspective. Auto-
+ * registered as perspectives are saved + disposed as they're
+ * removed. IDs follow `verso.perspective.load.<name>` / `.delete.<name>`.
+ */
+export function buildPerspectiveLifecycleCommands(
+  name: string,
+): [CommandContribution, CommandContribution] {
+  const load: CommandContribution = {
+    id: `verso.perspective.load.${name}`,
+    title: `Load Perspective: ${name}`,
+    category: "View",
+    handler: (verso) => {
+      const editor = verso as VersoEditor;
+      const substrate = editor.substrate;
+      if (!substrate) return;
+      const snapshot = getPerspective(name);
+      if (snapshot === null) {
+        window.alert(`Perspective "${name}" not found.`);
+        return;
+      }
+      substrate.restore(snapshot);
+    },
+  };
+  const del: CommandContribution = {
+    id: `verso.perspective.delete.${name}`,
+    title: `Delete Perspective: ${name}`,
+    category: "View",
+    handler: () => {
+      if (!window.confirm(`Delete perspective "${name}"?`)) return;
+      deletePerspective(name);
+    },
+  };
+  return [load, del];
 }

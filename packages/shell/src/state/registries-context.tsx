@@ -10,10 +10,12 @@ import {
 import {
   createCommandRegistry,
   createKeybindingRegistry,
+  createMenuRegistry,
   createPanelRegistry,
   createSemanticGroupRegistry,
   type CommandRegistry,
   type KeybindingRegistry,
+  type MenuRegistry,
   type PanelRegistry,
   type SemanticGroupRegistry,
 } from "../registries";
@@ -28,6 +30,7 @@ export interface ShellRegistries {
   commands: CommandRegistry;
   semanticGroups: SemanticGroupRegistry;
   keybindings: KeybindingRegistry;
+  menus: MenuRegistry;
 }
 
 const Context = createContext<ShellRegistries | null>(null);
@@ -56,6 +59,7 @@ export function RegistriesProvider({
       commands,
       semanticGroups: createSemanticGroupRegistry(),
       keybindings,
+      menus: createMenuRegistry(),
     };
   }
 
