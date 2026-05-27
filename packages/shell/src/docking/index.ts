@@ -9,3 +9,10 @@ export {
 export { DockviewSubstrate } from "./dockview-substrate";
 
 export { PanelBridge } from "./panel-bridge";
+
+export { DockviewRoot } from "./DockviewRoot";
+
+export {
+  DockingSubstrateProvider,
+  useDockingSubstrate,
+} from "./substrate-context";

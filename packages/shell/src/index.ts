@@ -83,7 +83,10 @@ export {
 // ── Docking substrate ──────────────────────────────────────────
 export {
   DockviewSubstrate,
+  DockviewRoot,
+  DockingSubstrateProvider,
   PanelBridge,
+  useDockingSubstrate,
   type DockingSubstrate,
   type LayoutSnapshot,
   type PanelHandle,
