@@ -9,38 +9,34 @@
 //   │          │                                                 │
 //   └──────────┴─────────────────────────────────────────────────┘
 //
-// What's wired:
-//   - Worker boot + protocol handshake.
-//   - Drop / pick an IDML file; worker parses + builds; main thread
-//     requests snapshots per page.
-//   - Pan / zoom in Viewport via PointerEvent + wheel; camera SAB
-//     gets updated on every input so the worker (Phase 2+ render
-//     loop) sees it on the next frame.
-//   - Click a Navigator thumbnail to fit-camera onto that page.
-//
-// What's not wired yet:
-//   - OffscreenCanvas + Vello live-tile renderer (Phase 2+).
-//   - Mid-resolution LOD tier (Phase 1 follow-up).
-//   - Selection, caret, mutation UI (Phase 3).
+// Step 3b — state lives in `@verso/shell` contexts. The five
+// providers wrap the existing JSX so the visual shell is unchanged
+// while every cross-cutting bit of state (client, camera,
+// document, selection, content selection) becomes shell-owned.
+// Local-only state that doesn't fit one of the five contexts
+// (status text, warnings, GPU readiness, layout-cache HUD) stays
+// on this component as plain `useState` — Step 3d+ will lift that
+// into the registries.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CanvasClient } from "../channel/client";
 import {
-  supportsSharedArrayBuffer,
-  IDENTITY_CAMERA,
-  type Camera,
-} from "../channel/camera";
+  CanvasClientProvider,
+  CameraProvider,
+  ContentSelectionProvider,
+  DocumentProvider,
+  SelectionProvider,
+  loadDocumentFile,
+  useCamera,
+  useCanvasClient,
+  useContentSelection,
+  useDocument,
+  useSelection,
+} from "@verso/shell";
+import { CanvasClient } from "../channel/client";
+import { supportsSharedArrayBuffer } from "../channel/camera";
 import type {
-  CaretGeometry,
-  ContentSelection,
-  DocumentHandle,
-  ElementGeometryItem,
-  ElementId,
   LayoutCacheStats,
-  PageId,
-  ResolutionResult,
   SelectionMode,
-  SelectionRect,
   WorkerToMain,
 } from "../channel/protocol";
 import { Navigator as PageNavigator } from "./Navigator";
@@ -51,44 +47,100 @@ import { useFps } from "./useFps";
 import { useKeyboardShortcuts } from "./useKeyboardShortcuts";
 import { useTextEditing } from "./useTextEditing";
 
-const SNAPSHOT_WIDTH_PX = 256;
-
+/**
+ * Top-level shell — owns the CanvasClient lifecycle and wraps the
+ * inner shell in the five state contexts. The inner shell reads
+ * everything from context hooks.
+ */
 export function CanvasApp() {
-  const clientRef = useRef<CanvasClient | null>(null);
-  const [handle, setHandle] = useState<DocumentHandle | null>(null);
+  const [client, setClient] = useState<CanvasClient | null>(null);
+
+  useEffect(() => {
+    const c = new CanvasClient();
+    setClient(c);
+    return () => {
+      c.dispose();
+      setClient(null);
+    };
+  }, []);
+
+  if (!client) {
+    return (
+      <div style={shellStyle}>
+        <header style={headerStyle}>
+          <h1 style={{ margin: 0, fontSize: 16 }}>IDML canvas</h1>
+          <span style={{ marginLeft: "auto", opacity: 0.7, fontSize: 12 }}>
+            initialising worker…
+          </span>
+        </header>
+      </div>
+    );
+  }
+
+  return (
+    <CanvasClientProvider client={client}>
+      <CameraProvider>
+        <DocumentProvider>
+          <SelectionProvider>
+            <ContentSelectionProvider>
+              <CanvasShell />
+            </ContentSelectionProvider>
+          </SelectionProvider>
+        </DocumentProvider>
+      </CameraProvider>
+    </CanvasClientProvider>
+  );
+}
+
+/**
+ * Inner shell — reads from the five contexts. All worker-message
+ * subscriptions consolidate here per the spec's
+ * "mutation subscription consolidation" rule: one `client.subscribe`,
+ * fan-out to context setters.
+ */
+function CanvasShell() {
+  const client = useCanvasClient();
+  const { camera, setCamera, viewportSize, setViewportSize } = useCamera();
+  const {
+    handle,
+    setHandle,
+    loading,
+    setLoading,
+    snapshots,
+    setSnapshots,
+    snapshotsReady,
+    setSnapshotsReady,
+    resolution,
+    setResolution,
+    resetForNewDocument,
+  } = useDocument();
+  const {
+    elementSelection,
+    setElementSelection,
+    elementGeometry,
+    setElementGeometry,
+    activeTool,
+    setActiveTool,
+  } = useSelection();
+  const {
+    contentSelection,
+    setContentSelection,
+    caret,
+    setCaret,
+    selectionRects,
+    setSelectionRects,
+    contentSelectionRef,
+  } = useContentSelection();
+
   const [status, setStatus] = useState<string>("initialising worker…");
   const [warnings, setWarnings] = useState<string[]>([]);
-  const [snapshots, setSnapshots] = useState<Map<PageId, string>>(new Map());
-  const [camera, setCameraState] = useState<Camera>(IDENTITY_CAMERA);
-  const [selection, setSelection] = useState<SelectionState | null>(null);
   const [gpuActive, setGpuActive] = useState<boolean | null>(null);
-  const [loading, setLoading] = useState<{ name: string; bytes: number } | null>(null);
-  const [resolution, setResolution] = useState<ResolutionResult | null>(null);
-  // Phase 3 — content selection + worker-derived caret + selection geom.
-  const [contentSelection, setContentSelectionRaw] =
-    useState<ContentSelection | null>(null);
-  const contentSelectionRef = useRef<ContentSelection | null>(null);
-  contentSelectionRef.current = contentSelection;
-  const [caret, setCaret] = useState<CaretGeometry | null>(null);
-  const [selectionRects, setSelectionRects] = useState<SelectionRect[]>([]);
-  // Phase 4 Step 2 — last rebuild's layout-cache stats. Shown in HUD.
   const [layoutCacheStats, setLayoutCacheStats] =
     useState<LayoutCacheStats | null>(null);
-  // Phase A — element selection + active tool. Default tool is
-  // 'select' so a fresh canvas behaves like a design tool, not a text
-  // editor. Swap to 'text' (V/T toggle) to fall back to the existing
-  // caret/typing pathway in useTextEditing.
-  const [elementSelection, setElementSelection] = useState<ElementId[]>([]);
-  const [elementGeometry, setElementGeometry] = useState<ElementGeometryItem[]>(
-    [],
-  );
-  const [activeTool, setActiveTool] = useState<"select" | "text">("select");
+  const [selection, setSelection] = useState<SelectionState | null>(null);
   const viewportRef = useRef<HTMLDivElement | null>(null);
-  const [viewportSize, setViewportSize] = useState<[number, number]>([0, 0]);
   const sabSupported = useMemo(() => supportsSharedArrayBuffer(), []);
   const fps = useFps();
-
-  const [snapshotsReady, setSnapshotsReady] = useState(false);
 
   // Dev-only test hook. Playwright + ad-hoc browser scripts read
   // `window.__canvas` to drive the editor. `snapshotsReady` flips
@@ -99,7 +151,7 @@ export function CanvasApp() {
   // Vite's dead-code elimination under `import.meta.env.PROD`.
   if (!import.meta.env.PROD) {
     (globalThis as unknown as { __canvas?: unknown }).__canvas = {
-      client: clientRef.current,
+      client,
       handle,
       ready: handle != null,
       snapshotsReady,
@@ -111,15 +163,6 @@ export function CanvasApp() {
   }
 
   useEffect(() => {
-    const client = new CanvasClient();
-    clientRef.current = client;
-    if (!import.meta.env.PROD) {
-      (globalThis as unknown as { __canvas?: unknown }).__canvas = {
-        client,
-        handle: null,
-        ready: false,
-      };
-    }
     const off = client.subscribe((msg: WorkerToMain) => {
       if (msg.kind === "warning") {
         setWarnings((prev) => [...prev, `${msg.payload.kind}: ${msg.payload.details}`]);
@@ -137,11 +180,10 @@ export function CanvasApp() {
         // Use a microtask so we don't fire from inside the subscribe
         // callback's stack.
         const sel = contentSelectionRef.current;
-        const c = clientRef.current;
-        if (sel && c) {
-          void c.caretGeometry(sel).then(setCaret).catch(() => setCaret(null));
+        if (sel) {
+          void client.caretGeometry(sel).then(setCaret).catch(() => setCaret(null));
           if (sel.start !== sel.end) {
-            void c
+            void client
               .selectionGeometry(sel)
               .then(setSelectionRects)
               .catch(() => setSelectionRects([]));
@@ -164,18 +206,16 @@ export function CanvasApp() {
       .catch((err) => setStatus(`hello failed: ${String(err)}`));
     return () => {
       off();
-      client.dispose();
-      clientRef.current = null;
     };
-  }, []);
+  }, [
+    client,
+    contentSelectionRef,
+    setCaret,
+    setLayoutCacheStats,
+    setResolution,
+    setSelectionRects,
+  ]);
 
-  // Camera updates write to SAB and refresh local state in one
-  // place — the worker reads the SAB on its next frame, React
-  // re-renders the Viewport's CSS transform.
-  const setCamera = useCallback((cam: Camera) => {
-    setCameraState(cam);
-    clientRef.current?.setCamera(cam);
-  }, []);
   // Animated jumps for discrete navigation (navigator click,
   // keyboard fit, goto-page). Direct pan/zoom from the viewport
   // still goes through `setCamera` for one-frame responsiveness.
@@ -188,37 +228,8 @@ export function CanvasApp() {
     animateCamera,
   });
 
-  // Setting selection mirrors to worker + refreshes caret + rect cache.
-  // Phase 3 — every selection change posts SetSelection plus a caret
-  // query plus a selection-geometry query. Three round-trips per
-  // keystroke is fine at this scale (<1 ms each per the spec budget);
-  // a future optimisation can piggyback caret on SetSelection's reply.
-  const setContentSelection = useCallback(
-    (sel: ContentSelection | null) => {
-      setContentSelectionRaw(sel);
-      const c = clientRef.current;
-      if (!c) return;
-      void c.setSelection(sel);
-      if (sel) {
-        void c.caretGeometry(sel).then(setCaret).catch(() => setCaret(null));
-        if (sel.start !== sel.end) {
-          void c
-            .selectionGeometry(sel)
-            .then(setSelectionRects)
-            .catch(() => setSelectionRects([]));
-        } else {
-          setSelectionRects([]);
-        }
-      } else {
-        setCaret(null);
-        setSelectionRects([]);
-      }
-    },
-    [],
-  );
-
   useTextEditing({
-    client: clientRef.current,
+    client,
     selection: contentSelection,
     setSelection: setContentSelection,
   });
@@ -234,71 +245,34 @@ export function CanvasApp() {
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [setViewportSize]);
 
-  const onFile = useCallback(async (file: File) => {
-    if (!clientRef.current) {
-      setStatus("no worker");
-      return;
-    }
-    setStatus(`loading ${file.name} (${file.size.toLocaleString()} bytes)…`);
-    setLoading({ name: file.name, bytes: file.size });
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    // Revoke any object URLs from a prior document — the snapshot
-    // tier per spec is never evicted, but a new document means the
-    // previous snapshots are unreferenced and would leak.
-    setSnapshots((prev) => {
-      for (const url of prev.values()) URL.revokeObjectURL(url);
-      return new Map();
-    });
-    // Old resolution is stale for a new document.
-    setResolution(null);
-    // Phase 3 — auto-fetch a default font so text is shaped + the
-    // captured StoryLayout has real glyph positions. Without this
-    // the caret + selection rendering has nothing to position
-    // against (glyphs vec empty → no clusters captured). Inter is
-    // checked in under corpus/fonts/.
-    let fontBytes: Uint8Array | undefined;
-    try {
-      const fontResp = await fetch("/fonts/Inter.ttf");
-      if (fontResp.ok) {
-        fontBytes = new Uint8Array(await fontResp.arrayBuffer());
-      }
-    } catch {
-      // Font fetch is best-effort; canvas still renders without it.
-    }
-    try {
-      setSnapshotsReady(false);
-      const h = await clientRef.current.loadDocument(bytes, fontBytes);
-      setHandle(h);
-      setLoading(null);
-      setStatus(
-        `loaded ${h.pageCount} page${h.pageCount === 1 ? "" : "s"}; snapshotting…`,
-      );
-      // Sequential requests — the worker is single-threaded so
-      // parallelising up-front would only queue them. Each
-      // snapshot appears in the UI as it lands (progressive).
-      for (const pageId of h.pageIds) {
-        try {
-          const snap = await clientRef.current.requestSnapshot(pageId, SNAPSHOT_WIDTH_PX);
-          const blob = new Blob([new Uint8Array(snap.pngBytes)], { type: "image/png" });
-          const url = URL.createObjectURL(blob);
+  const onFile = useCallback(
+    (file: File) => {
+      void loadDocumentFile(client, file, {
+        setHandle,
+        setLoading,
+        setStatus,
+        setSnapshotsReady,
+        addSnapshot: (pageId, url) =>
           setSnapshots((prev) => {
             const next = new Map(prev);
             next.set(pageId, url);
             return next;
-          });
-        } catch (err) {
-          setWarnings((prev) => [...prev, `snapshot ${pageId}: ${String(err)}`]);
-        }
-      }
-      setStatus(`loaded ${h.pageCount} page${h.pageCount === 1 ? "" : "s"}`);
-      setSnapshotsReady(true);
-    } catch (err) {
-      setLoading(null);
-      setStatus(`load failed: ${String(err)}`);
-    }
-  }, []);
+          }),
+        resetForNewDocument,
+        pushWarning: (w) => setWarnings((prev) => [...prev, w]),
+      });
+    },
+    [
+      client,
+      resetForNewDocument,
+      setHandle,
+      setLoading,
+      setSnapshots,
+      setSnapshotsReady,
+    ],
+  );
 
   return (
     <div style={shellStyle}>
@@ -347,9 +321,9 @@ export function CanvasApp() {
           />
         )}
         <div ref={viewportRef} style={viewportContainerStyle}>
-          {clientRef.current && handle && handle.pageCount > 0 ? (
+          {handle && handle.pageCount > 0 ? (
             <ViewportCanvas
-              client={clientRef.current}
+              client={client}
               pageIds={handle.pageIds}
               pageSizesPt={handle.pageSizesPt}
               camera={camera}
@@ -359,7 +333,6 @@ export function CanvasApp() {
               elementGeometry={elementGeometry}
               onHit={(s, modifiers) => {
                 setSelection(s);
-                const client = clientRef.current;
                 // Phase A — when the select tool is active, route the
                 // click to the element-selection model. Modifier keys
                 // pick the mode: Shift = Add, Cmd/Ctrl = Toggle, plain
@@ -371,29 +344,25 @@ export function CanvasApp() {
                       ? "toggle"
                       : "replace";
                   if (s && s.hit.element) {
-                    if (client) {
-                      void client
-                        .setElementSelection([s.hit.element], mode)
-                        .then((ids) => {
-                          setElementSelection(ids);
-                          return client.elementGeometry(ids);
-                        })
-                        .then(setElementGeometry)
-                        .catch(() => {
-                          /* worker reload / disconnect — fine */
-                        });
-                    }
+                    void client
+                      .setElementSelection([s.hit.element], mode)
+                      .then((ids) => {
+                        setElementSelection(ids);
+                        return client.elementGeometry(ids);
+                      })
+                      .then(setElementGeometry)
+                      .catch(() => {
+                        /* worker reload / disconnect — fine */
+                      });
                   } else if (!modifiers?.shift && !modifiers?.cmd) {
                     // Empty click with no modifier → clear selection.
-                    if (client) {
-                      void client
-                        .setElementSelection([], "replace")
-                        .then(() => {
-                          setElementSelection([]);
-                          setElementGeometry([]);
-                        })
-                        .catch(() => {});
-                    }
+                    void client
+                      .setElementSelection([], "replace")
+                      .then(() => {
+                        setElementSelection([]);
+                        setElementGeometry([]);
+                      })
+                      .catch(() => {});
                   }
                   // Text tool stays text-only; select tool does NOT
                   // also drop into text-edit mode on a frame click —
@@ -422,8 +391,6 @@ export function CanvasApp() {
                 // Phase H — replace the element selection with the
                 // group's leaves so the user can grab the whole
                 // group as a unit via Phase G's union handles.
-                const client = clientRef.current;
-                if (!client) return;
                 void client
                   .groupLeaves(groupId)
                   .then((ids) =>
@@ -440,16 +407,13 @@ export function CanvasApp() {
                 // Phase B — re-fetch geometry so the chrome lands at
                 // the committed bounds. Same shape as the post-hit
                 // refresh; reuses the existing elementGeometry RPC.
-                const client = clientRef.current;
-                if (!client || elementSelection.length === 0) return;
+                if (elementSelection.length === 0) return;
                 void client
                   .elementGeometry(elementSelection)
                   .then(setElementGeometry)
                   .catch(() => {});
               }}
               onMarquee={(pageId, rect, modifiers) => {
-                const client = clientRef.current;
-                if (!client) return;
                 const mode: SelectionMode = modifiers?.shift
                   ? "add"
                   : modifiers?.cmd
@@ -687,5 +651,5 @@ const warningStyle: React.CSSProperties = {
   borderRadius: 6,
   padding: 8,
   fontSize: 12,
-  margin: "8px 12px",
+  margin: 8,
 };

@@ -2,9 +2,37 @@
 // editor. Owns the React state contexts, registries, docking
 // substrate, and command palette per
 // `docs/verso/editor-architecture.md` §17.
-//
-// Step 3a scaffolds the package; Step 3b lifts the state contexts
-// (CanvasClient, Document, Camera, Selection, ContentSelection)
-// out of `apps/canvas/src/ui/CanvasApp.tsx`.
 
-export {};
+export {
+  CanvasClientProvider,
+  useCanvasClient,
+  useOptionalCanvasClient,
+} from "./state/canvas-client-context";
+
+export {
+  CameraProvider,
+  useCamera,
+  type ViewportSize,
+} from "./state/camera-context";
+
+export {
+  DocumentProvider,
+  useDocument,
+  type LoadingState,
+} from "./state/document-context";
+
+export {
+  SelectionProvider,
+  useSelection,
+  type ActiveTool,
+} from "./state/selection-context";
+
+export {
+  ContentSelectionProvider,
+  useContentSelection,
+} from "./state/content-selection-context";
+
+export {
+  loadDocumentFile,
+  type DocumentLoaderCallbacks,
+} from "./state/document-loader";
