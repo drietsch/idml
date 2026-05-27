@@ -63,6 +63,11 @@ export {
   type MenuItemContribution,
   type MenuRegistry,
   type MenuRegistryEvent,
+  type OverlayContribution,
+  type OverlayPageRect,
+  type OverlayProps,
+  type OverlayRegistry,
+  type OverlayRegistryEvent,
   type PanelApi,
   type PanelContribution,
   type PanelProps,
@@ -75,6 +80,7 @@ export {
   createSemanticGroupRegistry,
   createKeybindingRegistry,
   createMenuRegistry,
+  createOverlayRegistry,
 } from "./registries";
 
 // ── Built-in commands ──────────────────────────────────────────

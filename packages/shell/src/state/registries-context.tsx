@@ -11,19 +11,21 @@ import {
   createCommandRegistry,
   createKeybindingRegistry,
   createMenuRegistry,
+  createOverlayRegistry,
   createPanelRegistry,
   createSemanticGroupRegistry,
   type CommandRegistry,
   type KeybindingRegistry,
   type MenuRegistry,
+  type OverlayRegistry,
   type PanelRegistry,
   type SemanticGroupRegistry,
 } from "../registries";
 
 /**
- * The four shell registries. Lifetime is the shell's: created at
- * mount, kept across renders so dispose handles registered by
- * panels stay valid as React re-renders.
+ * The shell registries. Lifetime is the shell's: created at mount,
+ * kept across renders so dispose handles registered by panels /
+ * overlays stay valid as React re-renders.
  */
 export interface ShellRegistries {
   panels: PanelRegistry;
@@ -31,6 +33,7 @@ export interface ShellRegistries {
   semanticGroups: SemanticGroupRegistry;
   keybindings: KeybindingRegistry;
   menus: MenuRegistry;
+  overlays: OverlayRegistry;
 }
 
 const Context = createContext<ShellRegistries | null>(null);
@@ -60,6 +63,7 @@ export function RegistriesProvider({
       semanticGroups: createSemanticGroupRegistry(),
       keybindings,
       menus: createMenuRegistry(),
+      overlays: createOverlayRegistry(),
     };
   }
 

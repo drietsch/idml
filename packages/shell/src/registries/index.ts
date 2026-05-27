@@ -32,3 +32,12 @@ export {
   type MenuRegistry,
   type MenuRegistryEvent,
 } from "./menu";
+
+export {
+  createOverlayRegistry,
+  type OverlayContribution,
+  type OverlayPageRect,
+  type OverlayProps,
+  type OverlayRegistry,
+  type OverlayRegistryEvent,
+} from "./overlay";
