@@ -79,3 +79,14 @@ export {
   loadDocumentFile,
   type DocumentLoaderCallbacks,
 } from "./state/document-loader";
+
+// ── Docking substrate ──────────────────────────────────────────
+export {
+  DockviewSubstrate,
+  PanelBridge,
+  type DockingSubstrate,
+  type LayoutSnapshot,
+  type PanelHandle,
+  type ResolvedPanelSpec,
+  type SemanticLocation,
+} from "./docking";

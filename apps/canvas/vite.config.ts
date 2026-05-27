@@ -62,6 +62,10 @@ export default defineConfig({
   root: resolve(__dirname),
   plugins: [react(), crossOriginIsolation, fontsRoute()],
   server: {
+    // Pin to IPv4 so Playwright's `127.0.0.1` health-check resolves.
+    // Node ≥20 may resolve `localhost` to IPv6 first, in which case
+    // Vite's default "localhost" bind misses 127.0.0.1.
+    host: "127.0.0.1",
     fs: {
       allow: [
         resolve(__dirname),
