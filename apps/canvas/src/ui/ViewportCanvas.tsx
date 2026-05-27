@@ -15,47 +15,39 @@
 // `<canvas>` is opaque from React's perspective after the
 // `transferControlToOffscreen` call.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+
+import {
+  OverlayHost,
+  useOverlaySignals,
+  type MarqueeRectPageLocal,
+  type SelectionState,
+} from "@verso/shell";
+
 import type { CanvasClient } from "../channel/client";
 import { viewportToDoc, type Camera } from "../channel/camera";
 import type {
-  CaretGeometry,
   ElementGeometryItem,
   ElementId,
   GestureHandle,
   GestureType,
-  HitResult,
   LayoutCacheStats,
   PageId,
   ResizeHandle,
   ResolutionResult,
   RunningHeader,
-  SelectionRect,
-  SnapLine,
 } from "../channel/protocol";
 import { documentBounds, fitCamera, layoutPages, zoomAt, type PageRect } from "./layout";
-import { Overlay } from "./Overlay";
 
-export interface SelectionState {
-  pageId: PageId;
-  /** Document-space point that was clicked. Used by overlays to draw a marker. */
-  docPoint: [number, number];
-  hit: HitResult;
-}
+// Re-export the (now shell-owned) overlay state types so existing
+// imports from this module continue to work.
+export type { MarqueeRectPageLocal, SelectionState };
 
 export interface PointerModifiers {
   /** Shift held → add to selection. */
   shift: boolean;
   /** Cmd (macOS) or Ctrl (other) held → toggle. */
   cmd: boolean;
-}
-
-/** Phase A — page-local marquee rect emitted on pointerup with the
- * select tool, ready to feed `client.marqueeHits`. */
-export interface MarqueeRectPageLocal {
-  pageId: PageId;
-  /** `[top, left, bottom, right]` in page-local pt. */
-  rect: [number, number, number, number];
 }
 
 export interface ViewportCanvasProps {
@@ -81,10 +73,6 @@ export interface ViewportCanvasProps {
   gpuActive?: boolean | null;
   /** Tier 3 resolution result — anchor table + per-anchor page numbers. */
   resolution?: ResolutionResult | null;
-  /** Phase 3 — caret geometry from the worker; null when no selection. */
-  caret?: CaretGeometry | null;
-  /** Phase 3 — rect-per-line geometry for range selections. */
-  selectionRects?: ReadonlyArray<SelectionRect>;
   /** Phase 4 Step 2 — last rebuild's layout-cache stats; HUD badge. */
   layoutCacheStats?: LayoutCacheStats | null;
   /** Phase A — active tool. Default is `select`; `text` falls back to
@@ -147,13 +135,13 @@ export function ViewportCanvas(props: ViewportCanvasProps) {
     };
   } | null>(null);
 
-  /** Phase A — page-local marquee rect rendered live by the overlay. */
-  const [marqueeRect, setMarqueeRect] = useState<MarqueeRectPageLocal | null>(
-    null,
-  );
-
-  /** Phase E — active snap guides; refreshed on each gesture update. */
-  const [snapLines, setSnapLines] = useState<ReadonlyArray<SnapLine>>([]);
+  // Phase A / E — marquee + snap guides live on OverlaySignalsContext.
+  // ViewportCanvas writes (pointer plumbing); the marquee + snap-lines
+  // overlay contributions read.
+  const overlaySignals = useOverlaySignals();
+  const setMarqueeRect = overlaySignals.setMarqueeRect;
+  const setSnapLines = overlaySignals.setSnapLines;
+  const marqueeRect = overlaySignals.marqueeRect;
 
   // Document-space layout — only used to compute initial fit-to-document.
   const rects = useMemo(
@@ -734,18 +722,10 @@ export function ViewportCanvas(props: ViewportCanvasProps) {
       onDoubleClick={onDoubleClick}
     >
       <canvas ref={canvasRef} style={canvasStyle} />
-      <Overlay
+      <OverlayHost
         camera={props.camera}
         pageIds={props.pageIds}
         pageRects={rects}
-        selection={props.selection ?? null}
-        resolution={props.resolution ?? null}
-        caret={props.caret ?? null}
-        selectionRects={props.selectionRects ?? []}
-        elementSelection={props.elementSelection ?? []}
-        elementGeometry={props.elementGeometry ?? []}
-        marqueeRect={marqueeRect}
-        snapLines={snapLines}
         width={wrapperRef.current?.clientWidth ?? 0}
         height={wrapperRef.current?.clientHeight ?? 0}
       />

@@ -33,6 +33,7 @@ import { CameraProvider } from "./state/camera-context";
 import { ContentSelectionProvider, useContentSelection } from "./state/content-selection-context";
 import { DocumentProvider, useDocument } from "./state/document-context";
 import { InstrumentationProvider, useInstrumentation } from "./state/instrumentation-context";
+import { OverlaySignalsProvider } from "./state/overlay-signals-context";
 import { SelectionProvider, useSelection } from "./state/selection-context";
 import { VersoEditorProvider } from "./state/verso-editor";
 import { useRegistries } from "./state/registries-context";
@@ -63,6 +64,7 @@ import {
   listPerspectives,
 } from "./persistence/layout-persistence";
 import { MenuBar } from "./chrome/MenuBar";
+import type { OverlayContribution } from "./registries/overlay";
 import type { PanelContribution } from "./registries/panel";
 import type { Disposable } from "./registries/types";
 import { useFps } from "./hooks/useFps";
@@ -71,6 +73,10 @@ export interface VersoShellProps {
   client: CanvasClient;
   /** Panel contributions to register at shell startup. */
   panels: PanelContribution[];
+  /** Overlay contributions to register at shell startup. Same
+   *  pattern as `panels` — apps decide which overlays to mount,
+   *  bundles add more via the registry. */
+  overlays?: OverlayContribution[];
   /** Optional extra chrome inserted into the header between the
    * menu bar and the file picker. Apps use this for shell-host-
    * specific controls (zoom indicator, color profile selector,
@@ -87,6 +93,7 @@ export interface VersoShellProps {
 export function VersoShell({
   client,
   panels,
+  overlays,
   headerExtras,
   children,
 }: PropsWithChildren<VersoShellProps>) {
@@ -97,18 +104,24 @@ export function VersoShell({
           <DocumentProvider>
             <SelectionProvider>
               <ContentSelectionProvider>
-                <InstrumentationProvider>
-                  {/* DockingSubstrateProvider above VersoEditorProvider so
-                   *  the editor handle (`verso.substrate`) sees the live
-                   *  substrate once DockviewRoot's onReady publishes it. */}
-                  <DockingSubstrateProvider>
-                    <VersoEditorProvider>
-                      <ShellChrome panels={panels} headerExtras={headerExtras}>
-                        {children}
-                      </ShellChrome>
-                    </VersoEditorProvider>
-                  </DockingSubstrateProvider>
-                </InstrumentationProvider>
+                <OverlaySignalsProvider>
+                  <InstrumentationProvider>
+                    {/* DockingSubstrateProvider above VersoEditorProvider so
+                     *  the editor handle (`verso.substrate`) sees the live
+                     *  substrate once DockviewRoot's onReady publishes it. */}
+                    <DockingSubstrateProvider>
+                      <VersoEditorProvider>
+                        <ShellChrome
+                          panels={panels}
+                          overlays={overlays}
+                          headerExtras={headerExtras}
+                        >
+                          {children}
+                        </ShellChrome>
+                      </VersoEditorProvider>
+                    </DockingSubstrateProvider>
+                  </InstrumentationProvider>
+                </OverlaySignalsProvider>
               </ContentSelectionProvider>
             </SelectionProvider>
           </DocumentProvider>
@@ -126,10 +139,12 @@ export function VersoShell({
  */
 function ShellChrome({
   panels,
+  overlays,
   headerExtras,
   children,
 }: PropsWithChildren<{
   panels: PanelContribution[];
+  overlays?: OverlayContribution[];
   headerExtras?: ReactNode;
 }>) {
   const client = useCanvasClient();
@@ -180,6 +195,21 @@ function ShellChrome({
       panelsRegistered.current = false;
     };
   }, [registries, panels]);
+
+  // Register the supplied overlay contributions. Same ref guard
+  // for StrictMode double-mount; OverlayHost re-renders when the
+  // registry fires its onChange events.
+  const overlaysRegistered = useRef(false);
+  useEffect(() => {
+    if (overlaysRegistered.current) return;
+    if (!overlays || overlays.length === 0) return;
+    overlaysRegistered.current = true;
+    const disposables = overlays.map((o) => registries.overlays.register(o));
+    return () => {
+      for (const d of disposables) d.dispose();
+      overlaysRegistered.current = false;
+    };
+  }, [registries, overlays]);
 
   // Register the built-in file-open command. Programmatic file
   // dialog so the palette can invoke it without depending on the

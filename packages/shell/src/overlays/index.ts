@@ -8,4 +8,6 @@ export { rotateHandleContribution } from "./rotate-handle";
 export { selectionChromeContribution } from "./selection-chrome";
 export { snapLinesContribution } from "./snap-lines";
 
+export { OverlayHost, type OverlayHostProps } from "./overlay-host";
+
 export { applyAffine, type IdmlAffine } from "./affine";

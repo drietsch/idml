@@ -2,10 +2,20 @@ import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   VersoShell,
+  caretContribution,
+  contentGrabberContribution,
+  hitMarkerContribution,
+  marqueeContribution,
+  pageDecorationsContribution,
+  resizeHandlesContribution,
+  rotateHandleContribution,
+  selectionChromeContribution,
+  snapLinesContribution,
   useCamera,
   useCanvasClient,
   useContentSelection,
   useDocument,
+  type OverlayContribution,
   type PanelContribution,
 } from "@verso/shell";
 import "@verso/shell/styles/globals.css";
@@ -18,6 +28,21 @@ import { useAnimatedCamera } from "./ui/useAnimatedCamera";
 import { useKeyboardShortcuts } from "./ui/useKeyboardShortcuts";
 import { useTextEditing } from "./ui/useTextEditing";
 import { ZoomField } from "./ui/ZoomField";
+
+// Default overlay contributions for the canvas app. Order is
+// descriptive — actual paint order is determined by the
+// contributions' `z` values inside OverlayHost.
+const BUILT_IN_OVERLAYS: OverlayContribution[] = [
+  pageDecorationsContribution,
+  hitMarkerContribution,
+  selectionChromeContribution,
+  resizeHandlesContribution,
+  rotateHandleContribution,
+  contentGrabberContribution,
+  marqueeContribution,
+  snapLinesContribution,
+  caretContribution,
+];
 
 // The three built-in panels for the canvas app. Bundle authors
 // register additional panels through the registry once Step 4's
@@ -110,6 +135,7 @@ function CanvasAppRoot() {
     <VersoShell
       client={client}
       panels={BUILT_IN_PANELS}
+      overlays={BUILT_IN_OVERLAYS}
       headerExtras={<ZoomField />}
     >
       <CanvasAppIntegration />

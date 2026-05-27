@@ -131,8 +131,9 @@ export {
   type ScrubGestureOptions,
 } from "./gestures/use-scrub-gesture";
 
-// ── Built-in overlay contributions ─────────────────────────────
+// ── Overlay layer ──────────────────────────────────────────────
 export {
+  OverlayHost,
   caretContribution,
   contentGrabberContribution,
   hitMarkerContribution,
@@ -144,6 +145,7 @@ export {
   snapLinesContribution,
   applyAffine,
   type IdmlAffine,
+  type OverlayHostProps,
 } from "./overlays";
 
 // ── Bundles ────────────────────────────────────────────────────

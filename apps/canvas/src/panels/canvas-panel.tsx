@@ -7,7 +7,7 @@
 // overlay to highlight the most recent hit) and the container
 // `<div>` ref for ResizeObserver bookkeeping.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 import {
   useCanvasClient,
@@ -15,12 +15,14 @@ import {
   useContentSelection,
   useDocument,
   useInstrumentation,
+  useOverlaySignals,
   useSelection,
   type PanelProps,
+  type SelectionState,
 } from "@verso/shell";
 
 import type { SelectionMode } from "../channel/protocol";
-import { ViewportCanvas, type SelectionState } from "../ui/ViewportCanvas";
+import { ViewportCanvas } from "../ui/ViewportCanvas";
 
 export function CanvasPanel(_props: PanelProps) {
   const client = useCanvasClient();
@@ -33,11 +35,11 @@ export function CanvasPanel(_props: PanelProps) {
     elementGeometry,
     activeTool,
   } = useSelection();
-  const { caret, selectionRects, setContentSelection } = useContentSelection();
+  const { setContentSelection } = useContentSelection();
   const { fps, gpuActive, layoutCacheStats } = useInstrumentation();
+  const { hitSelection, setHitSelection } = useOverlaySignals();
 
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [hitSelection, setHitSelection] = useState<SelectionState | null>(null);
 
   // Track the panel's container size so the camera context's
   // viewportSize stays in sync. Previously the shell observed its
@@ -188,8 +190,6 @@ export function CanvasPanel(_props: PanelProps) {
         fps={fps}
         gpuActive={gpuActive}
         resolution={resolution}
-        caret={caret}
-        selectionRects={selectionRects}
         layoutCacheStats={layoutCacheStats}
       />
     </div>
