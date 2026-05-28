@@ -37,6 +37,15 @@ interface SelectionContextValue {
    * active tool changes. */
   pathEditMode: boolean;
   setPathEditMode: (enabled: boolean) => void;
+
+  /** Track J — flat anchor index inside the path-edit target's
+   * anchor table that the user has clicked. `null` when no anchor
+   * is selected. Backspace/Delete uses this to address the
+   * `PathPointRemove` mutation; double-click uses it to address the
+   * `PathPointCurveType` toggle. Cleared on path-edit exit, on
+   * selection change, and on Escape. */
+  selectedAnchorIndex: number | null;
+  setSelectedAnchorIndex: (index: number | null) => void;
 }
 
 const Context = createContext<SelectionContextValue | null>(null);
@@ -48,6 +57,9 @@ export function SelectionProvider({ children }: PropsWithChildren) {
   );
   const [activeTool, setActiveTool] = useState<ActiveTool>("select");
   const [pathEditMode, setPathEditMode] = useState<boolean>(false);
+  const [selectedAnchorIndex, setSelectedAnchorIndex] = useState<number | null>(
+    null,
+  );
 
   const value = useMemo<SelectionContextValue>(
     () => ({
@@ -59,8 +71,16 @@ export function SelectionProvider({ children }: PropsWithChildren) {
       setActiveTool,
       pathEditMode,
       setPathEditMode,
+      selectedAnchorIndex,
+      setSelectedAnchorIndex,
     }),
-    [elementSelection, elementGeometry, activeTool, pathEditMode],
+    [
+      elementSelection,
+      elementGeometry,
+      activeTool,
+      pathEditMode,
+      selectedAnchorIndex,
+    ],
   );
 
   return <Context.Provider value={value}>{children}</Context.Provider>;

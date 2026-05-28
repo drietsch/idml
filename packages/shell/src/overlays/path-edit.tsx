@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 
 // eslint-disable-next-line import/no-relative-parent-imports
 import type {
@@ -29,7 +29,12 @@ import { applyAffine } from "./affine";
  * fetches.
  */
 function PathEditRender(props: OverlayProps) {
-  const { elementSelection, pathEditMode } = useSelection();
+  const {
+    elementSelection,
+    pathEditMode,
+    selectedAnchorIndex,
+    setSelectedAnchorIndex,
+  } = useSelection();
   const client = useCanvasClient();
   const [anchors, setAnchors] = useState<PathAnchorsResult | null>(null);
   const target = pathEditMode && elementSelection.length === 1
@@ -55,12 +60,58 @@ function PathEditRender(props: OverlayProps) {
     };
   }, [client, target?.kind, target?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Subscribe to mutation-applied notifications so the overlay
+  // refreshes its anchor table after a Track-J insert/remove/
+  // curve-type mutation lands. Without this, the chrome would
+  // show stale anchor positions until the next selection change.
+  useEffect(() => {
+    if (!target) return;
+    const off = client.subscribe((msg) => {
+      if (
+        msg.kind !== "mutationApplied" &&
+        msg.kind !== "undoApplied" &&
+        msg.kind !== "redoApplied"
+      ) {
+        return;
+      }
+      void client.pathAnchors(target).then((result) => setAnchors(result));
+    });
+    return off;
+  }, [client, target?.kind, target?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (!target || !anchors || anchors.anchors.length === 0) return null;
   const pr = props.pageRects.get(anchors.pageId);
   if (!pr) return null;
 
   const inv = 1 / props.camera.scale;
   const matrix = anchors.itemTransform ?? null;
+
+  // Track J — only Polygons accept the new path-topology mutations.
+  // We still render anchors for other path-bearing elements (5c
+  // behaviour); we just don't wire the click → dispatch on them.
+  const polygonId = target.kind === "polygon" ? target.id : null;
+
+  const onAnchorDown = (i: number) => () => {
+    if (polygonId === null) return;
+    setSelectedAnchorIndex(i);
+  };
+
+  const onAnchorDoubleClick = (i: number) => (e: MouseEvent<SVGElement>) => {
+    if (polygonId === null) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const a = anchors.anchors[i];
+    if (!a) return;
+    // "Currently corner" iff both handles coincide with the
+    // anchor (IDML's zero-handle convention for sharp corners).
+    const isCorner =
+      Math.hypot(a.left[0] - a.anchor[0], a.left[1] - a.anchor[1]) < 1e-3 &&
+      Math.hypot(a.right[0] - a.anchor[0], a.right[1] - a.anchor[1]) < 1e-3;
+    void client.mutate({
+      op: "pathPointCurveType",
+      args: { polygonId, index: i, smooth: isCorner },
+    });
+  };
 
   return (
     <g>
@@ -79,6 +130,7 @@ function PathEditRender(props: OverlayProps) {
         // handles). Keeps the chrome tidy on sharp corners.
         const hasLeft = Math.hypot(lx - ax, ly - ay) > 1e-3;
         const hasRight = Math.hypot(rx - ax, ry - ay) > 1e-3;
+        const isSelected = selectedAnchorIndex === i;
         return (
           <g key={i}>
             {hasLeft && (
@@ -107,7 +159,15 @@ function PathEditRender(props: OverlayProps) {
             )}
             {hasLeft && renderHandleDot(l_x, l_y, inv, `${i}:left`)}
             {hasRight && renderHandleDot(r_x, r_y, inv, `${i}:right`)}
-            {renderAnchorDot(a_x, a_y, inv, `${i}:anchor`)}
+            {renderAnchorDot(
+              a_x,
+              a_y,
+              inv,
+              `${i}:anchor`,
+              isSelected,
+              onAnchorDown(i),
+              onAnchorDoubleClick(i),
+            )}
           </g>
         );
       })}
@@ -116,9 +176,21 @@ function PathEditRender(props: OverlayProps) {
   );
 }
 
-function renderAnchorDot(x: number, y: number, inv: number, address: string) {
+function renderAnchorDot(
+  x: number,
+  y: number,
+  inv: number,
+  address: string,
+  selected: boolean,
+  onPointerDown?: () => void,
+  onDoubleClick?: (e: MouseEvent<SVGElement>) => void,
+) {
   const visiblePx = 7;
   const hitPx = 11;
+  // Track J — selected anchor fills blue + thicker stroke so the
+  // Backspace target is unambiguous.
+  const fill = selected ? "#2563eb" : "white";
+  const strokeWidth = selected ? 2 : 1;
   return (
     <g transform={`translate(${x}, ${y}) scale(${inv})`}>
       <rect
@@ -128,6 +200,8 @@ function renderAnchorDot(x: number, y: number, inv: number, address: string) {
         height={hitPx}
         fill="transparent"
         data-path-anchor={address}
+        onPointerDown={onPointerDown}
+        onDoubleClick={onDoubleClick}
         style={{ cursor: "pointer", pointerEvents: "all" }}
       />
       <rect
@@ -135,10 +209,12 @@ function renderAnchorDot(x: number, y: number, inv: number, address: string) {
         y={-visiblePx / 2}
         width={visiblePx}
         height={visiblePx}
-        fill="white"
+        fill={fill}
         stroke="#2563eb"
-        strokeWidth={1}
+        strokeWidth={strokeWidth}
         data-path-anchor={address}
+        onPointerDown={onPointerDown}
+        onDoubleClick={onDoubleClick}
         style={{ cursor: "pointer", pointerEvents: "all" }}
       />
     </g>

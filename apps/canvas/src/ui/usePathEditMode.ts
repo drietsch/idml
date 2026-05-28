@@ -16,10 +16,16 @@
 //   Active tool changes                        → exit (text tool
 //                                                conflicts with
 //                                                path editing).
+//
+// Track J adds:
+//   Backspace / Delete (path-edit, anchor selected) → dispatch
+//                                                     PathPointRemove
+//   selectedAnchorIndex is also cleared on path-edit exit and on
+//   selection change.
 
 import { useEffect } from "react";
 
-import { elementSupportsPathEdit, useSelection } from "@verso/shell";
+import { elementSupportsPathEdit, useCanvasClient, useSelection } from "@verso/shell";
 
 export function usePathEditMode() {
   const {
@@ -27,7 +33,10 @@ export function usePathEditMode() {
     elementSelection,
     pathEditMode,
     setPathEditMode,
+    selectedAnchorIndex,
+    setSelectedAnchorIndex,
   } = useSelection();
+  const client = useCanvasClient();
 
   // Enter / Escape bindings — skip when an editable element has
   // focus so typing in the command palette / inspector doesn't
@@ -52,6 +61,41 @@ export function usePathEditMode() {
     return () => window.removeEventListener("keydown", onKey);
   }, [pathEditMode, elementSelection, setPathEditMode]);
 
+  // Track J — Backspace / Delete removes the selected anchor.
+  useEffect(() => {
+    if (!pathEditMode) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (isEditableTarget(e.target)) return;
+      if (e.key !== "Backspace" && e.key !== "Delete") return;
+      if (selectedAnchorIndex === null) return;
+      const sel = elementSelection[0];
+      // Only Polygons accept path-topology mutations today (mirrors
+      // the Rust apply arm in crates/idml-mutate/src/apply.rs).
+      if (!sel || sel.kind !== "polygon") return;
+      e.preventDefault();
+      const polygonId = sel.id;
+      const index = selectedAnchorIndex;
+      // Clear the selection ahead of the round-trip so the
+      // overlay doesn't briefly highlight a deleted anchor.
+      setSelectedAnchorIndex(null);
+      void client
+        .mutate({ op: "pathPointRemove", args: { polygonId, index } })
+        .catch(() => {
+          // Mutation failed (probably stale index after a concurrent
+          // edit). Re-instate the selection so the user can retry.
+          setSelectedAnchorIndex(index);
+        });
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [
+    pathEditMode,
+    selectedAnchorIndex,
+    elementSelection,
+    client,
+    setSelectedAnchorIndex,
+  ]);
+
   // Auto-exit when the selection isn't a single path-bearing
   // element any more (cleared, or grew to a multi-select).
   useEffect(() => {
@@ -70,6 +114,16 @@ export function usePathEditMode() {
       setPathEditMode(false);
     }
   }, [pathEditMode, activeTool, setPathEditMode]);
+
+  // Clear the selected-anchor sub-state whenever path-edit mode
+  // leaves OR the targeted element changes. A stale index pointing
+  // into a different polygon's anchor table would mis-address the
+  // next Backspace dispatch.
+  useEffect(() => {
+    if (!pathEditMode || elementSelection.length !== 1) {
+      setSelectedAnchorIndex(null);
+    }
+  }, [pathEditMode, elementSelection, setSelectedAnchorIndex]);
 }
 
 function isEditableTarget(target: EventTarget | null): boolean {
