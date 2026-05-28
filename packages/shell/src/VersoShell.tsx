@@ -158,8 +158,14 @@ function ShellChrome({
     setResolution,
     resetForNewDocument,
   } = useDocument();
-  const { elementSelection, elementGeometry, activeTool, setActiveTool } =
-    useSelection();
+  const {
+    elementSelection,
+    elementGeometry,
+    activeTool,
+    setActiveTool,
+    activeGroup,
+    setActiveGroup,
+  } = useSelection();
   const { setCaret, setSelectionRects, contentSelectionRef } =
     useContentSelection();
   const { setFps, setGpuActive, setLayoutCacheStats } = useInstrumentation();
@@ -338,6 +344,12 @@ function ShellChrome({
       elementGeometry,
       activeTool,
       setActiveTool,
+      // Track L — exposed for tests that drive the panel's double-
+      // click descent / Escape exit state machine. The selection
+      // context owns the source of truth; this just lets Playwright
+      // observe and drive it.
+      activeGroup,
+      setActiveGroup,
       registries,
     };
   }
