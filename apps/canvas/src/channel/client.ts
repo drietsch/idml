@@ -15,9 +15,11 @@ import {
   type GestureAnchor,
   type GestureHandle,
   type GestureModifiers,
+  type ElementProperties,
   type GestureType,
   type LayerSummary,
   type LodTier,
+  type SceneTreeNode,
   type MainToWorker,
   type MainToWorkerKind,
   type Mutation,
@@ -253,6 +255,35 @@ export class CanvasClient {
       kind: "requestLayers",
     });
     if (reply.kind === "layers") return reply.payload.items;
+    throw new Error(`unexpected reply: ${reply.kind}`);
+  }
+
+  /**
+   * Inspector P1 — typed property snapshot for the selected element.
+   * The Inspector panel passes each entry's `path` + `value` directly
+   * into the matching editor; on commit it dispatches a
+   * `SetElementProperty` mutation carrying the edited value. `null`
+   * when the id doesn't resolve.
+   */
+  async elementProperties(id: ElementId): Promise<ElementProperties | null> {
+    const reply = await this.send({
+      kind: "requestElementProperties",
+      payload: { id },
+    });
+    if (reply.kind === "elementProperties") return reply.payload.result;
+    throw new Error(`unexpected reply: ${reply.kind}`);
+  }
+
+  /**
+   * Inspector P1 — fetch the scene-tree outline (Spread → Page →
+   * frame leaves). Lightweight; the Tree panel re-fetches on every
+   * `mutationApplied` to stay in sync.
+   */
+  async sceneTree(): Promise<SceneTreeNode[]> {
+    const reply = await this.send({
+      kind: "requestSceneTree",
+    });
+    if (reply.kind === "sceneTree") return reply.payload.roots;
     throw new Error(`unexpected reply: ${reply.kind}`);
   }
 

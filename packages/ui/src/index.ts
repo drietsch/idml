@@ -6,6 +6,8 @@
 export { NumberInput, type NumberInputProps } from "./inputs/NumberInput";
 export { LengthInput, type LengthInputProps } from "./inputs/LengthInput";
 export { ScrubField, type ScrubFieldProps } from "./inputs/ScrubField";
+export { BoundsInput, type BoundsInputProps } from "./inputs/BoundsInput";
+export { ColorPicker, type ColorPickerProps } from "./inputs/ColorPicker";
 
 export type { LengthUnit } from "./inputs/units";
 export { convertLength, POINTS_PER_UNIT } from "./inputs/units";

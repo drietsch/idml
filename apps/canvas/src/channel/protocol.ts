@@ -13,7 +13,7 @@
 // matching Rust constant is in `idml-canvas/src/channel.rs` and
 // must update in lockstep.
 
-export const PROTOCOL_VERSION = 11 as const;
+export const PROTOCOL_VERSION = 12 as const;
 
 export type {
   AnchorId,
@@ -36,8 +36,11 @@ export type {
   HitFilter,
   HitResult,
   InvalidationHint,
+  ElementProperties,
   LayerSummary,
   LayoutCacheStats,
+  PropertyEntry,
+  SceneTreeNode,
   LoadError,
   LodTier,
   MainToWorker,

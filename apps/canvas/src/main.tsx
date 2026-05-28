@@ -24,8 +24,10 @@ import "@verso/shell/styles/globals.css";
 
 import { CanvasClient } from "./channel/client";
 import { CanvasPanel } from "./panels/canvas-panel";
+import { InspectorPanel } from "./panels/inspector-panel";
 import { NavigatorPanel } from "./panels/navigator-panel";
 import { OutlinePanel } from "./panels/outline-panel";
+import { TreePanel } from "./panels/tree-panel";
 import { useAnimatedCamera } from "./ui/useAnimatedCamera";
 import { useKeyboardShortcuts } from "./ui/useKeyboardShortcuts";
 import { usePathEditMode } from "./ui/usePathEditMode";
@@ -75,6 +77,20 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     component: OutlinePanel,
     defaultDock: "left",
     defaultGroup: "structure",
+  },
+  {
+    id: "verso.tree",
+    title: "Tree",
+    component: TreePanel,
+    defaultDock: "left",
+    defaultGroup: "structure",
+  },
+  {
+    id: "verso.inspector",
+    title: "Inspector",
+    component: InspectorPanel,
+    defaultDock: "right",
+    defaultGroup: "inspector",
   },
 ];
 
