@@ -16,6 +16,7 @@ import {
   type GestureHandle,
   type GestureModifiers,
   type GestureType,
+  type LayerSummary,
   type LodTier,
   type MainToWorker,
   type MainToWorkerKind,
@@ -238,6 +239,20 @@ export class CanvasClient {
       payload: { id },
     });
     if (reply.kind === "pathAnchors") return reply.payload.result;
+    throw new Error(`unexpected reply: ${reply.kind}`);
+  }
+
+  /**
+   * Track M — list every `<Layer>` from the loaded document. Used by
+   * the Layers panel to seed its row list and re-query on every
+   * `LayersChanged` notification. Returns an empty array when no
+   * document is loaded.
+   */
+  async layers(): Promise<LayerSummary[]> {
+    const reply = await this.send({
+      kind: "requestLayers",
+    });
+    if (reply.kind === "layers") return reply.payload.items;
     throw new Error(`unexpected reply: ${reply.kind}`);
   }
 
