@@ -46,6 +46,17 @@ interface SelectionContextValue {
    * selection change, and on Escape. */
   selectedAnchorIndex: number | null;
   setSelectedAnchorIndex: (index: number | null) => void;
+
+  /** Track L — the group the user has "entered" via double-click.
+   * `null` when no group is active (default — single-click selects
+   * the outermost group containing the hit). When set, single-click
+   * scopes to the group's leaves and Escape exits. The held value
+   * is the group's `self_id`, not an `ElementId`, because the only
+   * place the value gets compared is the canvas-panel's onHit
+   * handler — keeping it as a plain string sidesteps cross-package
+   * ElementId imports for state-only consumers. */
+  activeGroup: string | null;
+  setActiveGroup: (groupId: string | null) => void;
 }
 
 const Context = createContext<SelectionContextValue | null>(null);
@@ -60,6 +71,7 @@ export function SelectionProvider({ children }: PropsWithChildren) {
   const [selectedAnchorIndex, setSelectedAnchorIndex] = useState<number | null>(
     null,
   );
+  const [activeGroup, setActiveGroup] = useState<string | null>(null);
 
   const value = useMemo<SelectionContextValue>(
     () => ({
@@ -73,6 +85,8 @@ export function SelectionProvider({ children }: PropsWithChildren) {
       setPathEditMode,
       selectedAnchorIndex,
       setSelectedAnchorIndex,
+      activeGroup,
+      setActiveGroup,
     }),
     [
       elementSelection,
@@ -80,6 +94,7 @@ export function SelectionProvider({ children }: PropsWithChildren) {
       activeTool,
       pathEditMode,
       selectedAnchorIndex,
+      activeGroup,
     ],
   );
 

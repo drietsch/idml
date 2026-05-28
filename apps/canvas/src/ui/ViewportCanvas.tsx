@@ -86,12 +86,16 @@ export interface ViewportCanvasProps {
    * Caller refreshes the cached element geometry so the chrome lands
    * at the committed position. */
   onGestureCommitted?: () => void;
-  /** Phase H — called when the user double-clicks a frame whose hit
-   * is nested inside a group. `groupId` is the outermost containing
-   * group (group_chain[0]). The caller fetches the group's leaves
-   * and replaces the element selection with them so the user can
-   * grab the whole group as a unit. */
-  onDoubleClickGroup?: (groupId: string) => void;
+  /** Phase H / Track L — called when the user double-clicks a frame
+   * whose hit is nested inside a group. `groupId` is the outermost
+   * containing group (group_chain[0]); `hitElement` is the leaf the
+   * user actually clicked on. Phase H used this to expand the group
+   * to its leaves; Track L uses it to ENTER the group (set
+   * `activeGroup = groupId`) and select the hit leaf scoped within. */
+  onDoubleClickGroup?: (
+    groupId: string,
+    hitElement: ElementId | null,
+  ) => void;
 }
 
 const CLICK_DRAG_THRESHOLD_PX = 4;
@@ -719,7 +723,7 @@ export function ViewportCanvas(props: ViewportCanvasProps) {
           if (reply.kind !== "hitResult") return;
           const chain = reply.payload.groupChain ?? [];
           if (chain.length > 0) {
-            props.onDoubleClickGroup?.(chain[0]);
+            props.onDoubleClickGroup?.(chain[0], reply.payload.element ?? null);
           }
         } catch (err) {
           // Same fail-quiet approach as the click hitTest.
