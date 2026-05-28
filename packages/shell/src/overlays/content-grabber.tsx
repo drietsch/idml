@@ -1,3 +1,4 @@
+import { useModifierState } from "../hooks/useModifierState";
 import type { OverlayContribution, OverlayProps } from "../registries/overlay";
 import { useSelection } from "../state/selection-context";
 
@@ -8,9 +9,15 @@ import { applyAffine } from "./affine";
  * image-bearing Rectangle. Purely informational — hints that
  * Cmd+drag opens content mode. Pointer events disabled so the body
  * drag passes through.
+ *
+ * Plan-2 §8.5 — the donut only shows when Cmd is held so the chrome
+ * doesn't clutter the static selection. Until N.5 the donut was
+ * permanent; users learned to ignore it, defeating the affordance.
  */
 function ContentGrabberRender(props: OverlayProps) {
   const { elementGeometry } = useSelection();
+  const modifiers = useModifierState();
+  if (!modifiers.cmd) return null;
   if (elementGeometry.length !== 1) return null;
   const item = elementGeometry[0];
   if (item.hasImage !== true) return null;

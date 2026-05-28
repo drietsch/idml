@@ -129,6 +129,12 @@ export {
   setupLayoutPersistence,
 } from "./persistence/layout-persistence";
 
+// ── Hooks ──────────────────────────────────────────────────────
+export {
+  useModifierState,
+  type ModifierState,
+} from "./hooks/useModifierState";
+
 // ── Gestures ───────────────────────────────────────────────────
 export {
   useScrubGesture,
