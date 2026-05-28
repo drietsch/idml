@@ -442,7 +442,11 @@ export function ViewportCanvas(props: ViewportCanvasProps) {
             .updateGesture(
               drag.gestureState.handle,
               docDelta,
-              { shift: e.shiftKey, alt: e.altKey },
+              // Plan-2 §8.4 — Ctrl bypasses snap. Read `e.ctrlKey`
+              // independently of `metaKey`; on macOS the Ctrl key
+              // is its own thing (not Cmd), matching InDesign's
+              // "hold Ctrl to ignore snap targets" convention.
+              { shift: e.shiftKey, alt: e.altKey, disableSnap: e.ctrlKey },
               "sab",
             )
             .catch(() => {});

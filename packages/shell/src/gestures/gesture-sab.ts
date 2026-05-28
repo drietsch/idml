@@ -42,6 +42,8 @@ const OFFSET_GEN_HI = 7;
 
 export const GESTURE_MODIFIER_SHIFT = 1;
 export const GESTURE_MODIFIER_ALT = 2;
+/** Plan-2 §8.4 — Ctrl. Tells the snap pass to bypass entirely. */
+export const GESTURE_MODIFIER_DISABLE_SNAP = 4;
 
 export interface GestureUpdateRecord {
   /** Opaque gesture handle assigned by `begin_gesture`. */
@@ -49,7 +51,7 @@ export interface GestureUpdateRecord {
   /** Pointer delta in page-local pt. */
   dx: number;
   dy: number;
-  modifiers: { shift: boolean; alt: boolean };
+  modifiers: { shift: boolean; alt: boolean; disableSnap: boolean };
   /** Monotonic counter the producer bumps on every push. */
   seq: number;
 }
@@ -93,13 +95,14 @@ export class GestureBuffer {
     handle: bigint,
     dx: number,
     dy: number,
-    modifiers: { shift: boolean; alt: boolean },
+    modifiers: { shift: boolean; alt: boolean; disableSnap?: boolean },
   ): void {
     const handleLo = Number(handle & 0xffff_ffffn);
     const handleHi = Number((handle >> 32n) & 0xffff_ffffn);
     let modBits = 0;
     if (modifiers.shift) modBits |= GESTURE_MODIFIER_SHIFT;
     if (modifiers.alt) modBits |= GESTURE_MODIFIER_ALT;
+    if (modifiers.disableSnap) modBits |= GESTURE_MODIFIER_DISABLE_SNAP;
     const seq = (this.u32[OFFSET_SEQ] + 1) >>> 0;
     if (this.buffer instanceof SharedArrayBuffer) {
       Atomics.store(this.u32, OFFSET_HANDLE_LO, handleLo);
@@ -155,6 +158,7 @@ export class GestureBuffer {
       modifiers: {
         shift: (modBits & GESTURE_MODIFIER_SHIFT) !== 0,
         alt: (modBits & GESTURE_MODIFIER_ALT) !== 0,
+        disableSnap: (modBits & GESTURE_MODIFIER_DISABLE_SNAP) !== 0,
       },
       seq,
     };

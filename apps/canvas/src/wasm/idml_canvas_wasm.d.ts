@@ -156,10 +156,16 @@ export interface SnapshotPng {
  * Modifier state captured on each pointer event. `shift` constrains
  * the gesture (snap rotation to 15°, lock aspect on resize / scale).
  * `alt` resizes from centre.
+ *
+ * `disable_snap` (Ctrl) makes the snap pass an identity transform on
+ * the delta — InDesign-style \"temporarily disable snap\" affordance
+ * per plan-2 §8.4. Optional on the wire so older callers keep
+ * compiling (defaults to `false`).
  */
 export interface GestureModifiers {
     shift: boolean;
     alt: boolean;
+    disableSnap?: boolean;
 }
 
 /**
@@ -786,8 +792,9 @@ export class CanvasWorker {
      *
      * The 64-bit handle arrives split into low/high words because
      * JS Numbers can't represent the full u64 range cleanly.
-     * `modifier_bits`: bit 0 = shift, bit 1 = alt — matches the
-     * SAB layout in `packages/shell/src/gestures/gesture-sab.ts`.
+     * `modifier_bits`: bit 0 = shift, bit 1 = alt, bit 2 =
+     * disable_snap (Ctrl, plan-2 §8.4). Matches the SAB layout
+     * in `packages/shell/src/gestures/gesture-sab.ts`.
      */
     updateGestureRaw(handle_lo: number, handle_hi: number, dx: number, dy: number, modifier_bits: number): string;
     /**

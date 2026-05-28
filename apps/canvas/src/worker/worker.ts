@@ -411,8 +411,9 @@ function startGestureDrain() {
     const handleLo = Number(record.handle & 0xffff_ffffn);
     const handleHi = Number((record.handle >> 32n) & 0xffff_ffffn);
     let mods = 0;
-    if (record.modifiers.shift) mods |= 0b01;
-    if (record.modifiers.alt) mods |= 0b10;
+    if (record.modifiers.shift) mods |= 0b001;
+    if (record.modifiers.alt) mods |= 0b010;
+    if (record.modifiers.disableSnap) mods |= 0b100;
     const outcomeJson = worker.updateGestureRaw(
       handleLo,
       handleHi,

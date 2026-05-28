@@ -37,7 +37,7 @@ interface CanvasGlobal {
     updateGesture: (
       h: number,
       d: [number, number],
-      mods: { shift: boolean; alt: boolean },
+      mods: { shift: boolean; alt: boolean; disableSnap?: boolean },
     ) => Promise<{ pageIds: string[]; snapLines: SnapLine[] }>;
     commitGesture: (h: number) => Promise<{ appliedSeq: number; pageIds: string[] }>;
     cancelGesture: (h: number) => Promise<string[]>;
@@ -275,6 +275,35 @@ test.describe("Phase E — multi-select, snap, modifiers", () => {
     expect(xSnap, "expected an x-axis snap line").toBeDefined();
     expect(xSnap!.position).toBeGreaterThanOrEqual(-0.01);
     expect(xSnap!.position).toBeLessThanOrEqual(pageW);
+  });
+
+  test("disableSnap (Ctrl) bypasses the snap pass", async ({ page }) => {
+    // Plan-2 §8.4. Same setup as the snap-to-page-left-edge test
+    // (dragging just short of the page edge would normally snap),
+    // but with the disable-snap modifier set: the delta passes
+    // through unmodified and no snap lines fire.
+    const items = await findMultipleUnrotatedFrames(page, pageId, pageW, pageH, 1);
+    const it = items[0];
+    const before = it.pageBounds;
+    const dx = -(before[1] - 2);
+    const reply = await page.evaluate(
+      async ({ id, dx }) => {
+        const c = (globalThis as unknown as { __canvas: CanvasGlobal }).__canvas;
+        const h = await c.client.beginGesture([id], { kind: "translate" });
+        const r = await c.client.updateGesture(h, [dx, 0], {
+          shift: false,
+          alt: false,
+          disableSnap: true,
+        });
+        await c.client.commitGesture(h);
+        return r;
+      },
+      { id: it.id, dx },
+    );
+    expect(
+      reply.snapLines.length,
+      "no snap lines should fire when disable-snap is set",
+    ).toBe(0);
   });
 
   test("Shift-constrain locks translate to the dominant axis", async ({ page }) => {
