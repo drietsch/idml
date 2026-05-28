@@ -34,7 +34,11 @@ import { ContentSelectionProvider, useContentSelection } from "./state/content-s
 import { DocumentProvider, useDocument } from "./state/document-context";
 import { InstrumentationProvider, useInstrumentation } from "./state/instrumentation-context";
 import { OverlaySignalsProvider } from "./state/overlay-signals-context";
-import { SelectionProvider, useSelection } from "./state/selection-context";
+import {
+  SelectionProvider,
+  useSelection,
+  type ActiveTool,
+} from "./state/selection-context";
 import { VersoEditorProvider } from "./state/verso-editor";
 import { useRegistries } from "./state/registries-context";
 import { CommandPalette } from "./chrome/CommandPalette";
@@ -66,6 +70,7 @@ import {
 import { MenuBar } from "./chrome/MenuBar";
 import type { OverlayContribution } from "./registries/overlay";
 import type { PanelContribution } from "./registries/panel";
+import type { Tool } from "./registries/tool";
 import type { Disposable } from "./registries/types";
 import { useFps } from "./hooks/useFps";
 
@@ -445,7 +450,11 @@ function ShellChrome({
         <h1 style={{ margin: 0, fontSize: 16 }}>IDML canvas</h1>
         <MenuBar />
         <FileDrop onFile={onFile} compact />
-        <ToolToggle active={activeTool} onChange={setActiveTool} />
+        <ToolToggle
+          tools={registries.tools.list()}
+          active={activeTool}
+          onChange={setActiveTool}
+        />
         {headerExtras}
         <span style={{ marginLeft: "auto", opacity: 0.7, fontSize: 12 }}>
           {status}
@@ -516,39 +525,38 @@ class DebugErrorBoundary extends React.Component<
 }
 
 function ToolToggle(props: {
-  active: "select" | "text";
-  onChange: (t: "select" | "text") => void;
+  tools: readonly Tool[];
+  active: string;
+  onChange: (t: ActiveTool) => void;
 }) {
   return (
     <div role="tablist" style={toolToggleStyle}>
-      <button
-        type="button"
-        role="tab"
-        aria-selected={props.active === "select"}
-        title="Selection tool (V)"
-        onClick={() => props.onChange("select")}
-        style={
-          props.active === "select"
-            ? { ...toolButtonStyle, ...toolButtonActiveStyle }
-            : toolButtonStyle
-        }
-      >
-        V
-      </button>
-      <button
-        type="button"
-        role="tab"
-        aria-selected={props.active === "text"}
-        title="Text tool (T)"
-        onClick={() => props.onChange("text")}
-        style={
-          props.active === "text"
-            ? { ...toolButtonStyle, ...toolButtonActiveStyle }
-            : toolButtonStyle
-        }
-      >
-        T
-      </button>
+      {props.tools.map((tool) => {
+        const isActive = tool.key === props.active;
+        const title = tool.tooltip ?? `${tool.label} tool (${tool.shortcut})`;
+        return (
+          <button
+            key={tool.key}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
+            title={title}
+            // Tools that map to a known `ActiveTool` flow into the
+            // selection-context state. Bundle-registered tools with
+            // other keys are accepted by the registry but currently
+            // ignored by selection-context — that's the bundle hook
+            // plan 2 §8.6 reserves for the bundle follow-up.
+            onClick={() => props.onChange(tool.key as ActiveTool)}
+            style={
+              isActive
+                ? { ...toolButtonStyle, ...toolButtonActiveStyle }
+                : toolButtonStyle
+            }
+          >
+            {tool.label}
+          </button>
+        );
+      })}
     </div>
   );
 }

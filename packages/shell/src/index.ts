@@ -82,13 +82,18 @@ export {
   type PanelRegistry,
   type PanelRegistryEvent,
   type SemanticGroupRegistry,
+  type Tool,
+  type ToolRegistry,
+  type ToolRegistryEvent,
   type VisibilityPredicate,
+  DEFAULT_TOOLS,
   createPanelRegistry,
   createCommandRegistry,
   createSemanticGroupRegistry,
   createKeybindingRegistry,
   createMenuRegistry,
   createOverlayRegistry,
+  createToolRegistry,
 } from "./registries";
 
 // ── Built-in commands ──────────────────────────────────────────

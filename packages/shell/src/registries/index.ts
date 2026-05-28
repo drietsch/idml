@@ -41,3 +41,11 @@ export {
   type OverlayRegistry,
   type OverlayRegistryEvent,
 } from "./overlay";
+
+export {
+  createToolRegistry,
+  DEFAULT_TOOLS,
+  type Tool,
+  type ToolRegistry,
+  type ToolRegistryEvent,
+} from "./tool";

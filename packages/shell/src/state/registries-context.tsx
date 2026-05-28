@@ -14,12 +14,15 @@ import {
   createOverlayRegistry,
   createPanelRegistry,
   createSemanticGroupRegistry,
+  createToolRegistry,
+  DEFAULT_TOOLS,
   type CommandRegistry,
   type KeybindingRegistry,
   type MenuRegistry,
   type OverlayRegistry,
   type PanelRegistry,
   type SemanticGroupRegistry,
+  type ToolRegistry,
 } from "../registries";
 
 /**
@@ -34,6 +37,7 @@ export interface ShellRegistries {
   keybindings: KeybindingRegistry;
   menus: MenuRegistry;
   overlays: OverlayRegistry;
+  tools: ToolRegistry;
 }
 
 const Context = createContext<ShellRegistries | null>(null);
@@ -57,6 +61,12 @@ export function RegistriesProvider({
     const commands = createCommandRegistry(getEditor);
     const keybindings = createKeybindingRegistry(commands);
     keybindingsDisposeRef.current = () => keybindings.dispose();
+    const tools = createToolRegistry();
+    // Plan 2 §8.6 — seed the registry with the built-in tools so
+    // bundles that haven't run yet still get a populated toolbar.
+    // Future bundle authors register additional tools via
+    // `useRegistries().tools.register(...)`.
+    for (const t of DEFAULT_TOOLS) tools.register(t);
     ref.current = {
       panels: createPanelRegistry(),
       commands,
@@ -64,6 +74,7 @@ export function RegistriesProvider({
       keybindings,
       menus: createMenuRegistry(),
       overlays: createOverlayRegistry(),
+      tools,
     };
   }
 
