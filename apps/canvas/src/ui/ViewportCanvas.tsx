@@ -200,6 +200,19 @@ export function ViewportCanvas(props: ViewportCanvasProps) {
     return () => ro.disconnect();
   }, [props.client]);
 
+  // Step 5e — subscribe to out-of-band snap-line notifications. The
+  // SAB-mode `updateGesture` path doesn't await a reply, so the worker
+  // surfaces snap guides via an unsolicited `gestureSnapLines` after
+  // each drain. Empty `snapLines` is meaningful (gesture left a
+  // previously-snapped axis); the overlay clears stale guides on it.
+  useEffect(() => {
+    return props.client.subscribe((msg) => {
+      if (msg.kind === "gestureSnapLines") {
+        setSnapLines(msg.payload.snapLines);
+      }
+    });
+  }, [props.client, setSnapLines]);
+
   // Re-fit camera when the document changes (page-id signature).
   const pageIdSig = useMemo(() => props.pageIds.join("|"), [props.pageIds]);
   const lastFitSigRef = useRef<string>("");
@@ -336,9 +349,11 @@ export function ViewportCanvas(props: ViewportCanvasProps) {
               drag.gestureState.handle = handle;
               const pending = drag.gestureState.pendingDelta;
               if (pending[0] !== 0 || pending[1] !== 0) {
+                // Step 5e — SAB mode. The worker drains the SAB on its
+                // next tick and posts a `gestureSnapLines` notify; the
+                // subscription above routes it into `setSnapLines`.
                 void props.client
-                  .updateGesture(handle, pending, { shift: false, alt: false })
-                  .then((r) => setSnapLines(r.snapLines))
+                  .updateGesture(handle, pending, { shift: false, alt: false }, "sab")
                   .catch(() => {});
               }
             })
@@ -415,12 +430,17 @@ export function ViewportCanvas(props: ViewportCanvasProps) {
           // resolver flushes it once the handle lands.
           drag.gestureState.pendingDelta = docDelta;
         } else {
+          // Step 5e — SAB hot path. Fire-and-forget; the worker drains
+          // the SAB at ~125 Hz and emits `gestureSnapLines` notifies
+          // so the overlay still sees active guides. Falls back to
+          // JSON automatically when crossOriginIsolated is false.
           void props.client
-            .updateGesture(drag.gestureState.handle, docDelta, {
-              shift: e.shiftKey,
-              alt: e.altKey,
-            })
-            .then((r) => setSnapLines(r.snapLines))
+            .updateGesture(
+              drag.gestureState.handle,
+              docDelta,
+              { shift: e.shiftKey, alt: e.altKey },
+              "sab",
+            )
             .catch(() => {});
         }
       } else if (drag.mode === "marquee") {
