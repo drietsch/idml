@@ -28,6 +28,7 @@ import { InspectorPanel } from "./panels/inspector-panel";
 import { LayersPanel } from "./panels/layers-panel";
 import { NavigatorPanel } from "./panels/navigator-panel";
 import { OutlinePanel } from "./panels/outline-panel";
+import { ReplPanel } from "./panels/repl-panel";
 import { TreePanel } from "./panels/tree-panel";
 import { useAnimatedCamera } from "./ui/useAnimatedCamera";
 import { useKeyboardShortcuts } from "./ui/useKeyboardShortcuts";
@@ -99,6 +100,13 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     component: LayersPanel,
     defaultDock: "right",
     defaultGroup: "inspector",
+  },
+  {
+    id: "verso.repl",
+    title: "REPL",
+    component: ReplPanel,
+    defaultDock: "bottom",
+    defaultGroup: "console",
   },
 ];
 

@@ -13,7 +13,7 @@ import type {
   ResolvedPanelSpec,
   SemanticLocation,
 } from "./substrate";
-import type { Disposable } from "../registries/types";
+import type { DockEdge, Disposable } from "../registries/types";
 
 /**
  * Dockview-backed implementation of `DockingSubstrate`. Created by
@@ -85,8 +85,10 @@ export class DockviewSubstrate implements DockingSubstrate {
     // direction so dockview materialises a fresh group around it.
     // `center` has no dockview equivalent; fall through to "right"
     // (the first call ends up at the root regardless of direction).
-    const direction =
-      spec.defaultDock === "center" ? "right" : spec.defaultDock;
+    // dockview uses "above" / "below" / "left" / "right" / "within";
+    // our `DockEdge` exposes "top" / "bottom" for ergonomics so we
+    // translate at the substrate boundary.
+    const direction = mapDockEdge(spec.defaultDock);
     this.api.addPanel({
       id: spec.id,
       component: this.panelComponentName,
@@ -163,13 +165,34 @@ export class DockviewSubstrate implements DockingSubstrate {
     };
   }
 
-  createGroup(defaultDock: "left" | "right" | "top" | "bottom" | "center"): string {
+  createGroup(defaultDock: DockEdge): string {
     // dockview auto-generates group IDs; we return its id rather
     // than ours. dockview has no "center" direction — the first
     // group becomes the root regardless of direction, so we use
     // "right" as the canonical fallback for "center".
-    const direction = defaultDock === "center" ? "right" : defaultDock;
+    const direction = mapDockEdge(defaultDock);
     const group = this.api.addGroup({ direction });
     return group.id;
+  }
+}
+
+/**
+ * Translate `@verso/shell`'s ergonomic `DockEdge` into the
+ * direction string dockview-react accepts on `addPanel` /
+ * `addGroup`. `top` → `above`, `bottom` → `below`; `center` and
+ * the other edges pass through (with `center` translating to
+ * `right` since dockview has no center primitive — the first
+ * group becomes the root regardless of direction).
+ */
+function mapDockEdge(edge: DockEdge): "above" | "below" | "left" | "right" {
+  switch (edge) {
+    case "top":
+      return "above";
+    case "bottom":
+      return "below";
+    case "center":
+      return "right";
+    default:
+      return edge;
   }
 }
