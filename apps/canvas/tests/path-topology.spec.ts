@@ -107,7 +107,7 @@ test.describe("Track J — path topology acceptance", () => {
         const c = (globalThis as unknown as { __canvas: CanvasGlobal }).__canvas;
         await c.client.mutate({
           op: "pathPointRemove",
-          args: { polygonId, index: 1 },
+          args: { elementId: { kind: "polygon", id: polygonId }, index: 1 },
         });
       },
       { polygonId: POLYGON_ID },
@@ -148,7 +148,7 @@ test.describe("Track J — path topology acceptance", () => {
         const c = (globalThis as unknown as { __canvas: CanvasGlobal }).__canvas;
         await c.client.mutate({
           op: "pathPointCurveType",
-          args: { polygonId, index: 1, smooth: true },
+          args: { elementId: { kind: "polygon", id: polygonId }, index: 1, smooth: true },
         });
       },
       { polygonId: POLYGON_ID },
@@ -170,7 +170,7 @@ test.describe("Track J — path topology acceptance", () => {
         const c = (globalThis as unknown as { __canvas: CanvasGlobal }).__canvas;
         await c.client.mutate({
           op: "pathPointCurveType",
-          args: { polygonId, index: 1, smooth: false },
+          args: { elementId: { kind: "polygon", id: polygonId }, index: 1, smooth: false },
         });
       },
       { polygonId: POLYGON_ID },
@@ -199,7 +199,7 @@ test.describe("Track J — path topology acceptance", () => {
         const c = (globalThis as unknown as { __canvas: CanvasGlobal }).__canvas;
         await c.client.mutate({
           op: "pathPointRemove",
-          args: { polygonId, index: 5 },
+          args: { elementId: { kind: "polygon", id: polygonId }, index: 5 },
         });
       },
       { polygonId: POLYGON_ID },
@@ -222,7 +222,7 @@ test.describe("Track J — path topology acceptance", () => {
         const c = (globalThis as unknown as { __canvas: CanvasGlobal }).__canvas;
         await c.client.mutate({
           op: "pathPointRemove",
-          args: { polygonId, index: 2 },
+          args: { elementId: { kind: "polygon", id: polygonId }, index: 2 },
         });
       },
       { polygonId: POLYGON_ID },
@@ -258,7 +258,7 @@ test.describe("Track J — path topology acceptance", () => {
         const c = (globalThis as unknown as { __canvas: CanvasGlobal }).__canvas;
         await c.client.mutate({
           op: "pathPointCurveType",
-          args: { polygonId, index: 0, smooth: true },
+          args: { elementId: { kind: "polygon", id: polygonId }, index: 0, smooth: true },
         });
       },
       { polygonId: POLYGON_ID },
@@ -310,16 +310,16 @@ test.describe("Track J — path topology acceptance", () => {
             ops: [
               {
                 op: "pathPointSet",
-                args: { polygonId, index: 0, role: "right", position: q0 },
+                args: { elementId: { kind: "polygon", id: polygonId }, index: 0, role: "right", position: q0 },
               },
               {
                 op: "pathPointSet",
-                args: { polygonId, index: 1, role: "left", position: q2 },
+                args: { elementId: { kind: "polygon", id: polygonId }, index: 1, role: "left", position: q2 },
               },
               {
                 op: "pathPointInsert",
                 args: {
-                  polygonId,
+                  elementId: { kind: "polygon", id: polygonId },
                   index: 1,
                   anchor: { anchor: mid, left: r0, right: r1 },
                 },
@@ -385,7 +385,7 @@ test.describe("Track J — path topology acceptance", () => {
           const c = (globalThis as unknown as { __canvas: CanvasGlobal }).__canvas;
           await c.client.mutate({
             op: "pathPointCurveType",
-            args: { polygonId, index: idx, smooth: true },
+            args: { elementId: { kind: "polygon", id: polygonId }, index: idx, smooth: true },
           });
         },
         { polygonId: POLYGON_ID, idx },
@@ -419,16 +419,16 @@ test.describe("Track J — path topology acceptance", () => {
             ops: [
               {
                 op: "pathPointSet",
-                args: { polygonId, index: 3, role: "right", position: q0 },
+                args: { elementId: { kind: "polygon", id: polygonId }, index: 3, role: "right", position: q0 },
               },
               {
                 op: "pathPointSet",
-                args: { polygonId, index: 0, role: "left", position: q2 },
+                args: { elementId: { kind: "polygon", id: polygonId }, index: 0, role: "left", position: q2 },
               },
               {
                 op: "pathPointInsert",
                 args: {
-                  polygonId,
+                  elementId: { kind: "polygon", id: polygonId },
                   index: 4,
                   anchor: { anchor: mid, left: r0, right: r1 },
                   prevSubpathStarts: [0, 5],
@@ -466,6 +466,81 @@ test.describe("Track J — path topology acceptance", () => {
     }
   });
 
+  test("Track J fan-out — PathPointRemove + curve-type toggle accept a TextFrame", async ({
+    page,
+  }) => {
+    // The page-0 label text frame in geometry-groups.idml is a
+    // rectangular text frame with 4 anchors (its PathGeometry
+    // outline). The fan-out apply layer accepts the same
+    // PathPointRemove / PathPointCurveType mutations against a
+    // TextFrame element id that it already accepted against a
+    // Polygon, sharing the helper that locates the anchors vec.
+    const TEXT_FRAME_ID = "ua365e1";
+    const before = await page.evaluate(
+      async ({ id }) => {
+        const c = (globalThis as unknown as { __canvas: CanvasGlobal }).__canvas;
+        return c.client.pathAnchors({ kind: "textFrame", id });
+      },
+      { id: TEXT_FRAME_ID },
+    );
+    if (!before) throw new Error("text frame has no path anchors");
+    expect(before.anchors.length).toBe(4);
+
+    // Remove anchor index 1 via the generic wire shape.
+    await page.evaluate(
+      async ({ id }) => {
+        const c = (globalThis as unknown as { __canvas: CanvasGlobal }).__canvas;
+        await c.client.mutate({
+          op: "pathPointRemove",
+          args: { elementId: { kind: "textFrame", id }, index: 1 },
+        });
+      },
+      { id: TEXT_FRAME_ID },
+    );
+
+    const after = await page.evaluate(
+      async ({ id }) => {
+        const c = (globalThis as unknown as { __canvas: CanvasGlobal }).__canvas;
+        return c.client.pathAnchors({ kind: "textFrame", id });
+      },
+      { id: TEXT_FRAME_ID },
+    );
+    if (!after) throw new Error("text frame anchors lost after remove");
+    expect(after.anchors.length).toBe(3);
+
+    // Curve-type toggle also works on the TextFrame — exercise the
+    // second fan-out arm before undoing both.
+    await page.evaluate(
+      async ({ id }) => {
+        const c = (globalThis as unknown as { __canvas: CanvasGlobal }).__canvas;
+        await c.client.mutate({
+          op: "pathPointCurveType",
+          args: { elementId: { kind: "textFrame", id }, index: 1, smooth: true },
+        });
+      },
+      { id: TEXT_FRAME_ID },
+    );
+
+    // Undo both ops; the remove inverse round-trips to 4 anchors.
+    await page.evaluate(async () => {
+      const c = (globalThis as unknown as { __canvas: CanvasGlobal }).__canvas;
+      await c.client.undo();
+      await c.client.undo();
+    });
+    const restored = await page.evaluate(
+      async ({ id }) => {
+        const c = (globalThis as unknown as { __canvas: CanvasGlobal }).__canvas;
+        return c.client.pathAnchors({ kind: "textFrame", id });
+      },
+      { id: TEXT_FRAME_ID },
+    );
+    if (!restored) throw new Error("text frame anchors lost after undo");
+    expect(restored.anchors.length).toBe(4);
+    for (let i = 0; i < 4; i++) {
+      expect(anchorsClose(restored.anchors[i], before.anchors[i])).toBe(true);
+    }
+  });
+
   test("AC-J-5 — undo round-trips curve-type toggle bytewise", async ({
     page,
   }) => {
@@ -476,7 +551,7 @@ test.describe("Track J — path topology acceptance", () => {
         const c = (globalThis as unknown as { __canvas: CanvasGlobal }).__canvas;
         await c.client.mutate({
           op: "pathPointCurveType",
-          args: { polygonId, index: 2, smooth: true },
+          args: { elementId: { kind: "polygon", id: polygonId }, index: 2, smooth: true },
         });
       },
       { polygonId: POLYGON_ID },

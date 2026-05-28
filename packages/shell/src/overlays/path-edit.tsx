@@ -91,18 +91,24 @@ function PathEditRender(props: OverlayProps) {
   const inv = 1 / props.camera.scale;
   const matrix = anchors.itemTransform ?? null;
 
-  // Track J — only Polygons accept the new path-topology mutations.
-  // We still render anchors for other path-bearing elements (5c
-  // behaviour); we just don't wire the click → dispatch on them.
-  const polygonId = target.kind === "polygon" ? target.id : null;
+  // Track J fan-out — path-topology mutations accept Polygon,
+  // TextFrame, Rectangle, GraphicLine (all four carry the same
+  // `anchors` table). Oval / Group don't and stay read-only.
+  const editTarget: ElementId | null =
+    target.kind === "polygon" ||
+    target.kind === "textFrame" ||
+    target.kind === "rectangle" ||
+    target.kind === "graphicLine"
+      ? target
+      : null;
 
   const onAnchorDown = (i: number) => () => {
-    if (polygonId === null) return;
+    if (editTarget === null) return;
     setSelectedAnchorIndex(i);
   };
 
   const onAnchorDoubleClick = (i: number) => (e: MouseEvent<SVGElement>) => {
-    if (polygonId === null) return;
+    if (editTarget === null) return;
     e.preventDefault();
     e.stopPropagation();
     const a = anchors.anchors[i];
@@ -114,7 +120,7 @@ function PathEditRender(props: OverlayProps) {
       Math.hypot(a.right[0] - a.anchor[0], a.right[1] - a.anchor[1]) < 1e-3;
     void client.mutate({
       op: "pathPointCurveType",
-      args: { polygonId, index: i, smooth: isCorner },
+      args: { elementId: editTarget, index: i, smooth: isCorner },
     });
   };
 
@@ -138,7 +144,7 @@ function PathEditRender(props: OverlayProps) {
   const onSegmentDown =
     (segStart: number, segEnd: number, closingSubEnd: number | null) =>
     (e: MouseEvent<SVGPathElement>) => {
-      if (polygonId === null) return;
+      if (editTarget === null) return;
       e.preventDefault();
       e.stopPropagation();
       // The hit zone is an SVG element inside the overlay's root
@@ -198,7 +204,7 @@ function PathEditRender(props: OverlayProps) {
         {
           op: "pathPointSet" as const,
           args: {
-            polygonId,
+            elementId: editTarget,
             index: segStart,
             role: "right" as const,
             position: split.startRight as [number, number],
@@ -207,7 +213,7 @@ function PathEditRender(props: OverlayProps) {
         {
           op: "pathPointSet" as const,
           args: {
-            polygonId,
+            elementId: editTarget,
             index: segEnd,
             role: "left" as const,
             position: split.endLeft as [number, number],
@@ -216,7 +222,7 @@ function PathEditRender(props: OverlayProps) {
         {
           op: "pathPointInsert" as const,
           args: {
-            polygonId,
+            elementId: editTarget,
             index: insertIdx,
             anchor: {
               anchor: split.midAnchor as [number, number],
@@ -237,11 +243,11 @@ function PathEditRender(props: OverlayProps) {
   // also get a wraparound (last → first) entry; its third tuple
   // slot carries the subpath's `subEnd` so `onSegmentDown` can
   // route the insert to the boundary instead of `segStart + 1`.
-  // Polygons only; other path-bearing elements still get the
-  // read-only chrome.
+  // Track J fan-out: hit zones surface for any path-bearing
+  // element (Polygon / TextFrame / Rectangle / GraphicLine).
   type SegPair = readonly [number, number, number | null];
   const segmentPairs: SegPair[] = [];
-  if (polygonId !== null) {
+  if (editTarget !== null) {
     const n = anchors.anchors.length;
     const starts = anchors.subpathStarts.length > 0 ? anchors.subpathStarts : [0];
     for (let si = 0; si < starts.length; si++) {

@@ -69,17 +69,24 @@ export function usePathEditMode() {
       if (e.key !== "Backspace" && e.key !== "Delete") return;
       if (selectedAnchorIndex === null) return;
       const sel = elementSelection[0];
-      // Only Polygons accept path-topology mutations today (mirrors
-      // the Rust apply arm in crates/idml-mutate/src/apply.rs).
-      if (!sel || sel.kind !== "polygon") return;
+      // Track J fan-out — Polygon, TextFrame, Rectangle, GraphicLine
+      // all carry path anchors. Oval / Group don't.
+      if (
+        !sel ||
+        (sel.kind !== "polygon" &&
+          sel.kind !== "textFrame" &&
+          sel.kind !== "rectangle" &&
+          sel.kind !== "graphicLine")
+      ) {
+        return;
+      }
       e.preventDefault();
-      const polygonId = sel.id;
       const index = selectedAnchorIndex;
       // Clear the selection ahead of the round-trip so the
       // overlay doesn't briefly highlight a deleted anchor.
       setSelectedAnchorIndex(null);
       void client
-        .mutate({ op: "pathPointRemove", args: { polygonId, index } })
+        .mutate({ op: "pathPointRemove", args: { elementId: sel, index } })
         .catch(() => {
           // Mutation failed (probably stale index after a concurrent
           // edit). Re-instate the selection so the user can retry.
