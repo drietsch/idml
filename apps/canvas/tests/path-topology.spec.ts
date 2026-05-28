@@ -48,6 +48,7 @@ interface PathAnchorsResult {
   itemTransform: [number, number, number, number, number, number] | null;
   anchors: PathAnchorTriple[];
   subpathStarts: number[];
+  subpathOpen?: boolean[];
 }
 
 interface CanvasGlobal {
@@ -356,6 +357,112 @@ test.describe("Track J — path topology acceptance", () => {
     expect(restored.subpathStarts).toEqual([0, 4]);
     for (let i = 0; i < before.anchors.length; i++) {
       expect(anchorsClose(restored.anchors[i], before.anchors[i])).toBe(true);
+    }
+  });
+
+  test("AC-J-1 closing edge — insert on wraparound segment lands inside prior subpath", async ({
+    page,
+  }) => {
+    // Closing-edge follow-up. The outer-square subpath [0..4) is
+    // closed; its wraparound segment runs from anchors[3] back to
+    // anchors[0]. A click on it should insert a new anchor at flat
+    // index 4 (= subpath_starts[1]), staying inside subpath 0 — the
+    // overlay's `prevSubpathStarts` override is what keeps the
+    // boundary entry from claiming the new anchor for subpath 1.
+    const before = await pathSnapshot(page);
+    expect(before.anchors.length).toBe(8);
+    expect(before.subpathStarts).toEqual([0, 4]);
+    // Both subpaths of square-with-hole are closed.
+    expect(before.subpathOpen).toEqual([false, false]);
+
+    // Smooth anchors[0] and anchors[3] so the closing curve has
+    // non-trivial control points — without this the corner→corner
+    // closing edge is a straight line and the split is uninformative
+    // (every t produces the same midpoint).
+    for (const idx of [0, 3]) {
+      await page.evaluate(
+        async ({ polygonId, idx }) => {
+          const c = (globalThis as unknown as { __canvas: CanvasGlobal }).__canvas;
+          await c.client.mutate({
+            op: "pathPointCurveType",
+            args: { polygonId, index: idx, smooth: true },
+          });
+        },
+        { polygonId: POLYGON_ID, idx },
+      );
+    }
+    const smoothed = await pathSnapshot(page);
+    // Recompute the split at t=0.5 against the *smoothed* anchors.
+    const a3 = smoothed.anchors[3]; // segment start
+    const a0 = smoothed.anchors[0]; // segment end (wraparound)
+    const tEval = 0.5;
+    const lerp = (
+      a: [number, number],
+      b: [number, number],
+      t: number,
+    ): [number, number] => [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])];
+    const q0 = lerp(a3.anchor, a3.right, tEval);
+    const q1 = lerp(a3.right, a0.left, tEval);
+    const q2 = lerp(a0.left, a0.anchor, tEval);
+    const r0 = lerp(q0, q1, tEval);
+    const r1 = lerp(q1, q2, tEval);
+    const mid = lerp(r0, r1, tEval);
+
+    // Closing-edge dispatch: insertIdx = 4 (subEnd of subpath 0),
+    // prevSubpathStarts = [0, 5] so the boundary entry shifts +1.
+    await page.evaluate(
+      async ({ polygonId, q0, q2, r0, mid, r1 }) => {
+        const c = (globalThis as unknown as { __canvas: CanvasGlobal }).__canvas;
+        await c.client.mutate({
+          op: "batch",
+          args: {
+            ops: [
+              {
+                op: "pathPointSet",
+                args: { polygonId, index: 3, role: "right", position: q0 },
+              },
+              {
+                op: "pathPointSet",
+                args: { polygonId, index: 0, role: "left", position: q2 },
+              },
+              {
+                op: "pathPointInsert",
+                args: {
+                  polygonId,
+                  index: 4,
+                  anchor: { anchor: mid, left: r0, right: r1 },
+                  prevSubpathStarts: [0, 5],
+                },
+              },
+            ],
+          },
+        });
+      },
+      { polygonId: POLYGON_ID, q0, q2, r0, mid, r1 },
+    );
+
+    const after = await pathSnapshot(page);
+    expect(after.anchors.length).toBe(9);
+    // The new anchor lives at flat index 4 — last anchor of subpath 0,
+    // not first of subpath 1.
+    expect(after.subpathStarts).toEqual([0, 5]);
+    expect(Math.abs(after.anchors[4].anchor[0] - mid[0])).toBeLessThan(1e-3);
+    expect(Math.abs(after.anchors[4].anchor[1] - mid[1])).toBeLessThan(1e-3);
+    // Inner-hole subpath shifted by 1 but otherwise unchanged.
+    for (let i = 0; i < 4; i++) {
+      expect(anchorsClose(after.anchors[5 + i], smoothed.anchors[4 + i])).toBe(true);
+    }
+
+    // Single undo reverts the whole batch (insert + both handle sets).
+    await page.evaluate(async () => {
+      const c = (globalThis as unknown as { __canvas: CanvasGlobal }).__canvas;
+      await c.client.undo();
+    });
+    const restored = await pathSnapshot(page);
+    expect(restored.anchors.length).toBe(8);
+    expect(restored.subpathStarts).toEqual([0, 4]);
+    for (let i = 0; i < smoothed.anchors.length; i++) {
+      expect(anchorsClose(restored.anchors[i], smoothed.anchors[i])).toBe(true);
     }
   });
 

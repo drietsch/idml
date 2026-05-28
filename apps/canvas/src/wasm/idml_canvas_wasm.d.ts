@@ -28,7 +28,7 @@ export type ByteBuf = number[];
  * the worker rejects each variant with `WorkerError::NotImplemented`.
  * Phase 3 lights these up incrementally.
  */
-export type Mutation = { op: "insertText"; args: { storyId: string; offset: number; text: string } } | { op: "deleteRange"; args: { storyId: string; start: number; end: number } } | { op: "applyStyle"; args: { storyId: string; start: number; end: number; attributes: Value } } | { op: "insertField"; args: { storyId: string; offset: number; fieldKind: string } } | { op: "moveFrame"; args: { frameId: string; transform: [number, number, number, number, number, number] } } | { op: "resizeFrame"; args: { frameId: string; bounds: [number, number, number, number] } } | { op: "linkFrames"; args: { frameA: string; frameB: string } } | { op: "unlinkFrames"; args: { chainId: string; afterFrame: string } } | { op: "insertPage"; args: { afterPageId: PageId | null; masterId: string | null } } | { op: "deletePage"; args: { pageId: PageId } } | { op: "insertFrame"; args: { pageId: PageId; bounds: [number, number, number, number] } } | { op: "deleteFrame"; args: { frameId: string } } | { op: "pathPointInsert"; args: { polygonId: string; index: number; anchor: PathAnchorSpec } } | { op: "pathPointRemove"; args: { polygonId: string; index: number } } | { op: "pathPointCurveType"; args: { polygonId: string; index: number; smooth: boolean } } | { op: "pathPointSet"; args: { polygonId: string; index: number; role: PathPointRole; position: [number, number] } } | { op: "batch"; args: { ops: Mutation[] } };
+export type Mutation = { op: "insertText"; args: { storyId: string; offset: number; text: string } } | { op: "deleteRange"; args: { storyId: string; start: number; end: number } } | { op: "applyStyle"; args: { storyId: string; start: number; end: number; attributes: Value } } | { op: "insertField"; args: { storyId: string; offset: number; fieldKind: string } } | { op: "moveFrame"; args: { frameId: string; transform: [number, number, number, number, number, number] } } | { op: "resizeFrame"; args: { frameId: string; bounds: [number, number, number, number] } } | { op: "linkFrames"; args: { frameA: string; frameB: string } } | { op: "unlinkFrames"; args: { chainId: string; afterFrame: string } } | { op: "insertPage"; args: { afterPageId: PageId | null; masterId: string | null } } | { op: "deletePage"; args: { pageId: PageId } } | { op: "insertFrame"; args: { pageId: PageId; bounds: [number, number, number, number] } } | { op: "deleteFrame"; args: { frameId: string } } | { op: "pathPointInsert"; args: { polygonId: string; index: number; anchor: PathAnchorSpec; prevSubpathStarts?: number[] | null } } | { op: "pathPointRemove"; args: { polygonId: string; index: number } } | { op: "pathPointCurveType"; args: { polygonId: string; index: number; smooth: boolean } } | { op: "pathPointSet"; args: { polygonId: string; index: number; role: PathPointRole; position: [number, number] } } | { op: "batch"; args: { ops: Mutation[] } };
 
 /**
  * Axis the snap line guides. `X` is a vertical guide (snaps the x
@@ -431,6 +431,13 @@ export interface PathAnchorsResult {
      * casing the empty `subpath_starts` vector.
      */
     subpathStarts: number[];
+    /**
+     * Parallel to `subpath_starts` (or, when `subpath_starts` is
+     * empty, a single entry for the single contour). `true` ⇒ the
+     * contour is open. Lets the overlay emit closing-edge insert
+     * hit-zones for closed subpaths only.
+     */
+    subpathOpen?: boolean[];
     /**
      * `[a, b, c, d, tx, ty]`. None ⇒ identity.
      */

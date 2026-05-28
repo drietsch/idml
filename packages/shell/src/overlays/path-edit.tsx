@@ -125,8 +125,18 @@ function PathEditRender(props: OverlayProps) {
   // search, runs the split to get the new anchor + adjusted
   // neighbour handles, and dispatches a Batch of three
   // mutations so the whole insert lands as one undo entry.
+  //
+  // `closingSubEnd != null` flags the wraparound (last → first)
+  // segment of a closed subpath. The new anchor lands at flat
+  // index `closingSubEnd`, becoming the new last anchor of that
+  // subpath; the apply layer's default strictly-greater starts
+  // rule would assign it to the NEXT subpath instead, so we
+  // pass an explicit `prevSubpathStarts` override that bumps the
+  // boundary entry. For the last subpath's closing edge (where
+  // `closingSubEnd === anchors.length`) no entry needs bumping
+  // and the override is omitted.
   const onSegmentDown =
-    (segStart: number, segEnd: number) =>
+    (segStart: number, segEnd: number, closingSubEnd: number | null) =>
     (e: MouseEvent<SVGPathElement>) => {
       if (polygonId === null) return;
       e.preventDefault();
@@ -162,13 +172,28 @@ function PathEditRender(props: OverlayProps) {
         t,
       );
       // Dispatch order matters: update both endpoint handles AT
-      // their OLD flat indices first, then insert the new anchor
-      // at segStart + 1. If we inserted first, segEnd would shift
-      // by +1 and the second PathPointSet would address the wrong
-      // anchor. Undo reverses these in order (Insert undoes back
-      // to OLD indices first, then the handle restores apply
-      // cleanly at OLD indices). Captured in the AC-J-5
-      // round-trip spec.
+      // their OLD flat indices first, then insert the new anchor.
+      // For internal segments the insert index is segStart + 1.
+      // For closing edges (wraparound segments) the new anchor
+      // lands at the subpath's END (`closingSubEnd`) — anchor
+      // indices segStart and segEnd refer to positions that
+      // straddle a subpath boundary, so neither would adjust if
+      // we used segStart + 1.
+      const insertIdx =
+        closingSubEnd !== null ? closingSubEnd : segStart + 1;
+      // For closing-edge inserts at a subpath boundary the apply
+      // layer's default rule (strictly-greater) doesn't bump the
+      // boundary entry; supply explicit post-Insert starts so the
+      // new anchor stays inside the prior subpath.
+      let prevSubpathStarts: number[] | undefined;
+      if (
+        closingSubEnd !== null &&
+        closingSubEnd < anchors.anchors.length
+      ) {
+        prevSubpathStarts = Array.from(anchors.subpathStarts, (s) =>
+          s >= closingSubEnd ? s + 1 : s,
+        );
+      }
       const ops = [
         {
           op: "pathPointSet" as const,
@@ -192,12 +217,15 @@ function PathEditRender(props: OverlayProps) {
           op: "pathPointInsert" as const,
           args: {
             polygonId,
-            index: segStart + 1,
+            index: insertIdx,
             anchor: {
               anchor: split.midAnchor as [number, number],
               left: split.midLeft as [number, number],
               right: split.midRight as [number, number],
             },
+            ...(prevSubpathStarts !== undefined
+              ? { prevSubpathStarts }
+              : {}),
           },
         },
       ];
@@ -205,12 +233,14 @@ function PathEditRender(props: OverlayProps) {
     };
 
   // Track J — segment pairs for insert hit zones. One entry per
-  // adjacent (start, end) pair WITHIN a subpath; never across
-  // subpath boundaries. Closed subpaths' closing edge (last → first)
-  // is left out of v1 — re-add when we round out path-topology
-  // coverage. Polygons only; other path-bearing elements still
-  // get the read-only chrome.
-  const segmentPairs: Array<[number, number]> = [];
+  // adjacent (start, end) pair WITHIN a subpath. Closed subpaths
+  // also get a wraparound (last → first) entry; its third tuple
+  // slot carries the subpath's `subEnd` so `onSegmentDown` can
+  // route the insert to the boundary instead of `segStart + 1`.
+  // Polygons only; other path-bearing elements still get the
+  // read-only chrome.
+  type SegPair = readonly [number, number, number | null];
+  const segmentPairs: SegPair[] = [];
   if (polygonId !== null) {
     const n = anchors.anchors.length;
     const starts = anchors.subpathStarts.length > 0 ? anchors.subpathStarts : [0];
@@ -218,14 +248,21 @@ function PathEditRender(props: OverlayProps) {
       const subStart = starts[si];
       const subEnd = si + 1 < starts.length ? starts[si + 1] : n;
       for (let i = subStart; i + 1 < subEnd; i++) {
-        segmentPairs.push([i, i + 1]);
+        segmentPairs.push([i, i + 1, null]);
+      }
+      // Closed-subpath wraparound. `subpathOpen` is parallel to
+      // ranges built from `subpathStarts`; missing entries default
+      // to closed (matches the renderer's `unwrap_or(false)`).
+      const isOpen = anchors.subpathOpen?.[si] ?? false;
+      if (!isOpen && subEnd - subStart >= 2) {
+        segmentPairs.push([subEnd - 1, subStart, subEnd]);
       }
     }
   }
 
   return (
     <g>
-      {segmentPairs.map(([s, t], idx) => {
+      {segmentPairs.map(([s, t, closing], idx) => {
         const sA = anchors.anchors[s];
         const eA = anchors.anchors[t];
         if (!sA || !eA) return null;
@@ -250,7 +287,7 @@ function PathEditRender(props: OverlayProps) {
             fill="none"
             stroke="transparent"
             strokeWidth={8 * inv}
-            onPointerDown={onSegmentDown(s, t)}
+            onPointerDown={onSegmentDown(s, t, closing)}
             style={{ cursor: "copy", pointerEvents: "stroke" }}
           />
         );
