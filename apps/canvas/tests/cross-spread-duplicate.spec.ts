@@ -295,6 +295,14 @@ test.describe("Track K — cross-spread Alt-duplicate", () => {
       sawDestResolve,
       "gesture spine should have resolved a destination spread for this delta",
     ).toBe(true);
+    // Strict pageId routing: the duplicate's pageId reports a page
+    // of the DESTINATION spread, not the source page. Prior to the
+    // spread-scoped lookup in `element_geometry`, the dup's centroid
+    // (in spread-B-local coords) could alias spread A's pages and
+    // surface the source pageId — making this assertion impossible
+    // to pin. (The earlier K.3 spec asserted only the dispatch-side
+    // debug log; the spread-scoped routing fix lets us tighten.)
+    expect(dup!.pageId).not.toBe(src.pageId);
     // Source unchanged on its original page.
     const srcGeom = await page.evaluate(
       async ({ id }) => {
