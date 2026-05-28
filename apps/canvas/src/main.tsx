@@ -25,6 +25,7 @@ import "@verso/shell/styles/globals.css";
 import { CanvasClient } from "./channel/client";
 import { CanvasPanel } from "./panels/canvas-panel";
 import { InspectorPanel } from "./panels/inspector-panel";
+import { LayersPanel } from "./panels/layers-panel";
 import { NavigatorPanel } from "./panels/navigator-panel";
 import { OutlinePanel } from "./panels/outline-panel";
 import { TreePanel } from "./panels/tree-panel";
@@ -89,6 +90,13 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     id: "verso.inspector",
     title: "Inspector",
     component: InspectorPanel,
+    defaultDock: "right",
+    defaultGroup: "inspector",
+  },
+  {
+    id: "verso.layers",
+    title: "Layers",
+    component: LayersPanel,
     defaultDock: "right",
     defaultGroup: "inspector",
   },
