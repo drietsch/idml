@@ -14,7 +14,7 @@
 // (tiny-skia) snapshot tier. Later sub-phases add WebGPU + Vello.
 
 /// <reference lib="webworker" />
-import type { MainToWorker, WorkerToMain } from "../channel/protocol";
+import type { MainToWorker, SnapLine, WorkerToMain } from "../channel/protocol";
 import { PROTOCOL_VERSION } from "../channel/protocol";
 import { CameraBuffer } from "../channel/camera";
 // Deep-import bypasses the @verso/shell barrel — that re-exports
@@ -28,14 +28,20 @@ import { WorkerRenderer, type RendererWasm } from "./render";
 interface CanvasWorkerInstance {
   protocolVersion: number;
   handleMessage(input: string): string;
-  /** Step 5d — raw-arg updateGesture entry. Returns true on success. */
+  /**
+   * Step 5d/5e — raw-arg updateGesture entry. Returns an empty string
+   * on failure (no document loaded or gesture has gone stale). On
+   * success returns a JSON string of `{ pageIds, snapLines }` so the
+   * worker can post a `gestureSnapLines` notify + scope its dirty
+   * invalidation without re-querying.
+   */
   updateGestureRaw(
     handleLo: number,
     handleHi: number,
     dx: number,
     dy: number,
     modifierBits: number,
-  ): boolean;
+  ): string;
   pageCount(): number;
   pageInfo(index: number): unknown;
   renderTilePng(pageId: string, targetWidthPx: number): Uint8Array | undefined;
@@ -380,18 +386,20 @@ function postBack(msg: WorkerToMain) {
   (self as unknown as DedicatedWorkerGlobalScope).postMessage(msg);
 }
 
-// Step 5d — gesture SAB drain loop. Polls the gesture buffer
+// Step 5d/5e — gesture SAB drain loop. Polls the gesture buffer
 // every 8ms (~120 Hz so pointer-rate updates land in the next
 // tick). On a fresh record the wasm `updateGestureRaw` applies
 // the delta directly — no JSON envelope, no postMessage in. The
-// renderer's own tick observes the resulting page-cache
-// invalidation through the existing dirty-mark plumbing.
-//
-// Snap-line surfacing stays on the JSON channel (the
-// `gestureUpdated` reply): that's a cold-path concern of the
-// gesture's overlay, not the per-frame mutation. 5d is about
-// shaving the inbound postMessage cost on the hot path.
+// returned JSON carries the dirty page set + the active snap
+// guides; 5e surfaces those as an unsolicited
+// `gestureSnapLines` notification so the overlay can still
+// render guides while the gesture takes the SAB hot path.
 const GESTURE_DRAIN_INTERVAL_MS = 8;
+
+interface GestureRawOutcome {
+  pageIds: string[];
+  snapLines: SnapLine[];
+}
 
 function startGestureDrain() {
   if (gestureDrainHandle !== null) return;
@@ -405,8 +413,35 @@ function startGestureDrain() {
     let mods = 0;
     if (record.modifiers.shift) mods |= 0b01;
     if (record.modifiers.alt) mods |= 0b10;
-    worker.updateGestureRaw(handleLo, handleHi, record.dx, record.dy, mods);
-    renderer?.markDirty();
+    const outcomeJson = worker.updateGestureRaw(
+      handleLo,
+      handleHi,
+      record.dx,
+      record.dy,
+      mods,
+    );
+    if (!outcomeJson) {
+      // Stale handle or no document. The main thread's
+      // `cancelGesture` path will clear the overlay separately.
+      return;
+    }
+    let outcome: GestureRawOutcome;
+    try {
+      outcome = JSON.parse(outcomeJson) as GestureRawOutcome;
+    } catch (e) {
+      console.warn("updateGestureRaw outcome parse failed:", e);
+      return;
+    }
+    renderer?.markDirty(outcome.pageIds);
+    // Empty `snapLines` is meaningful — the gesture left a
+    // previously-snapped axis and the overlay must clear its stale
+    // guides. Post unconditionally so subscribers see every drain.
+    postBack({
+      seq: null,
+      protocol: PROTOCOL_VERSION,
+      kind: "gestureSnapLines",
+      payload: { snapLines: outcome.snapLines },
+    });
   };
   tick();
 }
