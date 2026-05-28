@@ -65,7 +65,7 @@ export type LodTier = "snapshot" | "midRes" | "live";
  * Stage 1 limitation flagged in the plan and will tighten in later
  * stages.
  */
-export type NodeSpec = { kind: "textFrame"; self_id: string; bounds: [number, number, number, number]; fill_color?: string | null } | { kind: "rectangle"; self_id: string; bounds: [number, number, number, number]; fill_color?: string | null } | { kind: "cloneTranslate"; self_id: string; source: NodeId; dx: number; dy: number };
+export type NodeSpec = { kind: "textFrame"; self_id: string; bounds: [number, number, number, number]; fill_color?: string | null } | { kind: "rectangle"; self_id: string; bounds: [number, number, number, number]; fill_color?: string | null } | { kind: "cloneTranslate"; self_id: string; source: NodeId; dx: number; dy: number; destination_spread_id?: string | null };
 
 /**
  * Discriminated payload of a `WorkerToMain` message.
