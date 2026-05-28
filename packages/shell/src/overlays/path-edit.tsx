@@ -10,7 +10,12 @@ import type { OverlayContribution, OverlayProps } from "../registries/overlay";
 import { useCanvasClient } from "../state/canvas-client-context";
 import { useSelection } from "../state/selection-context";
 
-import { applyAffine } from "./affine";
+import { applyAffine, inverseApplyAffine } from "./affine";
+import {
+  closestTOnCubic,
+  splitSegmentDeCasteljau,
+  type Pt,
+} from "./path-math";
 
 /**
  * Step 5c — path-edit chrome.
@@ -113,8 +118,143 @@ function PathEditRender(props: OverlayProps) {
     });
   };
 
+  // Track J — segment click → curve-preserving insert. The
+  // handler maps the click into the path's local coords (inverse
+  // itemTransform), finds the closest parametric `t` on the
+  // segment's cubic via the de-Casteljau-friendly closest-point
+  // search, runs the split to get the new anchor + adjusted
+  // neighbour handles, and dispatches a Batch of three
+  // mutations so the whole insert lands as one undo entry.
+  const onSegmentDown =
+    (segStart: number, segEnd: number) =>
+    (e: MouseEvent<SVGPathElement>) => {
+      if (polygonId === null) return;
+      e.preventDefault();
+      e.stopPropagation();
+      // The hit zone is an SVG element inside the overlay's root
+      // <svg>. `currentTarget.ownerSVGElement` gives us the root;
+      // its bounding rect lets us translate clientX/Y → doc-space.
+      const svg = e.currentTarget.ownerSVGElement;
+      if (!svg) return;
+      const pt = svg.createSVGPoint();
+      pt.x = e.clientX;
+      pt.y = e.clientY;
+      const ctm = svg.getScreenCTM();
+      if (!ctm) return;
+      const docPt = pt.matrixTransform(ctm.inverse());
+      // doc-space → page-local → path-local (inverse itemTransform).
+      const pageLocal: Pt = [docPt.x - pr.x, docPt.y - pr.y];
+      const pathLocal = inverseApplyAffine(matrix, pageLocal[0], pageLocal[1]);
+      if (!pathLocal) return;
+      const sA = anchors.anchors[segStart];
+      const eA = anchors.anchors[segEnd];
+      if (!sA || !eA) return;
+      const start: Pt = sA.anchor;
+      const startRight: Pt = sA.right;
+      const endLeft: Pt = eA.left;
+      const end: Pt = eA.anchor;
+      const t = closestTOnCubic(start, startRight, endLeft, end, pathLocal);
+      const split = splitSegmentDeCasteljau(
+        start,
+        startRight,
+        endLeft,
+        end,
+        t,
+      );
+      // Dispatch order matters: update both endpoint handles AT
+      // their OLD flat indices first, then insert the new anchor
+      // at segStart + 1. If we inserted first, segEnd would shift
+      // by +1 and the second PathPointSet would address the wrong
+      // anchor. Undo reverses these in order (Insert undoes back
+      // to OLD indices first, then the handle restores apply
+      // cleanly at OLD indices). Captured in the AC-J-5
+      // round-trip spec.
+      const ops = [
+        {
+          op: "pathPointSet" as const,
+          args: {
+            polygonId,
+            index: segStart,
+            role: "right" as const,
+            position: split.startRight as [number, number],
+          },
+        },
+        {
+          op: "pathPointSet" as const,
+          args: {
+            polygonId,
+            index: segEnd,
+            role: "left" as const,
+            position: split.endLeft as [number, number],
+          },
+        },
+        {
+          op: "pathPointInsert" as const,
+          args: {
+            polygonId,
+            index: segStart + 1,
+            anchor: {
+              anchor: split.midAnchor as [number, number],
+              left: split.midLeft as [number, number],
+              right: split.midRight as [number, number],
+            },
+          },
+        },
+      ];
+      void client.mutate({ op: "batch", args: { ops } });
+    };
+
+  // Track J — segment pairs for insert hit zones. One entry per
+  // adjacent (start, end) pair WITHIN a subpath; never across
+  // subpath boundaries. Closed subpaths' closing edge (last → first)
+  // is left out of v1 — re-add when we round out path-topology
+  // coverage. Polygons only; other path-bearing elements still
+  // get the read-only chrome.
+  const segmentPairs: Array<[number, number]> = [];
+  if (polygonId !== null) {
+    const n = anchors.anchors.length;
+    const starts = anchors.subpathStarts.length > 0 ? anchors.subpathStarts : [0];
+    for (let si = 0; si < starts.length; si++) {
+      const subStart = starts[si];
+      const subEnd = si + 1 < starts.length ? starts[si + 1] : n;
+      for (let i = subStart; i + 1 < subEnd; i++) {
+        segmentPairs.push([i, i + 1]);
+      }
+    }
+  }
+
   return (
     <g>
+      {segmentPairs.map(([s, t], idx) => {
+        const sA = anchors.anchors[s];
+        const eA = anchors.anchors[t];
+        if (!sA || !eA) return null;
+        const [sx, sy] = applyAffine(matrix, sA.anchor[0], sA.anchor[1]);
+        const [srx, sry] = applyAffine(matrix, sA.right[0], sA.right[1]);
+        const [elx, ely] = applyAffine(matrix, eA.left[0], eA.left[1]);
+        const [ex, ey] = applyAffine(matrix, eA.anchor[0], eA.anchor[1]);
+        const d =
+          `M ${pr.x + sx} ${pr.y + sy} ` +
+          `C ${pr.x + srx} ${pr.y + sry}, ` +
+          `${pr.x + elx} ${pr.y + ely}, ` +
+          `${pr.x + ex} ${pr.y + ey}`;
+        // Inverse-scaled stroke width keeps the hit zone constant
+        // in CSS px. 8px is generous enough that off-curve clicks
+        // still land — the closest-t solver projects to the
+        // nearest on-curve point regardless of where the click
+        // lands inside the stroke.
+        return (
+          <path
+            key={`seg:${idx}`}
+            d={d}
+            fill="none"
+            stroke="transparent"
+            strokeWidth={8 * inv}
+            onPointerDown={onSegmentDown(s, t)}
+            style={{ cursor: "copy", pointerEvents: "stroke" }}
+          />
+        );
+      })}
       {anchors.anchors.map((a, i) => {
         const [ax, ay] = applyAffine(matrix, a.anchor[0], a.anchor[1]);
         const [lx, ly] = applyAffine(matrix, a.left[0], a.left[1]);

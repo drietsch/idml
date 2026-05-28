@@ -241,6 +241,124 @@ test.describe("Track J — path topology acceptance", () => {
     }
   });
 
+  test("AC-J-1 — insert preserves visible shape via de Casteljau split", async ({
+    page,
+  }) => {
+    // The fixture's outer square has corner anchors with zero-length
+    // handles, so a split would produce identical handles (sharp
+    // corner subdivides into sharp corner). To make AC-J-1
+    // meaningful we first smooth one corner (so its outgoing handle
+    // becomes non-trivial) and THEN split the segment that anchor
+    // starts. Verifies that the new mid-anchor lands on the cubic
+    // and that the inverse round-trips both the handle update + the
+    // insert.
+    await page.evaluate(
+      async ({ polygonId }) => {
+        const c = (globalThis as unknown as { __canvas: CanvasGlobal }).__canvas;
+        await c.client.mutate({
+          op: "pathPointCurveType",
+          args: { polygonId, index: 0, smooth: true },
+        });
+      },
+      { polygonId: POLYGON_ID },
+    );
+    const before = await pathSnapshot(page);
+    expect(before.anchors.length).toBe(8);
+
+    // Pick the segment between anchors[0] and anchors[1] (outer
+    // square top edge after smoothing). Compute the cubic
+    // evaluation at t=0.4 to know where the inserted anchor
+    // should land.
+    const a0 = before.anchors[0];
+    const a1 = before.anchors[1];
+    const tEval = 0.4;
+    const u = 1 - tEval;
+    const w = [u * u * u, 3 * u * u * tEval, 3 * u * tEval * tEval, tEval ** 3];
+    const expectedMid: [number, number] = [
+      w[0] * a0.anchor[0] +
+        w[1] * a0.right[0] +
+        w[2] * a1.left[0] +
+        w[3] * a1.anchor[0],
+      w[0] * a0.anchor[1] +
+        w[1] * a0.right[1] +
+        w[2] * a1.left[1] +
+        w[3] * a1.anchor[1],
+    ];
+
+    // Dispatch a curve-preserving Batch matching what the overlay
+    // would produce for a click at t=0.4 on this segment.
+    // Compute the split's three results inline so the spec
+    // exercises the same math the overlay does.
+    const lerp = (a: [number, number], b: [number, number], t: number): [number, number] => [
+      a[0] + t * (b[0] - a[0]),
+      a[1] + t * (b[1] - a[1]),
+    ];
+    const q0 = lerp(a0.anchor, a0.right, tEval);
+    const q1 = lerp(a0.right, a1.left, tEval);
+    const q2 = lerp(a1.left, a1.anchor, tEval);
+    const r0 = lerp(q0, q1, tEval);
+    const r1 = lerp(q1, q2, tEval);
+    const mid = lerp(r0, r1, tEval);
+
+    await page.evaluate(
+      async ({ polygonId, q0, q2, r0, mid, r1 }) => {
+        const c = (globalThis as unknown as { __canvas: CanvasGlobal }).__canvas;
+        await c.client.mutate({
+          op: "batch",
+          args: {
+            ops: [
+              {
+                op: "pathPointSet",
+                args: { polygonId, index: 0, role: "right", position: q0 },
+              },
+              {
+                op: "pathPointSet",
+                args: { polygonId, index: 1, role: "left", position: q2 },
+              },
+              {
+                op: "pathPointInsert",
+                args: {
+                  polygonId,
+                  index: 1,
+                  anchor: { anchor: mid, left: r0, right: r1 },
+                },
+              },
+            ],
+          },
+        });
+      },
+      { polygonId: POLYGON_ID, q0, q2, r0, mid, r1 },
+    );
+
+    const after = await pathSnapshot(page);
+    // Anchor count grew by 1 and the new anchor sits at index 1.
+    expect(after.anchors.length).toBe(9);
+    // New mid anchor matches the cubic evaluation at t=0.4 — the
+    // strict shape-preservation invariant.
+    expect(Math.abs(after.anchors[1].anchor[0] - expectedMid[0])).toBeLessThan(1e-3);
+    expect(Math.abs(after.anchors[1].anchor[1] - expectedMid[1])).toBeLessThan(1e-3);
+    // subpath_starts shifted: outer subpath grew, inner-hole start
+    // bumped from 4 to 5.
+    expect(after.subpathStarts).toEqual([0, 5]);
+    // Segment-start's right handle is now q0; segment-end's left is q2.
+    expect(Math.abs(after.anchors[0].right[0] - q0[0])).toBeLessThan(1e-3);
+    expect(Math.abs(after.anchors[0].right[1] - q0[1])).toBeLessThan(1e-3);
+    expect(Math.abs(after.anchors[2].left[0] - q2[0])).toBeLessThan(1e-3);
+    expect(Math.abs(after.anchors[2].left[1] - q2[1])).toBeLessThan(1e-3);
+
+    // AC-J-5: single Cmd-Z undoes the whole batch.
+    await page.evaluate(async () => {
+      const c = (globalThis as unknown as { __canvas: CanvasGlobal }).__canvas;
+      await c.client.undo();
+    });
+    const restored = await pathSnapshot(page);
+    expect(restored.anchors.length).toBe(8);
+    expect(restored.subpathStarts).toEqual([0, 4]);
+    for (let i = 0; i < before.anchors.length; i++) {
+      expect(anchorsClose(restored.anchors[i], before.anchors[i])).toBe(true);
+    }
+  });
+
   test("AC-J-5 — undo round-trips curve-type toggle bytewise", async ({
     page,
   }) => {
