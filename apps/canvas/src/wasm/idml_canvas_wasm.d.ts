@@ -259,6 +259,14 @@ export interface DocumentHandle {
      * Aggregate counts for debugging / UI badges.
      */
     stats: DocumentStats;
+    /**
+     * Plan-2 §8.3 — ruler guides per page. The overlay renders
+     * these and the snap pass treats them as targets. Total volume
+     * is small (real docs ship a few dozen at most) so we ship them
+     * inline on the handle rather than paging via a separate
+     * request.
+     */
+    rulerGuides?: RulerGuideWire[];
 }
 
 /**
@@ -379,6 +387,18 @@ export interface PathPointAddress {
  * targets: the anchor itself or one of its two Bezier handles.
  */
 export type PathPointRole = "anchor" | "left" | "right";
+
+/**
+ * Plan-2 §8.3 — wire shape of a ruler guide. `page_id` matches one
+ * of `DocumentHandle::page_ids`. `orientation` is \"vertical\" (snaps
+ * on x) or \"horizontal\" (snaps on y); `location` is the page-local
+ * coord on the perpendicular axis.
+ */
+export interface RulerGuideWire {
+    pageId: PageId;
+    orientation: GuideOrientationWire;
+    location: number;
+}
 
 /**
  * Resolution map keyed by anchor id. The `numbering_map()`
@@ -639,6 +659,8 @@ export interface TocEntry {
 }
 
 export type AnchorId = string;
+
+export type GuideOrientationWire = "vertical" | "horizontal";
 
 export type ProtocolVersion = number;
 

@@ -163,6 +163,7 @@ export {
   pathEditContribution,
   resizeHandlesContribution,
   rotateHandleContribution,
+  rulerGuidesContribution,
   selectionChromeContribution,
   snapLinesContribution,
   applyAffine,

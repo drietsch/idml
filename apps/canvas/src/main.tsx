@@ -10,6 +10,7 @@ import {
   pathEditContribution,
   resizeHandlesContribution,
   rotateHandleContribution,
+  rulerGuidesContribution,
   selectionChromeContribution,
   snapLinesContribution,
   useCamera,
@@ -36,6 +37,7 @@ import { ZoomField } from "./ui/ZoomField";
 // contributions' `z` values inside OverlayHost.
 const BUILT_IN_OVERLAYS: OverlayContribution[] = [
   pageDecorationsContribution,
+  rulerGuidesContribution,
   hitMarkerContribution,
   selectionChromeContribution,
   resizeHandlesContribution,
