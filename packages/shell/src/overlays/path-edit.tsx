@@ -4,7 +4,7 @@ import { useEffect, useState, type MouseEvent } from "react";
 import type {
   ElementId,
   PathAnchorsResult,
-} from "../../../../apps/canvas/src/channel/protocol";
+} from "@verso/client";
 
 import type { OverlayContribution, OverlayProps } from "../registries/overlay";
 import { useCanvasClient } from "../state/canvas-client-context";

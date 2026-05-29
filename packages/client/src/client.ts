@@ -4,6 +4,13 @@
 // pending-promise table, and the camera SAB. UI code sends typed
 // messages and awaits typed replies; the protocol envelope shape
 // stays internal.
+//
+// SDK Phase 1 — this lives in `@verso/client`, framework-agnostic.
+// No React imports. The worker URL is injected by the consumer
+// (the canvas app constructs it via `new URL("./worker/worker.ts",
+// import.meta.url)`) because `import.meta.url` here would resolve
+// against this file's location in the package, not the app's
+// worker.
 
 import {
   PROTOCOL_VERSION,
@@ -31,10 +38,23 @@ import {
   type SnapshotPng,
   type WorkerToMain,
 } from "./protocol";
-import { CameraBuffer, type Camera } from "./camera";
-import { GestureBuffer } from "@verso/shell";
+import { CameraBuffer, type Camera } from "./sab/camera";
+import { GestureBuffer } from "./sab/gesture";
 
 type PendingReply = (msg: WorkerToMain) => void;
+
+/**
+ * Construction options for `CanvasClient`. `workerUrl` must point at
+ * the consumer's worker module — the canvas app builds it via
+ * `new URL("./worker/worker.ts", import.meta.url)` so the resolution
+ * happens in the *app's* module graph. Bundlers (Vite) walk these
+ * URL constructors statically and emit the worker chunk; resolving
+ * the URL here in `@verso/client` would point at a path inside the
+ * package that doesn't have the worker code.
+ */
+export interface CanvasClientOptions {
+  workerUrl: URL;
+}
 
 export class CanvasClient {
   private readonly worker: Worker;
@@ -44,10 +64,8 @@ export class CanvasClient {
   readonly camera: CameraBuffer;
   readonly gestureSab: GestureBuffer;
 
-  constructor() {
-    this.worker = new Worker(new URL("../worker/worker.ts", import.meta.url), {
-      type: "module",
-    });
+  constructor(options: CanvasClientOptions) {
+    this.worker = new Worker(options.workerUrl, { type: "module" });
     this.worker.addEventListener("message", this.onMessage);
     this.camera = CameraBuffer.allocate();
     this.worker.postMessage({ kind: "cameraSab", buffer: this.camera.buffer });

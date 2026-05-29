@@ -8,7 +8,7 @@ import {
 } from "react";
 
 // eslint-disable-next-line import/no-relative-parent-imports
-import { IDENTITY_CAMERA, type Camera } from "../../../../apps/canvas/src/channel/camera";
+import { IDENTITY_CAMERA, type Camera } from "@verso/client";
 
 import { useCanvasClient } from "./canvas-client-context";
 

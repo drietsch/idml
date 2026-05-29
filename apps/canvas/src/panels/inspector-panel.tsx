@@ -21,7 +21,7 @@ import type {
   PropertyEntry,
   PropertyPath,
   Value,
-} from "../channel/protocol";
+} from "@verso/client";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type PanelProps = any;

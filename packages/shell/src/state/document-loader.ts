@@ -7,12 +7,12 @@
 // NOT depend on React; pass it the setters and it dispatches.
 
 // eslint-disable-next-line import/no-relative-parent-imports
-import type { CanvasClient } from "../../../../apps/canvas/src/channel/client";
+import type { CanvasClient } from "@verso/client";
 // eslint-disable-next-line import/no-relative-parent-imports
 import type {
   DocumentHandle,
   PageId,
-} from "../../../../apps/canvas/src/channel/protocol";
+} from "@verso/client";
 
 import type { LoadingState } from "./document-context";
 

@@ -11,7 +11,7 @@ import type {
   HitResult,
   PageId,
   SnapLine,
-} from "../../../../apps/canvas/src/channel/protocol";
+} from "@verso/client";
 
 /**
  * Result of a click hit-test, kept for the overlay's click-marker

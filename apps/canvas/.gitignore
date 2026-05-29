@@ -1,10 +1,11 @@
 node_modules/
 dist/
-src/wasm/*
-# Vendor the tsify-generated typed contract so PR diffs show wire-
-# format changes. The .js loader and .wasm binary stay ignored —
-# they're rebuilt locally via `pnpm wasm`.
-!src/wasm/idml_canvas_wasm.d.ts
+# The wasm-bindgen output (.js loader + .wasm binary + bg.wasm.d.ts)
+# lives in this directory during `bash build-wasm.sh` and is consumed
+# by the worker; nothing in here is tracked. The tsify-generated
+# protocol `.d.ts` moved to `packages/client/src/wasm/` so the
+# `@verso/client` package is self-contained.
+src/wasm/
 *.local
 tsconfig.tsbuildinfo
 playwright-report/

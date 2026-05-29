@@ -10,7 +10,7 @@ import {
 import type {
   ElementGeometryItem,
   ElementId,
-} from "../../../../apps/canvas/src/channel/protocol";
+} from "@verso/client";
 
 export type ActiveTool = "select" | "text";
 

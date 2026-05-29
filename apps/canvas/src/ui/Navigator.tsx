@@ -7,8 +7,8 @@
 // keeping their work in view.
 
 import { useCallback, useMemo } from "react";
-import type { Camera } from "../channel/camera";
-import type { PageId } from "../channel/protocol";
+import type { Camera } from "@verso/client";
+import type { PageId } from "@verso/client";
 import { fitCamera, layoutPages, type PageRect } from "./layout";
 
 export interface NavigatorProps {

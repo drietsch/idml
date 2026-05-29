@@ -5,12 +5,12 @@
 // `crates/idml-canvas/src/channel.rs` (or the appropriate crate),
 // rebuild via `bash apps/canvas/build-wasm.sh`, then re-export here.
 // Do not hand-write types in this file. The generated
-// `apps/canvas/src/wasm/idml_canvas_wasm.d.ts` (emitted by tsify-next
-// + wasm-bindgen) is the source of truth; this barrel exists so
-// consumers don't have to learn the wasm import path.
+// `packages/client/src/wasm/idml_canvas_wasm.d.ts` (emitted by
+// tsify-next + wasm-bindgen) is the source of truth; this barrel
+// exists so consumers don't have to learn the wasm import path.
 //
 // CI enforces this contract: `.github/workflows/protocol-version.yml`
-// rebuilds the wasm, then `git diff --exit-code apps/canvas/src/wasm/`
+// rebuilds the wasm, then `git diff --exit-code packages/client/src/wasm/`
 // fails the run if the committed `.d.ts` is out of date relative to
 // the current Rust source.
 //
@@ -20,7 +20,7 @@
 // must update in lockstep — `scripts/check-protocol-version.sh`
 // catches drift on PRs that change the `.d.ts` structurally.
 
-export const PROTOCOL_VERSION = 14 as const;
+export const PROTOCOL_VERSION = 15 as const;
 
 export type {
   AnchorId,
@@ -80,4 +80,4 @@ export type {
   WorkerError,
   WorkerToMain,
   WorkerToMainKind,
-} from "../wasm/idml_canvas_wasm";
+} from "./wasm/idml_canvas_wasm";

@@ -20,7 +20,7 @@ import { useDockingSubstrate } from "../docking/substrate-context";
 import type { DockingSubstrate } from "../docking/substrate";
 
 // eslint-disable-next-line import/no-relative-parent-imports
-import type { CanvasClient } from "../../../../apps/canvas/src/channel/client";
+import type { CanvasClient } from "@verso/client";
 
 /**
  * Aggregate handle: the single argument every panel + command

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 // eslint-disable-next-line import/no-relative-parent-imports
-import type { PageId } from "../../../../apps/canvas/src/channel/protocol";
+import type { PageId } from "@verso/client";
 
 import type { OverlayContribution, OverlayProps } from "../registries/overlay";
 import { useDocument } from "../state/document-context";

@@ -12,7 +12,7 @@
 // source of truth for the worker.
 
 import { useCallback, useEffect, useRef } from "react";
-import type { Camera } from "../channel/camera";
+import type { Camera } from "@verso/client";
 
 export interface AnimateOptions {
   durationMs?: number;

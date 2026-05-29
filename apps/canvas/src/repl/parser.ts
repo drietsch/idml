@@ -11,7 +11,7 @@ import type {
   Mutation,
   PropertyPath,
   Value,
-} from "../channel/protocol";
+} from "@verso/client";
 
 export type ParsedCommand =
   | { kind: "mutation"; mutation: Mutation }

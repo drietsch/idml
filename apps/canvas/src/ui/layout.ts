@@ -4,7 +4,7 @@
 // All coordinates are in points (pt), the IDML unit. The camera
 // transform maps these to viewport (CSS) pixels.
 
-import type { Camera } from "../channel/camera";
+import type { Camera } from "@verso/client";
 
 export interface PageRect {
   /** Top-left x in document space (pt). */

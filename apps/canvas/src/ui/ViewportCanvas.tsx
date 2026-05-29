@@ -24,8 +24,8 @@ import {
   type SelectionState,
 } from "@verso/shell";
 
-import type { CanvasClient } from "../channel/client";
-import { viewportToDoc, type Camera } from "../channel/camera";
+import type { CanvasClient } from "@verso/client";
+import { viewportToDoc, type Camera } from "@verso/client";
 import type {
   ElementGeometryItem,
   ElementId,
@@ -36,7 +36,7 @@ import type {
   ResizeHandle,
   ResolutionResult,
   RunningHeader,
-} from "../channel/protocol";
+} from "@verso/client";
 import { documentBounds, fitCamera, layoutPages, zoomAt, type PageRect } from "./layout";
 
 // Re-export the (now shell-owned) overlay state types so existing

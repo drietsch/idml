@@ -1,9 +1,9 @@
 import type { ComponentType } from "react";
 
 // eslint-disable-next-line import/no-relative-parent-imports
-import type { Camera } from "../../../../apps/canvas/src/channel/camera";
+import type { Camera } from "@verso/client";
 // eslint-disable-next-line import/no-relative-parent-imports
-import type { PageId } from "../../../../apps/canvas/src/channel/protocol";
+import type { PageId } from "@verso/client";
 
 import type { Disposable, VisibilityPredicate } from "./types";
 

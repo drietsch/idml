@@ -12,7 +12,7 @@ import type {
   DocumentHandle,
   PageId,
   ResolutionResult,
-} from "../../../../apps/canvas/src/channel/protocol";
+} from "@verso/client";
 
 export interface LoadingState {
   name: string;

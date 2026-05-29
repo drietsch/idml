@@ -22,7 +22,7 @@ import {
 } from "@verso/shell";
 import "@verso/shell/styles/globals.css";
 
-import { CanvasClient } from "./channel/client";
+import { CanvasClient } from "@verso/client";
 import { CanvasPanel } from "./panels/canvas-panel";
 import { InspectorPanel } from "./panels/inspector-panel";
 import { LayersPanel } from "./panels/layers-panel";
@@ -155,7 +155,13 @@ function CanvasAppRoot() {
   const [client, setClient] = useState<CanvasClient | null>(null);
 
   useEffect(() => {
-    const c = new CanvasClient();
+    // SDK Phase 1 — `@verso/client` is framework-agnostic, so the
+    // worker URL is constructed in the app's module graph (where
+    // `import.meta.url` resolves correctly + Vite's static worker
+    // chunking can pick it up).
+    const c = new CanvasClient({
+      workerUrl: new URL("./worker/worker.ts", import.meta.url),
+    });
     setClient(c);
     return () => {
       c.dispose();

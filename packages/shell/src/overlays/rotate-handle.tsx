@@ -1,5 +1,5 @@
 // eslint-disable-next-line import/no-relative-parent-imports
-import type { ElementGeometryItem } from "../../../../apps/canvas/src/channel/protocol";
+import type { ElementGeometryItem } from "@verso/client";
 
 import type { OverlayContribution, OverlayProps } from "../registries/overlay";
 import { useSelection } from "../state/selection-context";

@@ -10,6 +10,9 @@ importers:
 
   apps/canvas:
     dependencies:
+      '@verso/client':
+        specifier: workspace:*
+        version: link:../../packages/client
       '@verso/shell':
         specifier: workspace:*
         version: link:../../packages/shell
@@ -154,6 +157,12 @@ importers:
         specifier: ^5.4.11
         version: 5.4.21(@types/node@25.9.1)
 
+  packages/client:
+    devDependencies:
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+
   packages/shell:
     dependencies:
       '@radix-ui/react-dialog':
@@ -180,6 +189,9 @@ importers:
       '@radix-ui/react-tooltip':
         specifier: ^1.2.8
         version: 1.2.8(@types/react-dom@18.3.7(@types/react@18.3.29))(@types/react@18.3.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@verso/client':
+        specifier: workspace:*
+        version: link:../client
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1

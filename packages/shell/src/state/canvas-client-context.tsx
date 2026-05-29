@@ -10,7 +10,7 @@ import {
 // @verso/canvas-bindings package and these paths normalize.
 //
 // eslint-disable-next-line import/no-relative-parent-imports
-import type { CanvasClient } from "../../../../apps/canvas/src/channel/client";
+import type { CanvasClient } from "@verso/client";
 
 const Context = createContext<CanvasClient | null>(null);
 

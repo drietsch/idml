@@ -142,6 +142,10 @@ export {
   type ScrubGestureOptions,
 } from "./gestures/use-scrub-gesture";
 
+// SDK Phase 1 — gesture SAB primitives moved to `@verso/client`
+// alongside camera SAB and the framework-agnostic CanvasClient.
+// Re-exported here so existing `@verso/shell` consumers keep
+// working without an import-path change.
 export {
   GestureBuffer,
   GESTURE_SAB_BYTES,
@@ -149,7 +153,7 @@ export {
   GESTURE_MODIFIER_ALT,
   supportsGestureSab,
   type GestureUpdateRecord,
-} from "./gestures/gesture-sab";
+} from "@verso/client";
 
 // ── Overlay layer ──────────────────────────────────────────────
 export {

@@ -13,7 +13,7 @@ import type {
   CaretGeometry,
   ContentSelection,
   SelectionRect,
-} from "../../../../apps/canvas/src/channel/protocol";
+} from "@verso/client";
 
 import { useCanvasClient } from "./canvas-client-context";
 

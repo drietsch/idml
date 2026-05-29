@@ -15,9 +15,9 @@
 // fight ordinary typing.
 
 import { useEffect } from "react";
-import type { Camera } from "../channel/camera";
+import type { Camera } from "@verso/client";
 import { documentBounds, fitCamera, layoutPages } from "./layout";
-import type { PageId } from "../channel/protocol";
+import type { PageId } from "@verso/client";
 
 export interface ShortcutContext {
   pageIds: ReadonlyArray<PageId>;

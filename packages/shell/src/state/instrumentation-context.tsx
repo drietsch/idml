@@ -7,7 +7,7 @@ import {
 } from "react";
 
 // eslint-disable-next-line import/no-relative-parent-imports
-import type { LayoutCacheStats } from "../../../../apps/canvas/src/channel/protocol";
+import type { LayoutCacheStats } from "@verso/client";
 
 /**
  * HUD-only state: FPS, GPU readiness, layout-cache stats. None of

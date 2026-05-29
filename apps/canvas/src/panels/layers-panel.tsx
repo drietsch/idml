@@ -17,7 +17,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { useCanvasClient } from "@verso/shell";
 
-import type { LayerSummary } from "../channel/protocol";
+import type { LayerSummary } from "@verso/client";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type PanelProps = any;

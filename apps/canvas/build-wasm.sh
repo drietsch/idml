@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # apps/canvas/build-wasm.sh — build idml-canvas-wasm for browser use.
 #
-# Outputs:
-#   apps/canvas/src/wasm/idml_canvas_wasm.js        ES-module loader
-#   apps/canvas/src/wasm/idml_canvas_wasm_bg.wasm   binary
-#   apps/canvas/src/wasm/idml_canvas_wasm.d.ts      type definitions
+# Outputs (in `packages/client/src/wasm/` — the `@verso/client`
+# package owns the wasm boundary, so the SDK consumer can be moved
+# without dragging wasm-bindgen paths along):
+#   idml_canvas_wasm.js        ES-module loader
+#   idml_canvas_wasm_bg.wasm   binary
+#   idml_canvas_wasm.d.ts      type definitions (tracked)
 #
 # Requirements (one-time):
 #   rustup target add wasm32-unknown-unknown
@@ -17,7 +19,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 TARGET_DIR="$ROOT/target/wasm32-unknown-unknown/release"
-OUT_DIR="$ROOT/apps/canvas/src/wasm"
+OUT_DIR="$ROOT/packages/client/src/wasm"
 WB_VER=$(awk '/^name = "wasm-bindgen"$/{getline; gsub(/version = "|"/,""); print; exit}' "$ROOT/Cargo.lock")
 
 if ! command -v wasm-bindgen >/dev/null; then

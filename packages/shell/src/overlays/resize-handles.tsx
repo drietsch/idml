@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import type {
   ElementGeometryItem,
   ResizeHandle,
-} from "../../../../apps/canvas/src/channel/protocol";
+} from "@verso/client";
 
 import type { OverlayContribution, OverlayProps } from "../registries/overlay";
 import { useSelection } from "../state/selection-context";

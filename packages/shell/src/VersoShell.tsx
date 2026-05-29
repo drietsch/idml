@@ -22,11 +22,11 @@ import React, {
 } from "react";
 
 // eslint-disable-next-line import/no-relative-parent-imports
-import type { CanvasClient } from "../../../apps/canvas/src/channel/client";
+import type { CanvasClient } from "@verso/client";
 // eslint-disable-next-line import/no-relative-parent-imports
-import { supportsSharedArrayBuffer } from "../../../apps/canvas/src/channel/camera";
+import { supportsSharedArrayBuffer } from "@verso/client";
 // eslint-disable-next-line import/no-relative-parent-imports
-import type { WorkerToMain } from "../../../apps/canvas/src/channel/protocol";
+import type { WorkerToMain } from "@verso/client";
 
 import { CanvasClientProvider, useCanvasClient } from "./state/canvas-client-context";
 import { CameraProvider } from "./state/camera-context";

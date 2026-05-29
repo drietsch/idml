@@ -20,14 +20,13 @@ import type {
   MainToWorker,
   SnapLine,
   WorkerToMain,
-} from "../channel/protocol";
-import { PROTOCOL_VERSION } from "../channel/protocol";
-import { CameraBuffer, CAMERA_SAB_BYTES, OFFSET_GEN_LO as CAMERA_OFFSET_GEN_LO, OFFSET_GEN_HI as CAMERA_OFFSET_GEN_HI, OFFSET_SCALE as CAMERA_OFFSET_SCALE, OFFSET_TX as CAMERA_OFFSET_TX, OFFSET_TY as CAMERA_OFFSET_TY } from "../channel/camera";
-// Deep-import bypasses the @verso/shell barrel — that re-exports
-// React components which Vite would otherwise pull into the worker
-// bundle, blocking worker startup (the `window` access in React's
-// scheduling code fails inside a worker).
-// eslint-disable-next-line import/no-relative-parent-imports
+} from "@verso/client";
+import { PROTOCOL_VERSION } from "@verso/client";
+import { CameraBuffer, CAMERA_SAB_BYTES, OFFSET_GEN_LO as CAMERA_OFFSET_GEN_LO, OFFSET_GEN_HI as CAMERA_OFFSET_GEN_HI, OFFSET_SCALE as CAMERA_OFFSET_SCALE, OFFSET_TX as CAMERA_OFFSET_TX, OFFSET_TY as CAMERA_OFFSET_TY } from "@verso/client";
+// `@verso/client` has no React; safe to import from the barrel.
+// (Pre-Phase-1 this was a deep-import to bypass the @verso/shell
+// barrel; after the package split that workaround is unnecessary
+// because client's barrel is React-free by lint.)
 import {
   GestureBuffer,
   GESTURE_SAB_BYTES,
@@ -35,7 +34,7 @@ import {
   GESTURE_MODIFIER_ALT,
   GESTURE_MODIFIER_DISABLE_SNAP,
   GESTURE_SAB_OFFSETS,
-} from "../../../../packages/shell/src/gestures/gesture-sab";
+} from "@verso/client";
 import { WorkerRenderer, type RendererWasm } from "./render";
 
 interface CanvasWorkerInstance {
@@ -100,9 +99,9 @@ let pendingAttach:
 /**
  * SAB-contract reconciliation. Rust owns the canonical byte size +
  * offsets + modifier bit masks (see `crates/idml-canvas/src/camera.rs`
- * + `gesture.rs`). The TS-side mirrors in `channel/camera.ts` +
- * `packages/shell/src/gestures/gesture-sab.ts` declare the same
- * values inline so they can be used at module-load time (the SAB is
+ * + `gesture.rs`). The TS-side mirrors live in `@verso/client`'s
+ * `sab/camera.ts` + `sab/gesture.ts` modules — same values declared
+ * inline so they can be used at module-load time (the SAB is
  * allocated before wasm has finished loading). This function runs
  * once wasm is up and asserts the two sides match — a Rust-side
  * change to the layout that ships without a TS-side update fires a
@@ -173,7 +172,14 @@ function assertSabContract(mod: CanvasWasmModule): string | null {
 }
 
 async function init() {
-  const mod = (await import("../wasm/idml_canvas_wasm.js")) as unknown as CanvasWasmModule;
+  // SDK Phase 1 — the wasm-bindgen output lives in `@verso/client`
+  // (see `apps/canvas/build-wasm.sh` OUT_DIR). Deep relative path
+  // here so the dynamic import resolves through Vite's module graph
+  // without going through any package barrel — the wasm loader
+  // pulls itself in lazily and we don't want anything pre-evaluated.
+  const mod = (await import(
+    "../../../../packages/client/src/wasm/idml_canvas_wasm.js"
+  )) as unknown as CanvasWasmModule;
   await mod.default();
   worker = new mod.CanvasWorker();
   if (worker.protocolVersion !== PROTOCOL_VERSION) {
