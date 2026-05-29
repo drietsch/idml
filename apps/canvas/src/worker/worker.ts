@@ -14,15 +14,28 @@
 // (tiny-skia) snapshot tier. Later sub-phases add WebGPU + Vello.
 
 /// <reference lib="webworker" />
-import type { MainToWorker, SnapLine, WorkerToMain } from "../channel/protocol";
+import type {
+  CameraSabLayout,
+  GestureSabLayout,
+  MainToWorker,
+  SnapLine,
+  WorkerToMain,
+} from "../channel/protocol";
 import { PROTOCOL_VERSION } from "../channel/protocol";
-import { CameraBuffer } from "../channel/camera";
+import { CameraBuffer, CAMERA_SAB_BYTES, OFFSET_GEN_LO as CAMERA_OFFSET_GEN_LO, OFFSET_GEN_HI as CAMERA_OFFSET_GEN_HI, OFFSET_SCALE as CAMERA_OFFSET_SCALE, OFFSET_TX as CAMERA_OFFSET_TX, OFFSET_TY as CAMERA_OFFSET_TY } from "../channel/camera";
 // Deep-import bypasses the @verso/shell barrel — that re-exports
 // React components which Vite would otherwise pull into the worker
 // bundle, blocking worker startup (the `window` access in React's
 // scheduling code fails inside a worker).
 // eslint-disable-next-line import/no-relative-parent-imports
-import { GestureBuffer } from "../../../../packages/shell/src/gestures/gesture-sab";
+import {
+  GestureBuffer,
+  GESTURE_SAB_BYTES,
+  GESTURE_MODIFIER_SHIFT,
+  GESTURE_MODIFIER_ALT,
+  GESTURE_MODIFIER_DISABLE_SNAP,
+  GESTURE_SAB_OFFSETS,
+} from "../../../../packages/shell/src/gestures/gesture-sab";
 import { WorkerRenderer, type RendererWasm } from "./render";
 
 interface CanvasWorkerInstance {
@@ -66,7 +79,12 @@ interface CanvasWorkerInstance {
 interface CanvasWasmModule {
   default: (input?: unknown) => Promise<unknown>;
   CanvasWorker: new () => CanvasWorkerInstance;
+  /** SAB byte size + offsets — Rust is the single source of truth.
+   *  TS-side mirrors get reconciled in `assertSabContract` below. */
   cameraSabBytes: () => number;
+  cameraSabLayout: () => CameraSabLayout;
+  gestureSabBytes: () => number;
+  gestureSabLayout: () => GestureSabLayout;
 }
 
 let worker: CanvasWorkerInstance | null = null;
@@ -78,6 +96,81 @@ let renderer: WorkerRenderer | null = null;
 let pendingAttach:
   | { canvas: OffscreenCanvas; dpr: number; cssWidth: number; cssHeight: number }
   | null = null;
+
+/**
+ * SAB-contract reconciliation. Rust owns the canonical byte size +
+ * offsets + modifier bit masks (see `crates/idml-canvas/src/camera.rs`
+ * + `gesture.rs`). The TS-side mirrors in `channel/camera.ts` +
+ * `packages/shell/src/gestures/gesture-sab.ts` declare the same
+ * values inline so they can be used at module-load time (the SAB is
+ * allocated before wasm has finished loading). This function runs
+ * once wasm is up and asserts the two sides match — a Rust-side
+ * change to the layout that ships without a TS-side update fires a
+ * `protocolMismatch` warning here, the same shape the PROTOCOL_VERSION
+ * reconciliation uses.
+ */
+function assertSabContract(mod: CanvasWasmModule): string | null {
+  const cam = mod.cameraSabLayout();
+  const ges = mod.gestureSabLayout();
+  const drift: string[] = [];
+  if (cam.bytes !== CAMERA_SAB_BYTES) {
+    drift.push(`camera.bytes ${cam.bytes} != TS ${CAMERA_SAB_BYTES}`);
+  }
+  if (cam.offsetScale !== CAMERA_OFFSET_SCALE) {
+    drift.push(`camera.offsetScale ${cam.offsetScale} != TS ${CAMERA_OFFSET_SCALE}`);
+  }
+  if (cam.offsetTx !== CAMERA_OFFSET_TX) {
+    drift.push(`camera.offsetTx ${cam.offsetTx} != TS ${CAMERA_OFFSET_TX}`);
+  }
+  if (cam.offsetTy !== CAMERA_OFFSET_TY) {
+    drift.push(`camera.offsetTy ${cam.offsetTy} != TS ${CAMERA_OFFSET_TY}`);
+  }
+  if (cam.offsetGenLo !== CAMERA_OFFSET_GEN_LO) {
+    drift.push(`camera.offsetGenLo ${cam.offsetGenLo} != TS ${CAMERA_OFFSET_GEN_LO}`);
+  }
+  if (cam.offsetGenHi !== CAMERA_OFFSET_GEN_HI) {
+    drift.push(`camera.offsetGenHi ${cam.offsetGenHi} != TS ${CAMERA_OFFSET_GEN_HI}`);
+  }
+  if (ges.bytes !== GESTURE_SAB_BYTES) {
+    drift.push(`gesture.bytes ${ges.bytes} != TS ${GESTURE_SAB_BYTES}`);
+  }
+  if (ges.offsetHandleLo !== GESTURE_SAB_OFFSETS.handleLo) {
+    drift.push(`gesture.offsetHandleLo ${ges.offsetHandleLo} != TS ${GESTURE_SAB_OFFSETS.handleLo}`);
+  }
+  if (ges.offsetHandleHi !== GESTURE_SAB_OFFSETS.handleHi) {
+    drift.push(`gesture.offsetHandleHi ${ges.offsetHandleHi} != TS ${GESTURE_SAB_OFFSETS.handleHi}`);
+  }
+  if (ges.offsetDx !== GESTURE_SAB_OFFSETS.dx) {
+    drift.push(`gesture.offsetDx ${ges.offsetDx} != TS ${GESTURE_SAB_OFFSETS.dx}`);
+  }
+  if (ges.offsetDy !== GESTURE_SAB_OFFSETS.dy) {
+    drift.push(`gesture.offsetDy ${ges.offsetDy} != TS ${GESTURE_SAB_OFFSETS.dy}`);
+  }
+  if (ges.offsetModifiers !== GESTURE_SAB_OFFSETS.modifiers) {
+    drift.push(`gesture.offsetModifiers ${ges.offsetModifiers} != TS ${GESTURE_SAB_OFFSETS.modifiers}`);
+  }
+  if (ges.offsetSeq !== GESTURE_SAB_OFFSETS.seq) {
+    drift.push(`gesture.offsetSeq ${ges.offsetSeq} != TS ${GESTURE_SAB_OFFSETS.seq}`);
+  }
+  if (ges.offsetGenLo !== GESTURE_SAB_OFFSETS.genLo) {
+    drift.push(`gesture.offsetGenLo ${ges.offsetGenLo} != TS ${GESTURE_SAB_OFFSETS.genLo}`);
+  }
+  if (ges.offsetGenHi !== GESTURE_SAB_OFFSETS.genHi) {
+    drift.push(`gesture.offsetGenHi ${ges.offsetGenHi} != TS ${GESTURE_SAB_OFFSETS.genHi}`);
+  }
+  if (ges.modifierShift !== GESTURE_MODIFIER_SHIFT) {
+    drift.push(`gesture.modifierShift ${ges.modifierShift} != TS ${GESTURE_MODIFIER_SHIFT}`);
+  }
+  if (ges.modifierAlt !== GESTURE_MODIFIER_ALT) {
+    drift.push(`gesture.modifierAlt ${ges.modifierAlt} != TS ${GESTURE_MODIFIER_ALT}`);
+  }
+  if (ges.modifierDisableSnap !== GESTURE_MODIFIER_DISABLE_SNAP) {
+    drift.push(
+      `gesture.modifierDisableSnap ${ges.modifierDisableSnap} != TS ${GESTURE_MODIFIER_DISABLE_SNAP}`,
+    );
+  }
+  return drift.length === 0 ? null : drift.join("; ");
+}
 
 async function init() {
   const mod = (await import("../wasm/idml_canvas_wasm.js")) as unknown as CanvasWasmModule;
@@ -91,6 +184,18 @@ async function init() {
       payload: {
         kind: "protocolMismatch",
         details: `worker WASM is v${worker.protocolVersion}, JS bundle is v${PROTOCOL_VERSION}`,
+      },
+    });
+  }
+  const sabDrift = assertSabContract(mod);
+  if (sabDrift !== null) {
+    postBack({
+      seq: null,
+      protocol: worker.protocolVersion,
+      kind: "warning",
+      payload: {
+        kind: "protocolMismatch",
+        details: `SAB layout drift between Rust and TS: ${sabDrift}`,
       },
     });
   }

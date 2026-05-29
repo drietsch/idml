@@ -1,8 +1,14 @@
 // SharedArrayBuffer camera contract.
 //
-// Mirrors `crates/idml-canvas/src/camera.rs`. The main thread is the
-// single writer; the worker is the single reader (per frame, at the
-// start of the render loop).
+// Source of truth: `crates/idml-canvas/src/camera.rs` (constants
+// `CAMERA_SAB_BYTES` + `OFFSET_*` + the `CameraSabLayout` tsify'd
+// struct). The constants below MIRROR the Rust spec so a SAB allocation
+// can run before wasm finishes loading; the worker reconciles via
+// `assertSabContract` once wasm is up and posts a `protocolMismatch`
+// warning on any drift.
+//
+// The main thread is the single writer; the worker is the single
+// reader (per frame, at the start of the render loop).
 //
 // SAB layout (little-endian, 32-byte buffer):
 //

@@ -1,17 +1,24 @@
 // Wire-format types for the main↔worker message channel.
 //
-// Types live in Rust now. The generated `apps/canvas/src/wasm/
-// idml_canvas_wasm.d.ts` (emitted by tsify-next + wasm-bindgen) is
-// the source of truth; this file re-exports the boundary types so
-// consumers don't have to learn the wasm import path. Don't
-// hand-write interfaces here — add them in Rust under the relevant
-// crate (`idml-canvas` for channel/UI-state types, `idml-mutate`
-// for the Operation log) and rebuild WASM.
+// Every type in this file is a re-export of a tsify-generated type
+// from Rust. To add a new type, derive `Tsify` in
+// `crates/idml-canvas/src/channel.rs` (or the appropriate crate),
+// rebuild via `bash apps/canvas/build-wasm.sh`, then re-export here.
+// Do not hand-write types in this file. The generated
+// `apps/canvas/src/wasm/idml_canvas_wasm.d.ts` (emitted by tsify-next
+// + wasm-bindgen) is the source of truth; this barrel exists so
+// consumers don't have to learn the wasm import path.
+//
+// CI enforces this contract: `.github/workflows/protocol-version.yml`
+// rebuilds the wasm, then `git diff --exit-code apps/canvas/src/wasm/`
+// fails the run if the committed `.d.ts` is out of date relative to
+// the current Rust source.
 //
 // `PROTOCOL_VERSION` stays a TS constant because the canvas
 // outgoing messages need a value (not a type) at runtime; the
 // matching Rust constant is in `idml-canvas/src/channel.rs` and
-// must update in lockstep.
+// must update in lockstep — `scripts/check-protocol-version.sh`
+// catches drift on PRs that change the `.d.ts` structurally.
 
 export const PROTOCOL_VERSION = 14 as const;
 
@@ -20,6 +27,7 @@ export type {
   AnchorPosition,
   AppliedOperation,
   ByteBuf,
+  CameraSabLayout,
   CaretGeometry,
   ContentSelection,
   DocumentHandle,
@@ -32,6 +40,7 @@ export type {
   GestureFailure,
   GestureHandle,
   GestureModifiers,
+  GestureSabLayout,
   GestureType,
   HitFilter,
   HitResult,

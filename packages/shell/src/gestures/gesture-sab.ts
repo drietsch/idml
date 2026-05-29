@@ -14,13 +14,20 @@
 //     stores one slot — the most recent — and a generation counter
 //     so the worker's tick knows whether to apply.
 //
+// Source of truth: `crates/idml-canvas/src/gesture.rs` (constants
+// `GESTURE_SAB_BYTES` + `GESTURE_OFFSET_*` + `GESTURE_MODIFIER_*` +
+// the `GestureSabLayout` tsify'd struct). The constants below MIRROR
+// the Rust spec so a SAB allocation can run before wasm finishes
+// loading; the worker reconciles via `assertSabContract` once wasm is
+// up and posts a `protocolMismatch` warning on any drift.
+//
 // SAB layout (little-endian, 32-byte buffer):
 //
 //   offset 0:  handle_lo     (u32)   — gesture handle low word
 //   offset 4:  handle_hi     (u32)   — gesture handle high word
 //   offset 8:  dx            (f32)   — pointer-delta x (page-local pt)
 //   offset 12: dy            (f32)   — pointer-delta y (page-local pt)
-//   offset 16: modifiers     (u32)   — bit 0 = shift, bit 1 = alt
+//   offset 16: modifiers     (u32)   — bit 0 = shift, bit 1 = alt, bit 2 = disable_snap
 //   offset 20: seq           (u32)   — bumps on every producer write
 //   offset 24: generation_lo (u32)   — bumps on every write, atomic
 //   offset 28: generation_hi (u32)   — generation high word
@@ -31,14 +38,27 @@
 
 export const GESTURE_SAB_BYTES = 32;
 
-const OFFSET_HANDLE_LO = 0;
-const OFFSET_HANDLE_HI = 1; // u32 index
-const OFFSET_DX = 2;
-const OFFSET_DY = 3;
-const OFFSET_MODIFIERS = 4;
-const OFFSET_SEQ = 5;
-const OFFSET_GEN_LO = 6;
-const OFFSET_GEN_HI = 7;
+/** u32 word indices into the gesture SAB. Mirrors `GESTURE_OFFSET_*`
+ *  in `crates/idml-canvas/src/gesture.rs`; reconciled at worker init. */
+export const GESTURE_SAB_OFFSETS = {
+  handleLo: 0,
+  handleHi: 1,
+  dx: 2,
+  dy: 3,
+  modifiers: 4,
+  seq: 5,
+  genLo: 6,
+  genHi: 7,
+} as const;
+
+const OFFSET_HANDLE_LO = GESTURE_SAB_OFFSETS.handleLo;
+const OFFSET_HANDLE_HI = GESTURE_SAB_OFFSETS.handleHi;
+const OFFSET_DX = GESTURE_SAB_OFFSETS.dx;
+const OFFSET_DY = GESTURE_SAB_OFFSETS.dy;
+const OFFSET_MODIFIERS = GESTURE_SAB_OFFSETS.modifiers;
+const OFFSET_SEQ = GESTURE_SAB_OFFSETS.seq;
+const OFFSET_GEN_LO = GESTURE_SAB_OFFSETS.genLo;
+const OFFSET_GEN_HI = GESTURE_SAB_OFFSETS.genHi;
 
 export const GESTURE_MODIFIER_SHIFT = 1;
 export const GESTURE_MODIFIER_ALT = 2;
