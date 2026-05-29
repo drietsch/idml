@@ -172,8 +172,13 @@ function ShellChrome({
     activeGroup,
     setActiveGroup,
   } = useSelection();
-  const { setCaret, setSelectionRects, contentSelectionRef } =
-    useContentSelection();
+  const {
+    contentSelection,
+    setContentSelection,
+    setCaret,
+    setSelectionRects,
+    contentSelectionRef,
+  } = useContentSelection();
   const { setFps, setGpuActive, setLayoutCacheStats } = useInstrumentation();
   const registries = useRegistries();
 
@@ -357,6 +362,11 @@ function ShellChrome({
       // affordance.
       setElementSelection,
       elementGeometry,
+      // SDK Phase 3 — text-side selection mirror, also needed by
+      // tests that drive content-scope binding hooks (Character
+      // panel etc.).
+      contentSelection,
+      setContentSelection,
       activeTool,
       setActiveTool,
       // Track L — exposed for tests that drive the panel's double-
