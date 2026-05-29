@@ -125,7 +125,18 @@ function PropertyRow(props: {
       <label className="text-xs text-muted-foreground">
         {labelForPath(entry.path)}
       </label>
-      <ValueEditor value={entry.value} onCommit={onCommit} />
+      {entry.value === null || entry.value === undefined ? (
+        // SDK Phase 3 — `PropertyEntry.value: Option<Value>` lands a
+        // `null` when the read snapshot can't pick a single winner
+        // (e.g. a `NodeId::StoryRange` whose `CharacterRun`s carry
+        // different values for this path). Render an em-dash so the
+        // user sees "mixed" rather than a confusing default.
+        <span className="text-xs text-muted-foreground" data-mixed>
+          —
+        </span>
+      ) : (
+        <ValueEditor value={entry.value} onCommit={onCommit} />
+      )}
     </div>
   );
 }

@@ -145,15 +145,32 @@ test.describe("Scripting Stage 2 — embedded Boa", () => {
     expect(await opacity(page, TEXT_FRAME_ID)).toBe(80);
   });
 
-  test("AC-SCRIPT-7 — verso.selection() reflects the visually-selected frames", async ({
+  test("AC-SCRIPT-7 — verso.selection() reflects the host's element selection", async ({
     page,
   }) => {
-    // Click the canvas to select the test text frame, then ask the
-    // script engine what `verso.selection()` reports. The two views
-    // of selection (UI and script) must converge on the same IDs.
-    await page.locator("[data-canvas-stage]").click({
-      position: { x: 200, y: 200 },
-    });
+    // Drive selection through the client (the same channel the UI's
+    // hit-test path uses on click) — proves selection state flows
+    // to scripts without depending on a canvas-pixel click that the
+    // headless harness can't always land. The two consumers (UI +
+    // script bridge) must converge on the same id list.
+    await page.evaluate(
+      async ({ id }) => {
+        const c = (
+          globalThis as unknown as {
+            __canvas: CanvasGlobal & {
+              client: {
+                setElementSelection: (
+                  ids: { kind: string; id: string }[],
+                  mode: string,
+                ) => Promise<unknown>;
+              };
+            };
+          }
+        ).__canvas;
+        await c.client.setElementSelection([{ kind: "textFrame", id }], "replace");
+      },
+      { id: TEXT_FRAME_ID },
+    );
     const result = await run(
       page,
       `
@@ -162,12 +179,9 @@ test.describe("Scripting Stage 2 — embedded Boa", () => {
       `,
     );
     expect(result.error).toBeNull();
-    // The selection-log line is captured by the script-editor's
-    // output buffer; we only assert that *some* selection landed
-    // through, because exact frame ids depend on where the click
-    // lands. If the panel surfaced an empty list, verso.selection
-    // would be broken.
-    const sawSelection = result.output.some((line) => /"selection"\s*\[/.test(line));
-    expect(sawSelection).toBe(true);
+    const line = result.output.find((l) => l.includes("selection"));
+    expect(line, "verso.selection() should emit a log line").toBeDefined();
+    expect(line).toContain(TEXT_FRAME_ID);
+    expect(line).toContain("textFrame");
   });
 });

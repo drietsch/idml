@@ -161,12 +161,19 @@ export interface SceneTreeNode {
 /**
  * Inspector P1 — one row of the inspector. `path` is the
  * `PropertyPath` discriminant (camelCase). `value` mirrors the
- * `Value` wire shape exactly so the panel can pass it through to
+ * `Value` wire shape so the panel can pass it through to
  * `Mutation::SetElementProperty` without re-encoding.
+ *
+ * SDK Phase 3 — `value` is `Option<Value>` (was `Value`). `None`
+ * signals \"mixed / indeterminate\" — a `NodeId::StoryRange` whose
+ * `CharacterRun`s carry conflicting values for this path returns
+ * `None` so the binding renderer can show a placeholder (em-dash)
+ * rather than picking an arbitrary winner. For frame-level reads
+ * the value is always `Some(_)`.
  */
 export interface PropertyEntry {
     path: PropertyPath;
-    value: Value;
+    value?: Value | null;
 }
 
 /**
@@ -477,7 +484,7 @@ export interface AppliedOperation {
  * the structural containers an `InsertNode`/`MoveNode` Op can target
  * as a parent.
  */
-export type NodeId = { kind: "TextFrame"; id: string } | { kind: "Rectangle"; id: string } | { kind: "Oval"; id: string } | { kind: "Polygon"; id: string } | { kind: "GraphicLine"; id: string } | { kind: "Group"; id: string } | { kind: "Spread"; id: string } | { kind: "Page"; id: string } | { kind: "Layer"; id: string };
+export type NodeId = { kind: "TextFrame"; id: string } | { kind: "Rectangle"; id: string } | { kind: "Oval"; id: string } | { kind: "Polygon"; id: string } | { kind: "GraphicLine"; id: string } | { kind: "Group"; id: string } | { kind: "Spread"; id: string } | { kind: "Page"; id: string } | { kind: "Layer"; id: string } | { kind: "StoryRange"; id: { story_id: string; start: number; end: number } };
 
 /**
  * Stable page identity, independent of position in the page vector.
@@ -652,7 +659,7 @@ export type Value = { type: "bounds"; value: [number, number, number, number] } 
  * (`\"fill.color\"`) — so JS callers don\'t need to learn the Rust
  * enum shape.
  */
-export type PropertyPath = "frameBounds" | "frameFillColor" | "frameStrokeColor" | "frameStrokeWeight" | "frameOpacity" | "frameTransform" | "imageContentTransform" | "framePathPoint" | "pathPointInsert" | "pathPointRemove" | "pathPointCurveType" | "layerVisible" | "layerLocked" | "layerPrintable" | "layerName";
+export type PropertyPath = "frameBounds" | "frameFillColor" | "frameStrokeColor" | "frameStrokeWeight" | "frameOpacity" | "frameTransform" | "imageContentTransform" | "framePathPoint" | "pathPointInsert" | "pathPointRemove" | "pathPointCurveType" | "layerVisible" | "layerLocked" | "layerPrintable" | "layerName" | "characterFontSize" | "characterLeading" | "characterTracking" | "characterFillColor";
 
 /**
  * Typed worker-side error for non-load operations. Mutations,
