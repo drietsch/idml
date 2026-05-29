@@ -29,6 +29,7 @@ import { LayersPanel } from "./panels/layers-panel";
 import { NavigatorPanel } from "./panels/navigator-panel";
 import { OutlinePanel } from "./panels/outline-panel";
 import { ReplPanel } from "./panels/repl-panel";
+import { ScriptEditorPanel } from "./panels/script-editor";
 import { TreePanel } from "./panels/tree-panel";
 import { useAnimatedCamera } from "./ui/useAnimatedCamera";
 import { useKeyboardShortcuts } from "./ui/useKeyboardShortcuts";
@@ -105,6 +106,13 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     id: "verso.repl",
     title: "REPL",
     component: ReplPanel,
+    defaultDock: "bottom",
+    defaultGroup: "console",
+  },
+  {
+    id: "verso.script-editor",
+    title: "Script",
+    component: ScriptEditorPanel,
     defaultDock: "bottom",
     defaultGroup: "console",
   },

@@ -288,6 +288,31 @@ export class CanvasClient {
   }
 
   /**
+   * Scripting Stage 2 — run JS source against the loaded document.
+   * The Verso JS API (verso.set / get / inspect / undo / redo,
+   * frame Proxy, console.*) is available to the script; every
+   * mutation routes through the standard Operation channel, so
+   * undo/redo + the inspector + the canvas re-render all work
+   * identically to UI-driven changes. Returns the captured
+   * console.* output + any thrown error.
+   */
+  async executeScript(
+    source: string,
+  ): Promise<{ output: string[]; error: string | null }> {
+    const reply = await this.send({
+      kind: "executeScript",
+      payload: { source },
+    });
+    if (reply.kind === "scriptResult") {
+      return {
+        output: reply.payload.output,
+        error: reply.payload.error ?? null,
+      };
+    }
+    throw new Error(`unexpected reply: ${reply.kind}`);
+  }
+
+  /**
    * Phase B — begin a gesture against the listed elements. Resolves
    * to the worker's handle; pass it to subsequent
    * `updateGesture` / `commitGesture` / `cancelGesture` calls.

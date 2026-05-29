@@ -9,6 +9,9 @@
 # Requirements (one-time):
 #   rustup target add wasm32-unknown-unknown
 #   cargo install wasm-bindgen-cli --version <pinned>   (matches Cargo.lock)
+#
+# The scripting layer uses Boa (pure Rust), so no clang / wasi-libc /
+# WASI sysroot is needed — vanilla cargo + wasm-bindgen suffices.
 
 set -euo pipefail
 
