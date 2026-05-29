@@ -593,6 +593,44 @@ export interface LayerSummary {
 }
 
 /**
+ * Tsify-exposed snapshot of the SAB layout. The TS-side worker glue
+ * reads this once at startup and asserts its own hardcoded mirror
+ * matches; any drift triggers a `protocolMismatch` warning identical
+ * to the `PROTOCOL_VERSION` reconciliation. Keeping the layout in
+ * Rust lets a single edit drive both sides — TS sees the new value
+ * the next time wasm rebuilds.
+ */
+export interface GestureSabLayout {
+    bytes: number;
+    offsetHandleLo: number;
+    offsetHandleHi: number;
+    offsetDx: number;
+    offsetDy: number;
+    offsetModifiers: number;
+    offsetSeq: number;
+    offsetGenLo: number;
+    offsetGenHi: number;
+    modifierShift: number;
+    modifierAlt: number;
+    modifierDisableSnap: number;
+}
+
+/**
+ * Tsify-exposed snapshot of the camera SAB layout. The TS-side
+ * `CameraBuffer` reads this once at startup via `cameraSabLayout()`
+ * and asserts its own hardcoded `OFFSET_*` constants match — any
+ * drift triggers a `protocolMismatch` warning on the canvas.
+ */
+export interface CameraSabLayout {
+    bytes: number;
+    offsetScale: number;
+    offsetTx: number;
+    offsetTy: number;
+    offsetGenLo: number;
+    offsetGenHi: number;
+}
+
+/**
  * Typed `LoadDocument` failure. Each variant maps to a specific UI
  * recovery in the main thread (corrupted file → \"try another file\";
  * missing font → \"install or substitute\"; etc.).
@@ -893,6 +931,12 @@ export class CanvasWorker {
 
 export function cameraSabBytes(): number;
 
+export function cameraSabLayout(): CameraSabLayout;
+
+export function gestureSabBytes(): number;
+
+export function gestureSabLayout(): GestureSabLayout;
+
 export function on_start(): void;
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
@@ -901,6 +945,7 @@ export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly __wbg_canvasworker_free: (a: number, b: number) => void;
     readonly cameraSabBytes: () => number;
+    readonly cameraSabLayout: () => any;
     readonly canvasworker_caretGeometryJson: (a: number, b: number, c: number) => [number, number];
     readonly canvasworker_gpuReady: (a: number) => number;
     readonly canvasworker_handleMessage: (a: number, b: number, c: number) => [number, number];
@@ -919,7 +964,9 @@ export interface InitOutput {
     readonly canvasworker_selectionGeometryJson: (a: number, b: number, c: number) => [number, number];
     readonly canvasworker_setSceneCacheBudget: (a: number, b: number) => void;
     readonly canvasworker_updateGestureRaw: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
+    readonly gestureSabLayout: () => any;
     readonly on_start: () => void;
+    readonly gestureSabBytes: () => number;
     readonly lut_inverse_interp16: (a: number, b: number, c: number) => number;
     readonly qcms_profile_precache_output_transform: (a: number) => void;
     readonly qcms_white_point_sRGB: (a: number) => void;
@@ -933,9 +980,9 @@ export interface InitOutput {
     readonly qcms_enable_iccv4: () => void;
     readonly qcms_profile_is_bogus: (a: number) => number;
     readonly qcms_transform_release: (a: number) => void;
-    readonly wasm_bindgen__convert__closures_____invoke__he19967737c22eefa: (a: number, b: number, c: any) => [number, number];
-    readonly wasm_bindgen__convert__closures_____invoke__h25a97adab108d4da: (a: number, b: number, c: any, d: any) => void;
-    readonly wasm_bindgen__convert__closures_____invoke__h11fadaae0e787d72: (a: number, b: number, c: any) => void;
+    readonly wasm_bindgen__convert__closures_____invoke__he4c1c257c045c41d: (a: number, b: number, c: any) => [number, number];
+    readonly wasm_bindgen__convert__closures_____invoke__h98d8e723eec618c7: (a: number, b: number, c: any, d: any) => void;
+    readonly wasm_bindgen__convert__closures_____invoke__h10d8665c2d310494: (a: number, b: number, c: any) => void;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_exn_store: (a: number) => void;
