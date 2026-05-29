@@ -354,6 +354,45 @@ export const spreadMiniMapBindings: BindingDeclaration = {
 
 Renders via opaque code (`<canvas>` + draw routine), but **mutates only through `verso.mutate(...)`** — never reaches past the door. This proves the doc's invariant 9: expert components get imperative *rendering*, not imperative *mutation*.
 
+### 3c.1 ADR — Character / paragraph addressing model (RESOLVED)
+
+**Status:** Resolved 2026-05-29. Prep work landed alongside this decision.
+**Context:** the four named character paths (`CharacterFontSize/Leading/Tracking/FillColor` per §3d below) cannot be wired without choosing how a write addresses a character range. Three candidates were considered:
+
+| | Approach A — `NodeId::StoryRange { story_id, start, end }` | Approach B — Frame-level lossy | Approach C — Hybrid: NodeId for elements, ContentSelection for text |
+|---|---|---|---|
+| Symmetric with existing model | yes (same shape as `TextFrame(_)`) | yes | no (two addressing schemes) |
+| Multi-style preservation | yes | **no** (lossy on multi-style stories) | yes |
+| Matches IDML serialization | yes (`<CharacterStyleRange>` has offsets) | no | partial |
+| Binding model fit | clean — `selectionProperty` binds to any NodeId | trivial | branching — bindings know two scopes |
+| New Rust variants | 1 NodeId + character paths | 0 + character paths | 0 + a new Mutation envelope variant |
+| Snapshot complexity | mixed-value handling | none | mixed-value handling |
+| Script ergonomics | `verso.set(rangeNodeId, "characterFontSize", 12)` | `verso.set("textFrame:X", ...)` (lossy) | different shape from element writes |
+
+**Decision: Approach A — Range-as-NodeId.** New `NodeId::StoryRange { story_id, start, end }` (half-open, character-offset addressing matching IDML's native serialization). Character + paragraph `PropertyPath`s address this variant.
+
+Reasoning:
+
+1. **Lossy is a deal-breaker.** Approach B silently collapses every multi-style story on every Character edit. The whole reason this renderer exists is character-level IDML fidelity; the editor cannot disagree with the renderer about what a story can hold.
+2. **Symmetry preserves the one-door thesis.** The Operation channel addresses nodes; a story range *is* a node. Same shape as `TextFrame(_)`, `Rectangle(_)`, `Layer(_)`. Approach C breaks this — it would split Operations into "addressed by NodeId" and "addressed by ContentSelection," with the binding model needing to know which.
+3. **IDML's native serialization is already range-keyed.** `<CharacterStyleRange ...>` lives inside `<ParagraphStyleRange>` inside `<Story>`, all with character offsets. `StoryRange` is a thin wrapper over how IDML already addresses character properties.
+4. **The binding ceiling holds.** A `selectionProperty` binding stays a `selectionProperty` binding; we give it an optional `scope: "element" | "content"` discriminator. Element bindings resolve against `useSelection()`; content bindings resolve against `useContentSelection()`. Both produce a `NodeId` for the `apply` call. No new binding *kind*.
+5. **`verso.contentSelection()` becomes the natural address producer.** Phase 2 already exposes content selection to scripts. With Approach A: scripts write `verso.set(rangeNodeIdFromContentSelection(), "characterFontSize", 12)` — same pattern as element edits.
+
+**Implementation status (this commit is Phase 3 *prep*):**
+
+- ✅ `NodeId::StoryRange { story_id, start, end }` variant added with `self_id()` / `kind()` helpers (`crates/idml-mutate/src/operation.rs`).
+- ✅ `PropertyPath::CharacterFontSize` / `CharacterLeading` / `CharacterTracking` / `CharacterFillColor` added with `label()` entries (same file).
+- ✅ `PropertyEntry.value: Option<Value>` (`crates/idml-canvas/src/channel.rs` — was `Value`). `None` signals "mixed / indeterminate" — a `StoryRange` whose `CharacterRun`s carry conflicting values returns `None` so the binding renderer can show a placeholder (em-dash) rather than picking an arbitrary winner. `PROTOCOL_VERSION` bumped 14 → 15.
+- ✅ Inspector panel handles null entries with an em-dash placeholder.
+- ✅ Native serde round-trip test for `NodeId::StoryRange` + smoke test for the new character paths (`crates/idml-mutate/src/lib.rs`).
+- ⏳ Apply arms for `(StoryRange, Character*)` — **Phase 3 proper.** Today a `SetProperty` against `(StoryRange, CharacterFontSize)` returns `OperationError::UnsupportedProperty`; the test pins this. Phase 3's first work after the catalog package is built is the run-walking apply layer: walk paragraphs + runs covering `[start, end)`, split runs at boundaries, set the new property per affected run, return a `Batch` inverse of per-run restorations.
+- ⏳ `model.element_properties(StoryRange { ... })` snapshot — **Phase 3 proper.** Walks the story's runs within `[start, end)`, collapses uniform values, emits `None` for mixed.
+- ⏳ Catalog binding extension (`selectionProperty.scope: "element" | "content"`) — **Phase 3 proper** (lands with the catalog package itself).
+- ⏳ Fallback rule when element-selected TextFrame has no content selection: synthesize a "whole-story" range — **Phase 3 proper.**
+
+**Paragraph paths follow the same model.** Paragraph writes round the addressed range to paragraph boundaries before applying (paragraphs are atomic in IDML; you can't half-apply `ParagraphJustification` to the middle of a paragraph). The range-walking helper Phase 3 builds handles this rounding centrally.
+
 ### 3d. Operation-layer findings (anticipated, ship inside Phase 3)
 
 `sdk.md` is categorical: "panel friction is specification" (invariant 8). Phase 3 will surface gaps:
