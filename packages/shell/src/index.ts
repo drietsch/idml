@@ -198,3 +198,18 @@ export {
   type ResolvedPanelSpec,
   type SemanticLocation,
 } from "./docking";
+
+// ── SDK Phase 3 — declarative catalog renderer + primitive leaves
+export {
+  CompositionRenderer,
+  CatalogRegistryProvider,
+} from "./catalog/render";
+export { useBindings, type ResolvedBinding } from "./catalog/binding-hook";
+export {
+  registerBuiltInCatalogEntries,
+  VERSO_INPUT_LENGTH,
+  VERSO_INPUT_COLOR_SWATCH,
+  VERSO_INPUT_NUMERIC_SCRUB,
+  VERSO_LAYOUT_SECTION,
+  VERSO_LABEL,
+} from "./catalog/built-in";

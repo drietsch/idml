@@ -247,7 +247,11 @@ function parseElementId(token: string): ElementId | null {
   const id = token.slice(colon + 1);
   const resolved = ELEMENT_KIND_LITERALS[kind];
   if (!resolved || id === "") return null;
-  return { kind: resolved, id };
+  // After SDK Phase 3 ElementId gained a `storyRange` variant whose
+  // id is a struct, not a string — the REPL's grammar doesn't
+  // address ranges today, and `ELEMENT_KIND_LITERALS` lookup
+  // already excludes "storyRange", so the cast is safe.
+  return { kind: resolved, id } as ElementId;
 }
 
 function parseBool(s: string): boolean | null {

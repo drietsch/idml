@@ -85,7 +85,17 @@ export function InspectorPanel(_: PanelProps) {
 
   return (
     <div className="p-3 space-y-3 text-sm" data-inspector="ready">
-      <Header kind={props.kind} id={target.id} />
+      <Header
+        kind={props.kind}
+        id={
+          // After SDK Phase 3, ElementId.id can be a struct
+          // (StoryRange) instead of a string. Render the address
+          // textually so the header keeps showing *something*.
+          typeof target.id === "string"
+            ? target.id
+            : `${target.id.story_id}@${target.id.start}..${target.id.end}`
+        }
+      />
       <div className="space-y-2">
         {props.entries.map((entry) => (
           <PropertyRow
