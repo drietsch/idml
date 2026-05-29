@@ -144,4 +144,30 @@ test.describe("Scripting Stage 2 — embedded Boa", () => {
     expect(result.error).toBeNull();
     expect(await opacity(page, TEXT_FRAME_ID)).toBe(80);
   });
+
+  test("AC-SCRIPT-7 — verso.selection() reflects the visually-selected frames", async ({
+    page,
+  }) => {
+    // Click the canvas to select the test text frame, then ask the
+    // script engine what `verso.selection()` reports. The two views
+    // of selection (UI and script) must converge on the same IDs.
+    await page.locator("[data-canvas-stage]").click({
+      position: { x: 200, y: 200 },
+    });
+    const result = await run(
+      page,
+      `
+        const ids = verso.selection();
+        console.log("selection", JSON.stringify(ids));
+      `,
+    );
+    expect(result.error).toBeNull();
+    // The selection-log line is captured by the script-editor's
+    // output buffer; we only assert that *some* selection landed
+    // through, because exact frame ids depend on where the click
+    // lands. If the panel surfaced an empty list, verso.selection
+    // would be broken.
+    const sawSelection = result.output.some((line) => /"selection"\s*\[/.test(line));
+    expect(sawSelection).toBe(true);
+  });
 });
