@@ -157,6 +157,22 @@ importers:
         specifier: ^5.4.11
         version: 5.4.21(@types/node@25.9.1)
 
+  packages/catalog:
+    dependencies:
+      '@verso/client':
+        specifier: workspace:*
+        version: link:../client
+      react:
+        specifier: ^18.3.0
+        version: 18.3.1
+    devDependencies:
+      '@types/react':
+        specifier: ^18.3.12
+        version: 18.3.29
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+
   packages/client:
     devDependencies:
       typescript:
