@@ -18,6 +18,7 @@
     "fonts:resolve": "tsx scripts/fonts-resolve.ts"
   },
   "dependencies": {
+    "@verso/catalog": "workspace:*",
     "@verso/client": "workspace:*",
     "@verso/shell": "workspace:*",
     "@verso/ui": "workspace:*",

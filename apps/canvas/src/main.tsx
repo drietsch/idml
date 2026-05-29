@@ -26,6 +26,7 @@ import "@verso/shell/styles/globals.css";
 import { CanvasClient } from "@verso/client";
 import { APP_KEYBINDINGS, APP_MENU_ITEMS, buildAppCommands } from "./app-commands";
 import { CanvasPanel } from "./panels/canvas-panel";
+import { CharacterPanel } from "./panels/character-panel";
 import { InspectorPanel } from "./panels/inspector-panel";
 import { LayersPanel } from "./panels/layers-panel";
 import { NavigatorPanel } from "./panels/navigator-panel";
@@ -97,6 +98,18 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     component: InspectorPanel,
     defaultDock: "right",
     defaultGroup: "inspector",
+  },
+  {
+    // SDK Phase 3 — Character panel rendered as a declarative
+    // composition over `@verso/catalog`. Bindings target content-
+    // scope (the current text selection mapped to an
+    // ElementId.storyRange); the apply arm at
+    // (NodeId::StoryRange, Character*) commits each edit.
+    id: "verso.character",
+    title: "Character",
+    component: CharacterPanel,
+    defaultDock: "right",
+    defaultGroup: "properties",
   },
   {
     id: "verso.layers",

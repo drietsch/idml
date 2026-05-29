@@ -74,11 +74,22 @@ function Node({ node }: { node: CompositionNode }): ReactElement {
     // every resolved binding plus the static props.
     const value = resolved.value?.value ?? null;
     const onCommit = resolved.value?.onCommit;
+    // Layout leaves (section, row, etc.) receive their composition
+    // children pre-rendered as a React node under `props.children`
+    // so they can wrap them in chrome (fieldset, flex row, etc.)
+    // without re-implementing the catalog walk.
+    const childElements =
+      node.children && node.children.length > 0
+        ? node.children.map((child, idx) => (
+            <Node key={`${child.catalogId}-${idx}`} node={child} />
+          ))
+        : undefined;
     const leafProps: LeafProps = {
       value,
       onCommit,
       props: {
         ...node.props,
+        ...(childElements ? { children: <>{childElements}</> } : {}),
         // Forward all non-primary resolved bindings under the same
         // name so leaves can read them by name (e.g.
         // `props.fillColor` for a multi-bind leaf).
