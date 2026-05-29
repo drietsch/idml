@@ -17,12 +17,14 @@ import {
   useCanvasClient,
   useContentSelection,
   useDocument,
+  useRegistries,
   type OverlayContribution,
   type PanelContribution,
 } from "@verso/shell";
 import "@verso/shell/styles/globals.css";
 
 import { CanvasClient } from "@verso/client";
+import { APP_KEYBINDINGS, APP_MENU_ITEMS, buildAppCommands } from "./app-commands";
 import { CanvasPanel } from "./panels/canvas-panel";
 import { InspectorPanel } from "./panels/inspector-panel";
 import { LayersPanel } from "./panels/layers-panel";
@@ -33,6 +35,7 @@ import { ScriptEditorPanel } from "./panels/script-editor";
 import { TreePanel } from "./panels/tree-panel";
 import { useAnimatedCamera } from "./ui/useAnimatedCamera";
 import { useKeyboardShortcuts } from "./ui/useKeyboardShortcuts";
+import { documentBounds, fitCamera, layoutPages } from "./ui/layout";
 import { usePathEditMode } from "./ui/usePathEditMode";
 import { useTextEditing } from "./ui/useTextEditing";
 import { ZoomField } from "./ui/ZoomField";
@@ -129,6 +132,7 @@ function CanvasAppIntegration() {
   const { camera, setCamera, viewportSize } = useCamera();
   const { handle } = useDocument();
   const { contentSelection, setContentSelection } = useContentSelection();
+  const registries = useRegistries();
 
   const animateCamera = useAnimatedCamera(camera, setCamera);
   useKeyboardShortcuts({
@@ -144,6 +148,65 @@ function CanvasAppIntegration() {
     setSelection: setContentSelection,
   });
   usePathEditMode();
+
+  // SDK Phase 4 — register canvas-app commands + menu items +
+  // keybindings. Closures capture the *current* camera / handle /
+  // viewportSize so the zoom commands see live values; dependency
+  // array re-runs on each change. The registries' dedupe-by-id
+  // contract means re-registration is safe (the dispose from the
+  // previous run drops the stale handler before we add the new one).
+  useEffect(() => {
+    const [vw, vh] = viewportSize;
+    const pageSizes = handle?.pageSizesPt ?? [];
+    const rects = layoutPages(pageSizes);
+    const commands = buildAppCommands({
+      undo: () => {
+        void client.undo();
+      },
+      redo: () => {
+        void client.redo();
+      },
+      zoomIn: () => {
+        const cx = vw / 2;
+        const cy = vh / 2;
+        const docX = (cx - camera.tx) / camera.scale;
+        const docY = (cy - camera.ty) / camera.scale;
+        const newScale = camera.scale * 1.5;
+        animateCamera({ scale: newScale, tx: cx - docX * newScale, ty: cy - docY * newScale });
+      },
+      zoomOut: () => {
+        const cx = vw / 2;
+        const cy = vh / 2;
+        const docX = (cx - camera.tx) / camera.scale;
+        const docY = (cy - camera.ty) / camera.scale;
+        const newScale = camera.scale / 1.5;
+        animateCamera({ scale: newScale, tx: cx - docX * newScale, ty: cy - docY * newScale });
+      },
+      zoom100: () => {
+        const cx = vw / 2;
+        const cy = vh / 2;
+        const docX = (cx - camera.tx) / camera.scale;
+        const docY = (cy - camera.ty) / camera.scale;
+        animateCamera({ scale: 1, tx: cx - docX, ty: cy - docY });
+      },
+      zoomFit: () => {
+        if (rects.length === 0) return;
+        animateCamera(fitCamera(vw, vh, documentBounds(rects)));
+      },
+    });
+    const cmdDisposables = commands.map((c) => registries.commands.register(c));
+    const menuDisposables = APP_MENU_ITEMS.map((m) =>
+      registries.menus.register(m),
+    );
+    const keyDisposables = APP_KEYBINDINGS.map((k) =>
+      registries.keybindings.register(k),
+    );
+    return () => {
+      for (const d of cmdDisposables) d.dispose();
+      for (const d of menuDisposables) d.dispose();
+      for (const d of keyDisposables) d.dispose();
+    };
+  }, [registries, client, camera, viewportSize, handle, animateCamera]);
 
   return null;
 }
