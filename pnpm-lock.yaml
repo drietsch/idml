@@ -10,6 +10,9 @@ importers:
 
   apps/canvas:
     dependencies:
+      '@verso/catalog':
+        specifier: workspace:*
+        version: link:../../packages/catalog
       '@verso/client':
         specifier: workspace:*
         version: link:../../packages/client

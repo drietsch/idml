@@ -6,6 +6,7 @@
 import type { CatalogEntry, CatalogRegistry } from "@verso/catalog";
 
 import {
+  BoundsLeaf,
   ColorSwatchLeaf,
   LabelLeaf,
   LayoutSectionLeaf,
@@ -17,8 +18,20 @@ import {
 export const VERSO_INPUT_LENGTH = "verso.input.length";
 export const VERSO_INPUT_COLOR_SWATCH = "verso.input.color-swatch";
 export const VERSO_INPUT_NUMERIC_SCRUB = "verso.input.numeric-scrub";
+export const VERSO_INPUT_BOUNDS = "verso.input.bounds";
 export const VERSO_LAYOUT_SECTION = "verso.layout.section";
 export const VERSO_LABEL = "verso.label";
+
+// Leaf binding declarations describe what *type* of value the leaf
+// renders/commits, not a specific scope/path. The actual binding
+// at render time comes from the composition node's `bindings`
+// dict; this declaration is for the catalog audit surface (and
+// the future ContributionFinder palette). Each leaf accepts any
+// path whose `Value` variant matches its declared type — e.g.
+// LengthLeaf consumes any Value::Length regardless of whether the
+// composition binds it to `characterFontSize`, `frameStrokeWeight`,
+// `frameOpacity`, etc.
+const ANY_SCOPE = "*" as const;
 
 const ENTRIES: CatalogEntry[] = [
   {
@@ -26,8 +39,8 @@ const ENTRIES: CatalogEntry[] = [
     kind: "leaf",
     props: { label: "string" },
     bindings: {
-      reads: [{ scope: "content", ref: "characterFontSize" }],
-      writes: [{ scope: "content", ref: "characterFontSize" }],
+      reads: [{ scope: ANY_SCOPE, ref: "Value::Length" }],
+      writes: [{ scope: ANY_SCOPE, ref: "Value::Length" }],
     },
     leaf: LengthLeaf,
   },
@@ -36,8 +49,8 @@ const ENTRIES: CatalogEntry[] = [
     kind: "leaf",
     props: { label: "string" },
     bindings: {
-      reads: [{ scope: "content", ref: "characterFillColor" }],
-      writes: [{ scope: "content", ref: "characterFillColor" }],
+      reads: [{ scope: ANY_SCOPE, ref: "Value::ColorRef" }],
+      writes: [{ scope: ANY_SCOPE, ref: "Value::ColorRef" }],
     },
     leaf: ColorSwatchLeaf,
   },
@@ -46,10 +59,20 @@ const ENTRIES: CatalogEntry[] = [
     kind: "leaf",
     props: { label: "string" },
     bindings: {
-      reads: [{ scope: "content", ref: "characterTracking" }],
-      writes: [{ scope: "content", ref: "characterTracking" }],
+      reads: [{ scope: ANY_SCOPE, ref: "Value::Length" }],
+      writes: [{ scope: ANY_SCOPE, ref: "Value::Length" }],
     },
     leaf: NumericScrubLeaf,
+  },
+  {
+    id: VERSO_INPUT_BOUNDS,
+    kind: "leaf",
+    props: { label: "string" },
+    bindings: {
+      reads: [{ scope: ANY_SCOPE, ref: "Value::Bounds" }],
+      writes: [{ scope: ANY_SCOPE, ref: "Value::Bounds" }],
+    },
+    leaf: BoundsLeaf,
   },
   {
     id: VERSO_LAYOUT_SECTION,

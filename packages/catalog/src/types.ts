@@ -56,15 +56,19 @@ export interface BindingDeclaration {
 }
 
 export interface ReadSpec {
-  scope: "element" | "content" | "document" | "camera";
+  /** `"*"` declares a leaf that accepts any scope (its primitive
+   *  type is what binds compositions to it, not its scope). */
+  scope: "element" | "content" | "document" | "camera" | "*";
   /** A `PropertyPath` for element / content scope; a coarse-grained
    *  string ("spreads", "stories") for document scope; the literal
-   *  "camera" for camera scope. */
+   *  "camera" for camera scope; or a `Value::*` type name when
+   *  `scope` is `"*"` (declares "this leaf renders any value of
+   *  this Value variant"). */
   ref: PropertyPath | string;
 }
 
 export interface WriteSpec {
-  scope: "element" | "content" | "document" | "camera" | "selection";
+  scope: "element" | "content" | "document" | "camera" | "selection" | "*";
   ref: PropertyPath | string;
 }
 

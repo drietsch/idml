@@ -27,6 +27,8 @@ import { CanvasClient } from "@verso/client";
 import { APP_KEYBINDINGS, APP_MENU_ITEMS, buildAppCommands } from "./app-commands";
 import { CanvasPanel } from "./panels/canvas-panel";
 import { CharacterPanel } from "./panels/character-panel";
+import { ObjectTransformPanel } from "./panels/object-transform-panel";
+import { StrokePanel } from "./panels/stroke-panel";
 import { InspectorPanel } from "./panels/inspector-panel";
 import { LayersPanel } from "./panels/layers-panel";
 import { NavigatorPanel } from "./panels/navigator-panel";
@@ -108,6 +110,25 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     id: "verso.character",
     title: "Character",
     component: CharacterPanel,
+    defaultDock: "right",
+    defaultGroup: "properties",
+  },
+  {
+    // SDK Phase 3 — Stroke panel as a declarative composition.
+    // Element-scope bindings over existing FrameStrokeWeight +
+    // FrameStrokeColor apply arms.
+    id: "verso.stroke",
+    title: "Stroke",
+    component: StrokePanel,
+    defaultDock: "right",
+    defaultGroup: "properties",
+  },
+  {
+    // SDK Phase 3 — Object/Transform panel. Element-scope bindings
+    // over FrameBounds + FrameOpacity.
+    id: "verso.object-transform",
+    title: "Object",
+    component: ObjectTransformPanel,
     defaultDock: "right",
     defaultGroup: "properties",
   },

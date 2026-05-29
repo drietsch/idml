@@ -21,6 +21,10 @@ test.describe("Phase 3 — Character panel (declarative composition)", () => {
   test.beforeEach(async ({ page }) => {
     await openCanvas(page);
     await loadIdml(page, FIXTURE);
+    // The three property panels (Character, Stroke, Object) share
+    // the "properties" group in dockview — only one is rendered
+    // at a time. Activate Character explicitly before asserting.
+    await page.getByText("Character", { exact: true }).first().click();
   });
 
   test("AC-CHAR-1 — Character panel mounts and shows section title", async ({

@@ -165,6 +165,7 @@ function ShellChrome({
   } = useDocument();
   const {
     elementSelection,
+    setElementSelection,
     elementGeometry,
     activeTool,
     setActiveTool,
@@ -346,6 +347,15 @@ function ShellChrome({
       ready: handle != null,
       snapshotsReady,
       elementSelection,
+      // SDK Phase 3 — tests need to drive the SelectionContext
+      // explicitly so binding-hook-backed panels (Character, Stroke,
+      // Object/Transform, …) render resolved values. The worker-
+      // side `client.setElementSelection` updates the worker; this
+      // setter updates the main-thread React mirror panels read
+      // from. Production code uses `useSelection().setElementSelection`
+      // (or the click → selection chain); this is purely a test
+      // affordance.
+      setElementSelection,
       elementGeometry,
       activeTool,
       setActiveTool,

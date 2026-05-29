@@ -8,20 +8,30 @@
 
 import type { LeafProps } from "@verso/catalog";
 import type { Value } from "@verso/client";
-import { LengthInput, ColorPicker, NumberInput } from "@verso/ui";
+import { BoundsInput, LengthInput, ColorPicker, NumberInput } from "@verso/ui";
 
 // ---------------------------------------------------------------- helpers
 
-function unwrapLengthValue(v: Value | null): number | null {
-  if (v == null) return null;
-  if (v.type !== "length") return null;
-  return v.value ?? null;
+/** Returns (resolved, value-in-points). `resolved` is false when the
+ *  binding itself failed to resolve (mixed / no selection / non-
+ *  length variant); `pointValue` is meaningless in that case. When
+ *  `resolved` is true, `pointValue` is the displayable number — 0
+ *  if the underlying `Value::Length(None)` is "inherit default"
+ *  (matches the inspector's `value ?? 0` convention). */
+function unwrapLengthValue(
+  v: Value | null,
+): { resolved: boolean; pointValue: number } {
+  if (v == null) return { resolved: false, pointValue: 0 };
+  if (v.type !== "length") return { resolved: false, pointValue: 0 };
+  return { resolved: true, pointValue: v.value ?? 0 };
 }
 
-function unwrapColorRefValue(v: Value | null): string | null {
-  if (v == null) return null;
-  if (v.type !== "colorRef") return null;
-  return v.value ?? null;
+function unwrapColorRefValue(
+  v: Value | null,
+): { resolved: boolean; ref: string | null } {
+  if (v == null) return { resolved: false, ref: null };
+  if (v.type !== "colorRef") return { resolved: false, ref: null };
+  return { resolved: true, ref: v.value ?? null };
 }
 
 function labelFromProps(props: Record<string, unknown>): string | undefined {
@@ -33,8 +43,8 @@ function labelFromProps(props: Record<string, unknown>): string | undefined {
 /** Numeric input with a unit picker. Binds to a `Value::Length`. */
 export function LengthLeaf({ value, onCommit, props }: LeafProps) {
   const label = labelFromProps(props);
-  const pt = unwrapLengthValue(value);
-  if (pt === null) {
+  const { resolved, pointValue } = unwrapLengthValue(value);
+  if (!resolved) {
     return (
       <LeafRow label={label}>
         <span className="text-xs text-muted-foreground" data-mixed>
@@ -46,7 +56,7 @@ export function LengthLeaf({ value, onCommit, props }: LeafProps) {
   return (
     <LeafRow label={label}>
       <LengthInput
-        valuePt={pt}
+        valuePt={pointValue}
         onChangePt={(next) => {
           // Live updates are emitted; we only commit on blur via
           // onCommitPt below to avoid spamming the mutation channel.
@@ -64,8 +74,8 @@ export function LengthLeaf({ value, onCommit, props }: LeafProps) {
 /** Color swatch picker. Binds to a `Value::ColorRef`. */
 export function ColorSwatchLeaf({ value, onCommit, props }: LeafProps) {
   const label = labelFromProps(props);
-  const ref = unwrapColorRefValue(value);
-  if (value === null) {
+  const { resolved, ref } = unwrapColorRefValue(value);
+  if (!resolved) {
     return (
       <LeafRow label={label}>
         <span className="text-xs text-muted-foreground" data-mixed>
@@ -89,8 +99,8 @@ export function ColorSwatchLeaf({ value, onCommit, props }: LeafProps) {
 /** Raw scrubbable numeric (no unit). Binds to a `Value::Length`. */
 export function NumericScrubLeaf({ value, onCommit, props }: LeafProps) {
   const label = labelFromProps(props);
-  const n = unwrapLengthValue(value);
-  if (n === null) {
+  const { resolved, pointValue } = unwrapLengthValue(value);
+  if (!resolved) {
     return (
       <LeafRow label={label}>
         <span className="text-xs text-muted-foreground" data-mixed>
@@ -102,7 +112,7 @@ export function NumericScrubLeaf({ value, onCommit, props }: LeafProps) {
   return (
     <LeafRow label={label}>
       <NumberInput
-        value={n}
+        value={pointValue}
         onChange={() => {
           /* live updates ignored; commit on blur */
         }}
@@ -128,6 +138,42 @@ export function LayoutSectionLeaf({ props }: LeafProps) {
         {(props.children as React.ReactNode) ?? null}
       </div>
     </fieldset>
+  );
+}
+
+function unwrapBoundsValue(
+  v: Value | null,
+): [number, number, number, number] | null {
+  if (v == null) return null;
+  if (v.type !== "bounds") return null;
+  return v.value as [number, number, number, number];
+}
+
+/** 4-cell bounds editor `[top, left, bottom, right]` in points. */
+export function BoundsLeaf({ value, onCommit, props }: LeafProps) {
+  const label = labelFromProps(props);
+  const bounds = unwrapBoundsValue(value);
+  if (bounds === null) {
+    return (
+      <LeafRow label={label}>
+        <span className="text-xs text-muted-foreground" data-mixed>
+          —
+        </span>
+      </LeafRow>
+    );
+  }
+  return (
+    <LeafRow label={label}>
+      <BoundsInput
+        valuePt={bounds}
+        onChangePt={() => {
+          /* live updates ignored; commit on Enter / blur */
+        }}
+        onCommitPt={(next) => {
+          onCommit?.({ type: "bounds", value: next } as Value);
+        }}
+      />
+    </LeafRow>
   );
 }
 
