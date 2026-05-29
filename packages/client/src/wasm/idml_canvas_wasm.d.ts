@@ -481,6 +481,30 @@ export interface AppliedOperation {
 }
 
 /**
+ * SDK Phase 3 — one story\'s identity + total character length.
+ * Surfaced by `CanvasModel::stories()` and the `verso.stories()`
+ * script host function so consumers can pick valid character
+ * ranges (e.g. `[0, length)` is always a well-formed StoryRange).
+ */
+export interface StorySummary {
+    /**
+     * IDML `Self` id (`Story/u123`).
+     */
+    selfId: string;
+    /**
+     * Total character count across every `CharacterRun.text` in
+     * every paragraph. The largest valid `StoryRange.end`.
+     */
+    characterCount: number;
+    /**
+     * Number of paragraphs. Useful for binding-renderer fallbacks
+     * that want to address \"the whole story\" without computing
+     * the character count.
+     */
+    paragraphCount: number;
+}
+
+/**
  * Stable identifier for a scene-graph node. The string payload is the
  * IDML `Self` attribute (e.g. `\"TextFrame/u14\"`) — stable for the
  * lifetime of the document. Operations reference nodes by ID, never
