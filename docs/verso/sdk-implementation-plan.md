@@ -1,10 +1,29 @@
 # Verso SDK — Implementation Plan
 
-**Status:** Draft v1.0
+**Status:** Draft v1.1 — Phases 0/1 (part 1)/2/3/4 shipped 2026-05-29; Phase 5 + Phase 1 part 2 remain.
 **Companion:** `docs/verso/sdk.md` (the strategy doc this plan translates into tactical work)
 **Companion specs:** `editor-architecture.md`, `canvas.md`, `scripting-layer.md`, `canvas-interaction-plan.md`, `canvas-interaction-plan-2.md`
 
 This document translates the SDK strategy in `sdk.md` into a phase-by-phase tactical plan: critical files, code shapes, acceptance criteria, decisions. It is opinionated where `sdk.md` leaves open questions, and flags every place where the proposal is redirectable.
+
+## Shipped surface (v1.1 update)
+
+The mechanism described in Phases 0–4 below is live in main as of 2026-05-29:
+
+- `@verso/client` package — framework-agnostic `CanvasClient`, wire protocol re-exports, camera + gesture SAB primitives, all wasm-bindgen output. No React imports.
+- `@verso/catalog` package — `CatalogEntry` types + registry, `Binding` union with the §11.5 ceiling (literals + selectionProperty refs + unit coerce; no expressions).
+- `packages/shell/src/catalog/` — `CompositionRenderer`, binding hook (resolves element-scope + content-scope), 6 primitive leaves (Length, ColorSwatch, NumericScrub, Bounds, LayoutSection, Label).
+- Phase 3 addressing — `NodeId::StoryRange { story_id, start, end }` + 4 character `PropertyPath` variants + apply arms (whole-run-aligned, per-run Batch inverse) + `model.element_properties(StoryRange)` snapshot walk (uniform-collapse: `Some(v)` when runs agree, `None` for mixed). `ElementId::StoryRange` wire variant + script-side `storyRange:Story/u…@start..end` parser.
+- 3 declarative panels live: **Character** (content-scope; FontSize / Leading / Tracking / FillColor), **Stroke** (element-scope; Weight + Color), **Object** (element-scope; Bounds + Opacity). All render from JSON compositions — no JSX written for any of the three.
+- `verso.stories()` host fn — enumerates loaded stories (selfId + characterCount + paragraphCount) so scripts + tests can pick valid range addresses.
+- Phase 4 menu commands — Edit/Undo+Redo + View/Zoom* + keybindings cmd+= / cmd+-, all `CommandContribution`s through the registry. Convergence test: shell's `verso.file.openIdml` registration projects into the same MenuBar.
+
+PROTOCOL_VERSION is 17 in main. 85/85 editor Playwright tests + 14/14 idml-script + 95/95 idml-canvas + 68/68 idml-mutate native pass.
+
+What's still open:
+- **Phase 3.x — partial-range run-splitting** for character writes. Today the apply arm returns `OperationError::InvalidValue` when a range cuts inside a CharacterRun. Needs a story-snapshot inverse (clone affected paragraphs' run lists pre-mutation; restore via a new `Operation::RestoreParagraphRuns { story_id, paragraph_index, runs }` variant; requires `CharacterRun` to derive Deserialize/PartialEq/Tsify).
+- **Phase 5 panel migration** — Outline, Tree, Layers, REPL, Script-Editor onto the catalog model. New compositions for Paragraph, Effects, Links, Articles, plus Pages (which also needs new structural ops: `MovePage` / `InsertPage` / `RemovePage`). Inspector retirement gated on the property-tier set being complete.
+- **Phase 1 part 2** — framework-agnostic state observables in `@verso/client` + unified `verso` handle. Existing React contexts work fine; this is architectural cleanup.
 
 ---
 
