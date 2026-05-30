@@ -1,6 +1,6 @@
 # Cycle 4 Track 1 — pre-audit findings
 
-Outputs from the half-day pre-audit pass (`docs/verso/cycle-4-plan.md`
+Outputs from the half-day pre-audit pass (`docs/paged/cycle-4-plan.md`
 Track 1). Three sub-items: 1a Q-18 spot-check, 1b corpus prevalence
 sweep, 1c Q-07 dependency status.
 

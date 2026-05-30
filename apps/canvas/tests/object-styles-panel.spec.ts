@@ -59,7 +59,7 @@ test.describe("Phase 5 — Object Styles panel", () => {
 
       // Pick a TextFrame from the loaded fixture's tree.
       const treeJson = await dbg.client
-        .executeScript("verso.tree()")
+        .executeScript("paged.tree()")
         .then((r) => r.output[0] ?? "[]");
       const tree = JSON.parse(treeJson) as Array<{
         children?: Array<{
@@ -93,7 +93,7 @@ test.describe("Phase 5 — Object Styles panel", () => {
 
       // Pull the object styles list.
       const stylesJson = await dbg.client
-        .executeScript("verso.objectStyles()")
+        .executeScript("paged.objectStyles()")
         .then((r) => r.output[0] ?? "[]");
       const styles = JSON.parse(stylesJson);
       if (!styles.length) {
@@ -108,20 +108,20 @@ test.describe("Phase 5 — Object Styles panel", () => {
         throw new Error("no object style with non-empty selfId");
       }
 
-      // Address-string for `verso.set` mirrors `parse_element_id` —
+      // Address-string for `paged.set` mirrors `parse_element_id` —
       // `<kind>:<rawId>`.
       const addr = `${target.kind}:${target.id}`;
       const setResult = await dbg.client.executeScript(
-        `verso.set(${JSON.stringify(addr)},
+        `paged.set(${JSON.stringify(addr)},
                    "appliedObjectStyle",
                    ${JSON.stringify(style.selfId)});`,
       );
       if (setResult.error) {
-        throw new Error(`verso.set errored: ${setResult.error}`);
+        throw new Error(`paged.set errored: ${setResult.error}`);
       }
       if (setResult.output[0]?.trim() !== "true") {
         throw new Error(
-          `verso.set returned ${setResult.output[0]}; addr=${addr}`,
+          `paged.set returned ${setResult.output[0]}; addr=${addr}`,
         );
       }
       await new Promise((r) => setTimeout(r, 50));
@@ -129,7 +129,7 @@ test.describe("Phase 5 — Object Styles panel", () => {
       // Inspect: appliedObjectStyle on the frame should now carry
       // the selected style's selfId.
       const inspectJson = await dbg.client
-        .executeScript(`verso.inspect(${JSON.stringify(addr)});`)
+        .executeScript(`paged.inspect(${JSON.stringify(addr)});`)
         .then((r) => r.output[0] ?? "");
       const inspect = JSON.parse(inspectJson) as {
         entries: Array<{ path: string; value: { value: string } | null }>;

@@ -6,8 +6,8 @@
 // IDML schema allows nested `<Topic>` but for v1 we surface the
 // flat list.
 
-import { useCollection } from "@verso/shell";
-import type { IndexTopicSummary } from "@verso/client";
+import { useCollection } from "@paged-media/shell";
+import type { IndexTopicSummary } from "@paged-media/client";
 
 export function IndexPanel() {
   const items = useCollection<IndexTopicSummary>("indexTopics");

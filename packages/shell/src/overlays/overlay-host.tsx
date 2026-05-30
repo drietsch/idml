@@ -3,9 +3,9 @@ import { useEffect, useMemo, useState, type CSSProperties } from "react";
 // eslint-disable-next-line import/no-relative-parent-imports
 import type {
   Camera,
-} from "@verso/client";
+} from "@paged-media/client";
 // eslint-disable-next-line import/no-relative-parent-imports
-import type { PageId } from "@verso/client";
+import type { PageId } from "@paged-media/client";
 
 import type {
   OverlayContribution,
@@ -13,7 +13,7 @@ import type {
   OverlayProps,
 } from "../registries/overlay";
 import { useRegistries } from "../state/registries-context";
-import { useOptionalVerso } from "../state/verso-editor";
+import { useOptionalPaged } from "../state/paged-editor";
 
 export interface OverlayHostProps {
   /** Current camera. */
@@ -36,11 +36,11 @@ export interface OverlayHostProps {
  * Contributions render their own subtree; the host only provides:
  *   - z-order sorting (default 100, ties break on insertion order)
  *   - the shared `<svg>` + camera-transform `<g>` wrapper
- *   - the standard `OverlayProps` (verso, camera, pageRects Map)
+ *   - the standard `OverlayProps` (paged, camera, pageRects Map)
  */
 export function OverlayHost(props: OverlayHostProps) {
   const registries = useRegistries();
-  const verso = useOptionalVerso();
+  const paged = useOptionalPaged();
   const [version, setVersion] = useState(0);
 
   useEffect(() => {
@@ -67,7 +67,7 @@ export function OverlayHost(props: OverlayHostProps) {
 
   const k = props.camera.scale;
   const transform = `matrix(${k}, 0, 0, ${k}, ${props.camera.tx}, ${props.camera.ty})`;
-  const overlayProps: OverlayProps = { verso, camera: props.camera, pageRects };
+  const overlayProps: OverlayProps = { paged, camera: props.camera, pageRects };
 
   return (
     <svg width={props.width} height={props.height} style={overlayStyle}>

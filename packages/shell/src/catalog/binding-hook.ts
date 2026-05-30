@@ -9,8 +9,8 @@ import { useEffect, useMemo, useState } from "react";
 import type {
   Binding,
   SelectionPropertyBinding,
-} from "@verso/catalog";
-import type { CanvasClient, ElementId, ElementProperties, Value } from "@verso/client";
+} from "@paged-media/catalog";
+import type { CanvasClient, ElementId, ElementProperties, Value } from "@paged-media/client";
 
 import { useCanvasClient } from "../state/canvas-client-context";
 import { useSelection } from "../state/selection-context";

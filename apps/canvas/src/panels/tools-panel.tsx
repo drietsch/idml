@@ -10,7 +10,7 @@
 // Additional tools (Pen / Pencil / etc) land as their gestures
 // gain canvas-side handlers.
 
-import { useSelection, type ActiveTool } from "@verso/shell";
+import { useSelection, type ActiveTool } from "@paged-media/shell";
 
 interface ToolDef {
   value: ActiveTool;

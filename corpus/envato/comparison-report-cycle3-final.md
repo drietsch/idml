@@ -2,7 +2,7 @@
 
 Snapshot at cycle-3 end (`73c44e0` — Tracks 5b + 3 deferral docs).
 Baseline reference is cycle-2 truly-final (`03813a2`). Plan
-companion: [`docs/verso/cycle-3-plan.md`](../../docs/verso/cycle-3-plan.md).
+companion: [`docs/paged/cycle-3-plan.md`](../../docs/paged/cycle-3-plan.md).
 
 ## Headline
 

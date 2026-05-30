@@ -1,7 +1,7 @@
-# Verso SDK — Implementation Plan
+# Paged SDK — Implementation Plan
 
 **Status:** Draft v1.1 — Phases 0/1 (part 1)/2/3/4 shipped 2026-05-29; Phase 5 + Phase 1 part 2 remain.
-**Companion:** `docs/verso/sdk.md` (the strategy doc this plan translates into tactical work)
+**Companion:** `docs/paged/sdk.md` (the strategy doc this plan translates into tactical work)
 **Companion specs:** `editor-architecture.md`, `canvas.md`, `scripting-layer.md`, `canvas-interaction-plan.md`, `canvas-interaction-plan-2.md`
 
 This document translates the SDK strategy in `sdk.md` into a phase-by-phase tactical plan: critical files, code shapes, acceptance criteria, decisions. It is opinionated where `sdk.md` leaves open questions, and flags every place where the proposal is redirectable.
@@ -10,20 +10,20 @@ This document translates the SDK strategy in `sdk.md` into a phase-by-phase tact
 
 The mechanism described in Phases 0–4 below is live in main as of 2026-05-29:
 
-- `@verso/client` package — framework-agnostic `CanvasClient`, wire protocol re-exports, camera + gesture SAB primitives, all wasm-bindgen output. No React imports.
-- `@verso/catalog` package — `CatalogEntry` types + registry, `Binding` union with the §11.5 ceiling (literals + selectionProperty refs + unit coerce; no expressions).
+- `@paged-media/client` package — framework-agnostic `CanvasClient`, wire protocol re-exports, camera + gesture SAB primitives, all wasm-bindgen output. No React imports.
+- `@paged-media/catalog` package — `CatalogEntry` types + registry, `Binding` union with the §11.5 ceiling (literals + selectionProperty refs + unit coerce; no expressions).
 - `packages/shell/src/catalog/` — `CompositionRenderer`, binding hook (resolves element-scope + content-scope), 6 primitive leaves (Length, ColorSwatch, NumericScrub, Bounds, LayoutSection, Label).
 - Phase 3 addressing — `NodeId::StoryRange { story_id, start, end }` + 4 character `PropertyPath` variants + apply arms (whole-run-aligned, per-run Batch inverse) + `model.element_properties(StoryRange)` snapshot walk (uniform-collapse: `Some(v)` when runs agree, `None` for mixed). `ElementId::StoryRange` wire variant + script-side `storyRange:Story/u…@start..end` parser.
 - 3 declarative panels live: **Character** (content-scope; FontSize / Leading / Tracking / FillColor), **Stroke** (element-scope; Weight + Color), **Object** (element-scope; Bounds + Opacity). All render from JSON compositions — no JSX written for any of the three.
-- `verso.stories()` host fn — enumerates loaded stories (selfId + characterCount + paragraphCount) so scripts + tests can pick valid range addresses.
-- Phase 4 menu commands — Edit/Undo+Redo + View/Zoom* + keybindings cmd+= / cmd+-, all `CommandContribution`s through the registry. Convergence test: shell's `verso.file.openIdml` registration projects into the same MenuBar.
+- `paged.stories()` host fn — enumerates loaded stories (selfId + characterCount + paragraphCount) so scripts + tests can pick valid range addresses.
+- Phase 4 menu commands — Edit/Undo+Redo + View/Zoom* + keybindings cmd+= / cmd+-, all `CommandContribution`s through the registry. Convergence test: shell's `paged.file.openIdml` registration projects into the same MenuBar.
 
 PROTOCOL_VERSION is 17 in main. 85/85 editor Playwright tests + 14/14 idml-script + 95/95 idml-canvas + 68/68 idml-mutate native pass.
 
 What's still open:
 - **Phase 3.x — partial-range run-splitting** for character writes. Today the apply arm returns `OperationError::InvalidValue` when a range cuts inside a CharacterRun. Needs a story-snapshot inverse (clone affected paragraphs' run lists pre-mutation; restore via a new `Operation::RestoreParagraphRuns { story_id, paragraph_index, runs }` variant; requires `CharacterRun` to derive Deserialize/PartialEq/Tsify).
 - **Phase 5 panel migration** — Outline, Tree, Layers, REPL, Script-Editor onto the catalog model. New compositions for Paragraph, Effects, Links, Articles, plus Pages (which also needs new structural ops: `MovePage` / `InsertPage` / `RemovePage`). Inspector retirement gated on the property-tier set being complete.
-- **Phase 1 part 2** — framework-agnostic state observables in `@verso/client` + unified `verso` handle. Existing React contexts work fine; this is architectural cleanup.
+- **Phase 1 part 2** — framework-agnostic state observables in `@paged-media/client` + unified `paged` handle. Existing React contexts work fine; this is architectural cleanup.
 
 ---
 
@@ -40,7 +40,7 @@ What's already in shape:
 
 What needs building:
 
-- `@verso/client` as a separate, React-free package (today the client lives in the app).
+- `@paged-media/client` as a separate, React-free package (today the client lives in the app).
 - A small convergence patch on the script-side selection surface (scripts can't read the active selection today).
 - The declarative **catalog + binding model** (`sdk.md` §6) — genuinely new mechanism, the load-bearing risk of the plan.
 - First-party menu items routed through `CommandContribution`s.
@@ -48,7 +48,7 @@ What needs building:
 
 Phase 6 (the A2UI / agentic adapter) is deferred per `sdk.md` §10.1 — gated on the catalog being proven by Phases 3–5.
 
-**Migration commitment:** every existing panel in `BUILT_IN_PANELS` migrates to the catalog/binding model by end of Phase 5. The canvas (`verso.canvas`) is the one principled exception (`sdk.md` §5.1) but even it registers via the catalog. Nothing stays on direct-React. Phase 3 already begins this — it migrates `verso.pages` as part of the structural-tier proof.
+**Migration commitment:** every existing panel in `BUILT_IN_PANELS` migrates to the catalog/binding model by end of Phase 5. The canvas (`paged.canvas`) is the one principled exception (`sdk.md` §5.1) but even it registers via the catalog. Nothing stays on direct-React. Phase 3 already begins this — it migrates `paged.pages` as part of the structural-tier proof.
 
 ---
 
@@ -56,14 +56,14 @@ Phase 6 (the A2UI / agentic adapter) is deferred per `sdk.md` §10.1 — gated o
 
 | `sdk.md` requirement | Code today | Gap |
 |---|---|---|
-| `@verso/client` package, no React | `CanvasClient` lives in `apps/canvas/src/channel/client.ts`; no separate package | **Extract (Phase 1)** |
-| `@verso/react` adapter | `packages/shell/` exists; right shape, wrong name | Cosmetic rename, optional, post-Phase-5 |
+| `@paged-media/client` package, no React | `CanvasClient` lives in `apps/canvas/src/channel/client.ts`; no separate package | **Extract (Phase 1)** |
+| `@paged-media/react` adapter | `packages/shell/` exists; right shape, wrong name | Cosmetic rename, optional, post-Phase-5 |
 | tsify contract complete | `protocol.ts` re-exports only generated types | **Add CI guard (Phase 0)** |
 | Four registries | All present in `packages/shell/src/registries/` | None |
 | Five core state contexts | Eight contexts (five core + three infrastructure); core five are isolated | None |
 | One dockview seam | `dockview-substrate.ts` is the only importer | **Add lint rule (Phase 1)** |
-| Single read surface for selection properties | Script `verso.inspect` and UI `client.elementProperties` both hit `model.element_properties`; two call paths, one Rust method | **Verify + give scripts access to current selection (Phase 2)** |
-| Script can read current selection | `verso.selection()` does not exist | **New host function (Phase 2)** |
+| Single read surface for selection properties | Script `paged.inspect` and UI `client.elementProperties` both hit `model.element_properties`; two call paths, one Rust method | **Verify + give scripts access to current selection (Phase 2)** |
+| Script can read current selection | `paged.selection()` does not exist | **New host function (Phase 2)** |
 | Catalog + binding model | None | **New (Phase 3)** |
 | Composition renderer | None | **New (Phase 3)** |
 | Expert-leaf contract (declared bindings) | No panel declares bindings; all are opaque React | **New (Phase 3)** |
@@ -99,7 +99,7 @@ The current state is "all SDK-exposed types are tsify'd already." This phase onl
 
 ## Phase 1 — Draw the package boundary (~3–5 days)
 
-The biggest mechanical move. Creates `@verso/client`; relocates the framework-agnostic core out of `apps/canvas/` and out of `packages/shell/`.
+The biggest mechanical move. Creates `@paged-media/client`; relocates the framework-agnostic core out of `apps/canvas/` and out of `packages/shell/`.
 
 ### Package layout after Phase 1
 
@@ -121,11 +121,11 @@ packages/
         document.ts            documentHandle observable
         active-tool.ts         activeTool observable (formalised)
         camera.ts              camera read handle (SAB-backed)
-      verso-handle.ts          the `verso` object panels + scripts both receive
+      paged-handle.ts          the `paged` object panels + scripts both receive
   ui/                          ← unchanged
-  shell/                       ← unchanged name; depends on @verso/client
+  shell/                       ← unchanged name; depends on @paged-media/client
     src/
-      hooks/                   useCanvasClient/useSelection/etc — re-implemented as useSyncExternalStore over @verso/client observables
+      hooks/                   useCanvasClient/useSelection/etc — re-implemented as useSyncExternalStore over @paged-media/client observables
       registries/              unchanged
       docking/                 unchanged
       state/                   thin React adapters over client observables
@@ -154,9 +154,9 @@ packages/
      subscribe(fn: (value: T) => void): () => void;
    }
    ```
-6. **Construct the `verso` handle** (`packages/client/src/verso-handle.ts`) — the single object the script's host functions and the panel's React components both receive. The "one door."
+6. **Construct the `paged` handle** (`packages/client/src/paged-handle.ts`) — the single object the script's host functions and the panel's React components both receive. The "one door."
    ```ts
-   export interface VersoHandle {
+   export interface PagedHandle {
      readonly client: CanvasClient;
      readonly selection: Observable<ElementId[]>;
      readonly contentSelection: Observable<ContentSelection | null>;
@@ -167,7 +167,7 @@ packages/
      request<R>(req: MainToWorker): Promise<R>;
    }
    ```
-7. **Wire `@verso/client` into `apps/canvas`** — update imports across the app to point at `@verso/client`.
+7. **Wire `@paged-media/client` into `apps/canvas`** — update imports across the app to point at `@paged-media/client`.
 8. **Lint rules** (ESLint or workspace-level):
    - `packages/client/**` may not import `react` or `react-*`.
    - Only `packages/shell/src/docking/dockview-substrate.ts` may import `dockview-react`.
@@ -177,23 +177,23 @@ packages/
 
 | File | Change |
 |---|---|
-| `packages/client/package.json` *(new)* | `@verso/client`, no React peer |
+| `packages/client/package.json` *(new)* | `@paged-media/client`, no React peer |
 | `packages/client/src/client.ts` *(moved)* | from `apps/canvas/src/channel/client.ts` |
 | `packages/client/src/protocol.ts` *(moved)* | from same |
 | `packages/client/src/state/*.ts` *(new, 5 files)* | extracted from shell contexts |
-| `packages/client/src/verso-handle.ts` *(new)* | the unified handle |
+| `packages/client/src/paged-handle.ts` *(new)* | the unified handle |
 | `packages/shell/src/state/*-context.tsx` *(rewritten)* | `useSyncExternalStore` adapters |
-| `apps/canvas/src/main.tsx` | imports from `@verso/client` |
+| `apps/canvas/src/main.tsx` | imports from `@paged-media/client` |
 | `eslint.config.js` (or similar) | the three lint rules |
-| `packages/shell/package.json` | dependency on `@verso/client` |
+| `packages/shell/package.json` | dependency on `@paged-media/client` |
 
 ### Acceptance criteria
 
 - **AC-1.1** `tsc --noEmit` over `packages/client/` passes with zero React imports.
 - **AC-1.2** Canvas app boots unchanged; all 71 existing Playwright tests still pass.
-- **AC-1.3** Lint fails CI if a `react` import lands in `@verso/client`.
+- **AC-1.3** Lint fails CI if a `react` import lands in `@paged-media/client`.
 - **AC-1.4** Lint fails CI if a file other than `dockview-substrate.ts` imports `dockview-react`.
-- **AC-1.5** The `verso` handle a script's host function receives is the same shape as the one a React panel receives — proved by a type assertion in a test.
+- **AC-1.5** The `paged` handle a script's host function receives is the same shape as the one a React panel receives — proved by a type assertion in a test.
 
 ---
 
@@ -203,9 +203,9 @@ packages/
 
 ### Work
 
-1. **Verify the convergence.** Add a native test in `crates/idml-script/tests/` that asserts `verso.inspect(id)` returns JSON-identical output to what the channel's `RequestElementProperties` reply carries for the same id. Same Rust source data → same JSON shape.
-2. **Add `verso.selection()`** — host function returning the current `ElementId[]`. The model already exposes selection state; the host function just routes through `with_model`.
-3. **Add `verso.contentSelection()`** — analogous for the text-side caret.
+1. **Verify the convergence.** Add a native test in `crates/idml-script/tests/` that asserts `paged.inspect(id)` returns JSON-identical output to what the channel's `RequestElementProperties` reply carries for the same id. Same Rust source data → same JSON shape.
+2. **Add `paged.selection()`** — host function returning the current `ElementId[]`. The model already exposes selection state; the host function just routes through `with_model`.
+3. **Add `paged.contentSelection()`** — analogous for the text-side caret.
 4. **Resolve §11.1.** Document: **snapshot.** Both consumers already snapshot and re-fetch on `mutationApplied`. Update `sdk.md` §11.1 to closed.
 5. **Resolve §11.2.** Document: **Rust is canonical owner of application state**, main-thread React state is a mirror updated via channel notifications, camera is SAB-mirrored. Update `sdk.md` §11.2 to closed.
 
@@ -213,16 +213,16 @@ packages/
 
 | File | Change |
 |---|---|
-| `crates/idml-script/src/lib.rs` | add `verso_selection`, `verso_content_selection` host fns |
-| `crates/idml-script/tests/script_basics.rs` | new test: parity of `verso.inspect` vs channel reply |
-| `apps/canvas/tests/script-editor.spec.ts` | new AC-SCRIPT-7: `console.log(verso.selection())` matches the visually-selected IDs |
-| `docs/verso/sdk.md` | mark §11.1, §11.2 resolved |
+| `crates/idml-script/src/lib.rs` | add `paged_selection`, `paged_content_selection` host fns |
+| `crates/idml-script/tests/script_basics.rs` | new test: parity of `paged.inspect` vs channel reply |
+| `apps/canvas/tests/script-editor.spec.ts` | new AC-SCRIPT-7: `console.log(paged.selection())` matches the visually-selected IDs |
+| `docs/paged/sdk.md` | mark §11.1, §11.2 resolved |
 
 ### Acceptance criteria
 
-- **AC-2.1** Native test: same id → JSON-identical output from `verso.inspect(id)` and from the channel reply path.
-- **AC-2.2** A script can call `verso.selection()` and the result matches what `useSelection()` reports in the UI.
-- **AC-2.3** The single documented read API is `verso.inspect(id)` / `client.elementProperties(id)` — both returning `ElementProperties`. `sdk.md` §11.1 closed.
+- **AC-2.1** Native test: same id → JSON-identical output from `paged.inspect(id)` and from the channel reply path.
+- **AC-2.2** A script can call `paged.selection()` and the result matches what `useSelection()` reports in the UI.
+- **AC-2.3** The single documented read API is `paged.inspect(id)` / `client.elementProperties(id)` — both returning `ElementProperties`. `sdk.md` §11.1 closed.
 - **AC-2.4** `sdk.md` §11.2 documented as resolved.
 
 ---
@@ -241,7 +241,7 @@ New package `packages/catalog/`.
 export type CatalogEntryKind = "composition" | "leaf";
 
 export interface CatalogEntry {
-  id: string;                       // e.g. "verso.input.numeric-scrub"
+  id: string;                       // e.g. "paged.input.numeric-scrub"
   kind: CatalogEntryKind;
   props: PropSchema;                // typed schema of accepted props
   bindings: BindingDeclaration;     // declared read/write surface
@@ -276,27 +276,27 @@ export interface CompositionNode {
 // packages/catalog/src/render.tsx
 
 export function CompositionRenderer({ composition }: { composition: CompositionNode }) {
-  const verso = useVerso();
-  return <NodeRenderer node={composition} verso={verso} />;
+  const paged = usePaged();
+  return <NodeRenderer node={composition} paged={paged} />;
 }
 ```
 
-`NodeRenderer` resolves the entry from the catalog, evaluates each binding against the `verso` handle (subscribes to `selection` + `mutationApplied` for re-render), and renders the entry's `leaf` component or recursively renders if it's a composition.
+`NodeRenderer` resolves the entry from the catalog, evaluates each binding against the `paged` handle (subscribes to `selection` + `mutationApplied` for re-render), and renders the entry's `leaf` component or recursively renders if it's a composition.
 
 ### 3b. The primitive leaves (~3–5 days)
 
-The catalog's starter vocabulary — wraps `@verso/ui` primitives with declared binding manifests.
+The catalog's starter vocabulary — wraps `@paged-media/ui` primitives with declared binding manifests.
 
 | Catalog id | Underlying widget | Binds to | Notes |
 |---|---|---|---|
-| `verso.input.numeric-scrub` | `ScrubField` | one selection-property write | numeric values |
-| `verso.input.length` | `LengthInput` | one write w/ unit coerce | pt/px/% |
-| `verso.input.color-swatch` | `ColorPicker` | one write (color ref) | swatch popover |
-| `verso.input.bounds` | `BoundsInput` | one write (4-tuple) | top/left/bottom/right |
-| `verso.input.enum-select` | `Select` | one write (string ref) | discrete options |
-| `verso.layout.row` | flex row | layout only | composition aid |
-| `verso.layout.section` | titled section | layout only | composition aid |
-| `verso.label` | text | literal-only | composition aid |
+| `paged.input.numeric-scrub` | `ScrubField` | one selection-property write | numeric values |
+| `paged.input.length` | `LengthInput` | one write w/ unit coerce | pt/px/% |
+| `paged.input.color-swatch` | `ColorPicker` | one write (color ref) | swatch popover |
+| `paged.input.bounds` | `BoundsInput` | one write (4-tuple) | top/left/bottom/right |
+| `paged.input.enum-select` | `Select` | one write (string ref) | discrete options |
+| `paged.layout.row` | flex row | layout only | composition aid |
+| `paged.layout.section` | titled section | layout only | composition aid |
+| `paged.label` | text | literal-only | composition aid |
 
 Each leaf ships with a sibling `*.bindings.ts` manifest declaring `reads` + `writes` — lint-enforced.
 
@@ -307,10 +307,10 @@ Each leaf ships with a sibling `*.bindings.ts` manifest declaring `reads` + `wri
 Phase 3's three:
 
 1. **Character (new declarative composition)** — proves the binding model. Functionally supersedes part of the existing Inspector panel; Inspector stays around during Phase 3 as a parity reference and is retired in Phase 5 once the full property-panel set (Paragraph / Stroke / Effects / Object-Transform) ships.
-2. **Pages (composition + expert thumbnail leaf)** — **migrates the existing `verso.pages` panel** (`apps/canvas/src/panels/navigator-panel.tsx`). After Phase 3, `verso.pages` is registered as a catalog reference, not a direct React component.
+2. **Pages (composition + expert thumbnail leaf)** — **migrates the existing `paged.pages` panel** (`apps/canvas/src/panels/navigator-panel.tsx`). After Phase 3, `paged.pages` is registered as a catalog reference, not a direct React component.
 3. **Spread Mini-Map (new expert leaf)** — proves the expert-leaf contract. Net-new panel; no existing equivalent.
 
-So Phase 3 touches two existing panels (`verso.pages` actively migrated, `verso.inspector` kept as parity reference) plus adds one new expert leaf. Phase 5 finishes the rest.
+So Phase 3 touches two existing panels (`paged.pages` actively migrated, `paged.inspector` kept as parity reference) plus adds one new expert leaf. Phase 5 finishes the rest.
 
 #### Panel 1 — Character (declarative composition)
 
@@ -319,19 +319,19 @@ The doc's example for the binding-shaped tier. Reads paragraph + character resol
 ```jsonc
 // apps/canvas/src/panels/character.composition.json
 {
-  "catalogId": "verso.layout.section",
+  "catalogId": "paged.layout.section",
   "props": { "title": "Character" },
   "children": [
-    { "catalogId": "verso.input.length",
+    { "catalogId": "paged.input.length",
       "props": { "label": "Font size", "min": 1, "max": 999 },
       "bindings": { "value": { "kind": "selectionProperty", "path": "characterFontSize" } } },
-    { "catalogId": "verso.input.length",
+    { "catalogId": "paged.input.length",
       "props": { "label": "Leading" },
       "bindings": { "value": { "kind": "selectionProperty", "path": "characterLeading" } } },
-    { "catalogId": "verso.input.numeric-scrub",
+    { "catalogId": "paged.input.numeric-scrub",
       "props": { "label": "Tracking" },
       "bindings": { "value": { "kind": "selectionProperty", "path": "characterTracking" } } },
-    { "catalogId": "verso.input.color-swatch",
+    { "catalogId": "paged.input.color-swatch",
       "props": { "label": "Fill" },
       "bindings": { "value": { "kind": "selectionProperty", "path": "characterFillColor" } } }
   ]
@@ -342,7 +342,7 @@ The panel registration:
 
 ```ts
 {
-  id: "verso.character",
+  id: "paged.character",
   title: "Character",
   component: CompositionRenderer,
   componentProps: { composition: characterComposition },
@@ -351,7 +351,7 @@ The panel registration:
 }
 ```
 
-The `verso.character` panel file is **just registration + a JSON import** — no JSX written for it.
+The `paged.character` panel file is **just registration + a JSON import** — no JSX written for it.
 
 #### Panel 2 — Pages (composition + expert thumbnail leaf)
 
@@ -371,7 +371,7 @@ export const spreadMiniMapBindings: BindingDeclaration = {
 };
 ```
 
-Renders via opaque code (`<canvas>` + draw routine), but **mutates only through `verso.mutate(...)`** — never reaches past the door. This proves the doc's invariant 9: expert components get imperative *rendering*, not imperative *mutation*.
+Renders via opaque code (`<canvas>` + draw routine), but **mutates only through `paged.mutate(...)`** — never reaches past the door. This proves the doc's invariant 9: expert components get imperative *rendering*, not imperative *mutation*.
 
 ### 3c.1 ADR — Character / paragraph addressing model (RESOLVED)
 
@@ -386,7 +386,7 @@ Renders via opaque code (`<canvas>` + draw routine), but **mutates only through 
 | Binding model fit | clean — `selectionProperty` binds to any NodeId | trivial | branching — bindings know two scopes |
 | New Rust variants | 1 NodeId + character paths | 0 + character paths | 0 + a new Mutation envelope variant |
 | Snapshot complexity | mixed-value handling | none | mixed-value handling |
-| Script ergonomics | `verso.set(rangeNodeId, "characterFontSize", 12)` | `verso.set("textFrame:X", ...)` (lossy) | different shape from element writes |
+| Script ergonomics | `paged.set(rangeNodeId, "characterFontSize", 12)` | `paged.set("textFrame:X", ...)` (lossy) | different shape from element writes |
 
 **Decision: Approach A — Range-as-NodeId.** New `NodeId::StoryRange { story_id, start, end }` (half-open, character-offset addressing matching IDML's native serialization). Character + paragraph `PropertyPath`s address this variant.
 
@@ -396,7 +396,7 @@ Reasoning:
 2. **Symmetry preserves the one-door thesis.** The Operation channel addresses nodes; a story range *is* a node. Same shape as `TextFrame(_)`, `Rectangle(_)`, `Layer(_)`. Approach C breaks this — it would split Operations into "addressed by NodeId" and "addressed by ContentSelection," with the binding model needing to know which.
 3. **IDML's native serialization is already range-keyed.** `<CharacterStyleRange ...>` lives inside `<ParagraphStyleRange>` inside `<Story>`, all with character offsets. `StoryRange` is a thin wrapper over how IDML already addresses character properties.
 4. **The binding ceiling holds.** A `selectionProperty` binding stays a `selectionProperty` binding; we give it an optional `scope: "element" | "content"` discriminator. Element bindings resolve against `useSelection()`; content bindings resolve against `useContentSelection()`. Both produce a `NodeId` for the `apply` call. No new binding *kind*.
-5. **`verso.contentSelection()` becomes the natural address producer.** Phase 2 already exposes content selection to scripts. With Approach A: scripts write `verso.set(rangeNodeIdFromContentSelection(), "characterFontSize", 12)` — same pattern as element edits.
+5. **`paged.contentSelection()` becomes the natural address producer.** Phase 2 already exposes content selection to scripts. With Approach A: scripts write `paged.set(rangeNodeIdFromContentSelection(), "characterFontSize", 12)` — same pattern as element edits.
 
 **Implementation status (this commit is Phase 3 *prep*):**
 
@@ -426,12 +426,12 @@ Each gap is Phase 3 work. Phase 3 does not close while any panel papers over a m
 
 | File | Change |
 |---|---|
-| `packages/catalog/package.json` *(new)* | `@verso/catalog` |
+| `packages/catalog/package.json` *(new)* | `@paged-media/catalog` |
 | `packages/catalog/src/types.ts` *(new)* | catalog + binding types |
 | `packages/catalog/src/registry.ts` *(new)* | the catalog map |
 | `packages/catalog/src/render.tsx` *(new)* | `CompositionRenderer` + `NodeRenderer` |
-| `packages/catalog/src/binding.ts` *(new)* | binding resolver against `verso` handle |
-| `packages/catalog/src/leaves/*.tsx` *(new, ~8 files)* | primitive leaves wrapping `@verso/ui` |
+| `packages/catalog/src/binding.ts` *(new)* | binding resolver against `paged` handle |
+| `packages/catalog/src/leaves/*.tsx` *(new, ~8 files)* | primitive leaves wrapping `@paged-media/ui` |
 | `packages/catalog/src/leaves/*.bindings.ts` *(new, ~8 files)* | declared bindings per leaf |
 | `apps/canvas/src/panels/character.composition.json` *(new)* | declarative Character |
 | `apps/canvas/src/panels/pages.composition.json` *(new)* | declarative Pages chrome |
@@ -449,20 +449,20 @@ Each gap is Phase 3 work. Phase 3 does not close while any panel papers over a m
 ### Acceptance criteria
 
 - **AC-3.1** Character panel renders entirely from its JSON composition; the panel `.ts` file contains only `{ component: CompositionRenderer, componentProps: { composition } }` — no JSX.
-- **AC-3.2** Editing a character field in the composition writes through `verso.mutate(...)`. The canvas re-paints. Undo restores. **The same edit succeeds from a script:** `verso.set(id, "characterFontSize", 12)`.
-- **AC-3.3** Pages panel re-renders on tree mutations (subscribes to `mutationApplied`) and drives camera/selection through the `verso` handle's application-state observables.
+- **AC-3.2** Editing a character field in the composition writes through `paged.mutate(...)`. The canvas re-paints. Undo restores. **The same edit succeeds from a script:** `paged.set(id, "characterFontSize", 12)`.
+- **AC-3.3** Pages panel re-renders on tree mutations (subscribes to `mutationApplied`) and drives camera/selection through the `paged` handle's application-state observables.
 - **AC-3.4** The expert leaves (`spread-thumbnail-strip`, `spread-minimap`) each have a sibling `*.bindings.ts` manifest. A lint rule asserts every leaf in the catalog has a declared binding manifest.
 - **AC-3.5** Changing the Character composition JSON changes the panel at next reload with no recompile of catalog code.
 - **AC-3.6** Each Operation-layer gap surfaced during Phase 3 ships before Phase 3 closes.
-- **AC-3.7** `verso.pages` is migrated to a catalog composition during Phase 3 (its `navigator-panel.tsx` becomes a `pages.composition.json` + a `spread-thumbnail-strip` expert leaf). The Inspector remains running unchanged during Phase 3 as a parity reference; the other existing panels (Outline, Tree, Layers, REPL, Script-Editor) remain functional on their current React paths and are queued for Phase 5 migration.
+- **AC-3.7** `paged.pages` is migrated to a catalog composition during Phase 3 (its `navigator-panel.tsx` becomes a `pages.composition.json` + a `spread-thumbnail-strip` expert leaf). The Inspector remains running unchanged during Phase 3 as a parity reference; the other existing panels (Outline, Tree, Layers, REPL, Script-Editor) remain functional on their current React paths and are queued for Phase 5 migration.
 - **AC-3.8** No panel ends Phase 5 on direct-React. Every entry in `BUILT_IN_PANELS` (except the canvas itself, per `sdk.md` §5.1) is a catalog reference by Phase 5 close. The migration table in Phase 5 below is exhaustive.
 
 ### Decisions confirmed by the user
 
 | Question | Decision |
 |---|---|
-| Plan as a doc? | **Yes** — this file (`docs/verso/sdk-implementation-plan.md`). |
-| Phase 3 panels? | **Character (new), Pages (migrates existing `verso.pages`), Spread Mini-Map (new expert leaf).** Every other existing panel migrates in Phase 5 — none stays on direct-React. |
+| Plan as a doc? | **Yes** — this file (`docs/paged/sdk-implementation-plan.md`). |
+| Phase 3 panels? | **Character (new), Pages (migrates existing `paged.pages`), Spread Mini-Map (new expert leaf).** Every other existing panel migrates in Phase 5 — none stays on direct-React. |
 | Binding ceiling (§11.5)? | **Literals + selectionProperty refs + unit coerce only.** |
 | Catalog as a new package? | `packages/catalog/`. |
 | Composition format? | JSON files imported at build time. |
@@ -501,7 +501,7 @@ Each gap is Phase 3 work. Phase 3 does not close while any panel papers over a m
 - **AC-4.2** The menu bar renders from the registry with no hardcoded items in the chrome.
 - **AC-4.3** Removing a single command + menu-item pair makes that menu entry disappear with no other code change.
 - **AC-4.4** A Playwright test invokes File → Open from the menu and an IDML loads — mechanically identical to the previous file-picker flow.
-- **AC-4.5** The same command (`file.open`) can be invoked from a script via `verso.client.commands.invoke("file.open")` — convergence test for the command surface.
+- **AC-4.5** The same command (`file.open`) can be invoked from a script via `paged.client.commands.invoke("file.open")` — convergence test for the command surface.
 
 ---
 
@@ -513,14 +513,14 @@ Each gap is Phase 3 work. Phase 3 does not close while any panel papers over a m
 
 | Panel id | File today | Phase 5 disposition |
 |---|---|---|
-| `verso.canvas` | `canvas-panel.tsx` | **Unchanged.** The one principled exception (`sdk.md` §5.1). Registers via the catalog as an expert leaf (declared bindings: `reads: camera, document; writes: ø` — it doesn't write through any panel-level API; gesture spine handles that). |
-| `verso.pages` | `navigator-panel.tsx` | **Already migrated in Phase 3** (composition + `spread-thumbnail-strip` expert leaf). |
-| `verso.outline` | `outline-panel.tsx` | **Migrate as composition.** Document outline = nested structural list; fits the structural binding model. May reuse a `verso.layout.tree-list` primitive added once the binding shape is clear. |
-| `verso.tree` | `tree-panel.tsx` | **Migrate as composition.** Scene tree = structural panel; reuses Pages-style chrome + possibly the `verso.layout.tree-list` primitive. |
-| `verso.inspector` | `inspector-panel.tsx` | **Retire.** Character + Paragraph + Stroke + Effects + Object/Transform compositions cover everything Inspector exposed. Delete the file in this phase. |
-| `verso.layers` | `layers-panel.tsx` | **Migrate as composition + expert row.** Layer rows have custom drag affordance → row is an expert leaf; chrome is composition. Use the structural ops already shipped per Track M (rename/move/insert/remove). |
-| `verso.repl` | `repl-panel.tsx` | **Migrate as expert leaf** (not unchanged). The REPL stays imperative-rendering (text input + output log), but its registration becomes a catalog entry with declared bindings (`reads: nothing structural; writes: any Operation via parsed text`). |
-| `verso.script-editor` | `script-editor.tsx` | **Migrate as expert leaf.** Same shape as REPL — imperative-rendering, declared bindings (`writes: any Mutation via verso.set + Operation via verso.mutate`). |
+| `paged.canvas` | `canvas-panel.tsx` | **Unchanged.** The one principled exception (`sdk.md` §5.1). Registers via the catalog as an expert leaf (declared bindings: `reads: camera, document; writes: ø` — it doesn't write through any panel-level API; gesture spine handles that). |
+| `paged.pages` | `navigator-panel.tsx` | **Already migrated in Phase 3** (composition + `spread-thumbnail-strip` expert leaf). |
+| `paged.outline` | `outline-panel.tsx` | **Migrate as composition.** Document outline = nested structural list; fits the structural binding model. May reuse a `paged.layout.tree-list` primitive added once the binding shape is clear. |
+| `paged.tree` | `tree-panel.tsx` | **Migrate as composition.** Scene tree = structural panel; reuses Pages-style chrome + possibly the `paged.layout.tree-list` primitive. |
+| `paged.inspector` | `inspector-panel.tsx` | **Retire.** Character + Paragraph + Stroke + Effects + Object/Transform compositions cover everything Inspector exposed. Delete the file in this phase. |
+| `paged.layers` | `layers-panel.tsx` | **Migrate as composition + expert row.** Layer rows have custom drag affordance → row is an expert leaf; chrome is composition. Use the structural ops already shipped per Track M (rename/move/insert/remove). |
+| `paged.repl` | `repl-panel.tsx` | **Migrate as expert leaf** (not unchanged). The REPL stays imperative-rendering (text input + output log), but its registration becomes a catalog entry with declared bindings (`reads: nothing structural; writes: any Operation via parsed text`). |
+| `paged.script-editor` | `script-editor.tsx` | **Migrate as expert leaf.** Same shape as REPL — imperative-rendering, declared bindings (`writes: any Mutation via paged.set + Operation via paged.mutate`). |
 
 ### New panels — declarative compositions (following Character)
 
@@ -537,7 +537,7 @@ Each gap is Phase 3 work. Phase 3 does not close while any panel papers over a m
 
 | Panel | Why expert |
 |---|---|
-| Tools | Bespoke geometry + gesture-spine coupling. Wires the (already-extracted) `activeTool` observable in `@verso/client` through the registry. |
+| Tools | Bespoke geometry + gesture-spine coupling. Wires the (already-extracted) `activeTool` observable in `@paged-media/client` through the registry. |
 | Path-edit toolbar | Gesture-adjacent; resists declarative model. |
 
 ### Work
@@ -564,7 +564,7 @@ Each gap is Phase 3 work. Phase 3 does not close while any panel papers over a m
 - The binding model is stable enough that the catalog vocabulary section in `sdk.md` can be written as reference rather than as proposal.
 - The decision triggers in `sdk.md` §10 fire (a concrete external-bundle story exists).
 
-Scoping reminder: when this eventually lands, the adapter is **one file** (`packages/catalog/src/adapters/a2ui.ts`) that maps A2UI component refs → Verso catalog IDs and A2UI bindings → Verso `Binding`s. Anything in the adapter that references a component not in the catalog is rejected. **Nothing else in the codebase knows A2UI exists** — invariant 11.
+Scoping reminder: when this eventually lands, the adapter is **one file** (`packages/catalog/src/adapters/a2ui.ts`) that maps A2UI component refs → Paged catalog IDs and A2UI bindings → Paged `Binding`s. Anything in the adapter that references a component not in the catalog is rejected. **Nothing else in the codebase knows A2UI exists** — invariant 11.
 
 ---
 
@@ -574,8 +574,8 @@ Scoping reminder: when this eventually lands, the adapter is **one file** (`pack
 |---|---|---|---|
 | 11.1 | Selection-property shape — snapshot vs live Proxy | **Snapshot.** Both consumers already do this. | Closed in Phase 2 |
 | 11.2 | Application-state ownership | **Rust is canonical owner; main-thread state is a mirror.** | Closed in Phase 2 |
-| 11.3 | Tool registry timing | **Lands in Phase 1**; `activeTool` becomes an observable in `@verso/client`. | Closed in Phase 1 |
-| 11.4 | `@verso/ui` granularity vs catalog vocabulary | **Defer to Phase 3 empirically.** Catalog primitives are a curated subset of `@verso/ui` with declared binding points. | Closed in Phase 3 |
+| 11.3 | Tool registry timing | **Lands in Phase 1**; `activeTool` becomes an observable in `@paged-media/client`. | Closed in Phase 1 |
+| 11.4 | `@paged-media/ui` granularity vs catalog vocabulary | **Defer to Phase 3 empirically.** Catalog primitives are a curated subset of `@paged-media/ui` with declared binding points. | Closed in Phase 3 |
 | 11.5 | Binding expressiveness ceiling | **Literals + selectionProperty refs + unit coerce only.** Anything richer is an expert leaf. | Closed (user-confirmed) |
 | 11.6 | Configurable persistence storage | **localStorage layout only** (dockview auto-persist). Saved perspectives + per-document UI out of scope. | Closed |
 
@@ -594,7 +594,7 @@ Scoping reminder: when this eventually lands, the adapter is **one file** (`pack
 ### Test infrastructure additions
 
 - **Phase 0:** CI step rebuilds wasm and `git diff --exit-code` the `.d.ts`.
-- **Phase 2:** Native parity test — `verso.inspect` JSON ≡ channel reply JSON.
+- **Phase 2:** Native parity test — `paged.inspect` JSON ≡ channel reply JSON.
 - **Phase 3:** Composition golden tests — render Character with a known fixture, assert the DOM tree.
 - **Phase 3:** Expert-leaf binding-manifest lint.
 - **Phase 5:** "No React panel file" lint — every panel registration in `BUILT_IN_PANELS` must reference a catalog entry or an expert-leaf manifest.
@@ -602,7 +602,7 @@ Scoping reminder: when this eventually lands, the adapter is **one file** (`pack
 ### Naming / repo evolution
 
 - **Do not rename** `packages/shell/` → `packages/react/` during Phases 0–5. The rename is cosmetic and would conflict with every in-flight branch. Land it as a mechanical commit post-Phase-5 if at all.
-- New package names use the existing `@verso/*` scope: `@verso/client`, `@verso/catalog`.
+- New package names use the existing `@paged-media/*` scope: `@paged-media/client`, `@paged-media/catalog`.
 
 ---
 

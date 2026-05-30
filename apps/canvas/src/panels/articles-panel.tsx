@@ -3,8 +3,8 @@
 // Read-only list of every `<Article>` defined in the document.
 // Per `panel-catalog-and-sdk-extension.md` §5.1 + Tier 1.
 
-import { useCollection } from "@verso/shell";
-import type { ArticleSummary } from "@verso/client";
+import { useCollection } from "@paged-media/shell";
+import type { ArticleSummary } from "@paged-media/client";
 
 export function ArticlesPanel() {
   const items = useCollection<ArticleSummary>("articles");

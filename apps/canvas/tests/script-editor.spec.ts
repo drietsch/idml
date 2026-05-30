@@ -65,12 +65,12 @@ test.describe("Scripting Stage 2 — embedded Boa", () => {
     await loadIdml(page, FIXTURE);
   });
 
-  test("AC-SCRIPT-1 — verso.set routes through the Operation channel", async ({
+  test("AC-SCRIPT-1 — paged.set routes through the Operation channel", async ({
     page,
   }) => {
     const result = await run(
       page,
-      `verso.set("textFrame:${TEXT_FRAME_ID}", "frameOpacity", 50);`,
+      `paged.set("textFrame:${TEXT_FRAME_ID}", "frameOpacity", 50);`,
     );
     expect(result.error).toBeNull();
     expect(await opacity(page, TEXT_FRAME_ID)).toBe(50);
@@ -84,13 +84,13 @@ test.describe("Scripting Stage 2 — embedded Boa", () => {
     expect(result.output.some((l) => l.includes("hello"))).toBe(true);
   });
 
-  test("AC-SCRIPT-3 — verso.frame Proxy sugar writes propagate", async ({
+  test("AC-SCRIPT-3 — paged.frame Proxy sugar writes propagate", async ({
     page,
   }) => {
     const result = await run(
       page,
       `
-        const f = verso.frame("textFrame:${TEXT_FRAME_ID}");
+        const f = paged.frame("textFrame:${TEXT_FRAME_ID}");
         f.frameOpacity = 25;
       `,
     );
@@ -98,16 +98,16 @@ test.describe("Scripting Stage 2 — embedded Boa", () => {
     expect(await opacity(page, TEXT_FRAME_ID)).toBe(25);
   });
 
-  test("AC-SCRIPT-4 — verso.undo reverts script-side mutations", async ({
+  test("AC-SCRIPT-4 — paged.undo reverts script-side mutations", async ({
     page,
   }) => {
     const before = await opacity(page, TEXT_FRAME_ID);
     await run(
       page,
-      `verso.set("textFrame:${TEXT_FRAME_ID}", "frameOpacity", 75);`,
+      `paged.set("textFrame:${TEXT_FRAME_ID}", "frameOpacity", 75);`,
     );
     expect(await opacity(page, TEXT_FRAME_ID)).toBe(75);
-    await run(page, `verso.undo();`);
+    await run(page, `paged.undo();`);
     expect(await opacity(page, TEXT_FRAME_ID)).toEqual(before);
   });
 
@@ -128,11 +128,11 @@ test.describe("Scripting Stage 2 — embedded Boa", () => {
     const result = await run(
       page,
       `
-        const tree = JSON.parse(verso.tree());
+        const tree = JSON.parse(paged.tree());
         let touched = 0;
         function walk(node) {
           if (node.id && node.id.kind === "textFrame") {
-            verso.set(node.id.kind + ":" + node.id.id, "frameOpacity", 80);
+            paged.set(node.id.kind + ":" + node.id.id, "frameOpacity", 80);
             touched += 1;
           }
           for (const child of (node.children || [])) walk(child);
@@ -145,7 +145,7 @@ test.describe("Scripting Stage 2 — embedded Boa", () => {
     expect(await opacity(page, TEXT_FRAME_ID)).toBe(80);
   });
 
-  test("AC-SCRIPT-7 — verso.selection() reflects the host's element selection", async ({
+  test("AC-SCRIPT-7 — paged.selection() reflects the host's element selection", async ({
     page,
   }) => {
     // Drive selection through the client (the same channel the UI's
@@ -174,13 +174,13 @@ test.describe("Scripting Stage 2 — embedded Boa", () => {
     const result = await run(
       page,
       `
-        const ids = verso.selection();
+        const ids = paged.selection();
         console.log("selection", JSON.stringify(ids));
       `,
     );
     expect(result.error).toBeNull();
     const line = result.output.find((l) => l.includes("selection"));
-    expect(line, "verso.selection() should emit a log line").toBeDefined();
+    expect(line, "paged.selection() should emit a log line").toBeDefined();
     expect(line).toContain(TEXT_FRAME_ID);
     expect(line).toContain("textFrame");
   });

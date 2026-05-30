@@ -12,7 +12,7 @@ import type {
   DocumentHandle,
   PageId,
   ResolutionResult,
-} from "@verso/client";
+} from "@paged-media/client";
 
 export interface LoadingState {
   name: string;

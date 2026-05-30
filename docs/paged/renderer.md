@@ -1,6 +1,6 @@
-# Verso: What to Do Right Now (Besides the Renderer)
+# Paged: What to Do Right Now (Besides the Renderer)
 
-*Concept document for the renderer phase of Verso, the in-browser DTP application. Companion to the scripting-layer briefing and the editor architecture briefing.*
+*Concept document for the renderer phase of Paged, the in-browser DTP application. Companion to the scripting-layer briefing and the editor architecture briefing.*
 
 *Revised version. The previous draft proposed building interaction primitives (hit-testing, selection, transforms, viewport) as standalone tools alongside the renderer. That approach is now replaced by an inspector-first strategy, which is strictly better: more architectural validation per line of UI code, no editor-shaped assumptions baked into the scene graph, and a genuine force multiplier on the renderer phase itself.*
 
@@ -37,7 +37,7 @@ Crucially, the inspector is the substitute for a GUI during the renderer phase. 
 
 ### What "awesome" actually means
 
-A great inspector for Verso has specific properties that go beyond "DevTools but for IDML." The first four are non-negotiable for "awesome." The last three are stretch goals that pay disproportionate dividends if you can get them in early.
+A great inspector for Paged has specific properties that go beyond "DevTools but for IDML." The first four are non-negotiable for "awesome." The last three are stretch goals that pay disproportionate dividends if you can get them in early.
 
 **A1. Live, not snapshot.** Every value displayed is reactive to the underlying scene graph. Mutate a property in the inspector and the displayed value of every other property that depends on it updates without a refresh. This forces the scene graph to have a proper change-notification mechanism, which you'll need for everything downstream.
 
@@ -85,7 +85,7 @@ That's it. No DataSource trait, no resolution pass, no reactivity. Just the enum
 
 ## Track C: Architectural Discipline
 
-Two practices to maintain throughout the renderer phase. Neither is a "track" of work in the project-management sense, but both materially shape what survives into Verso's 2026+ form.
+Two practices to maintain throughout the renderer phase. Neither is a "track" of work in the project-management sense, but both materially shape what survives into Paged's 2026+ form.
 
 ### C1. Protect the parser ↔ scene-graph seam
 
@@ -107,13 +107,13 @@ Examples of what belongs in the notebook:
 - *Color groups as a flat list with manual reference* → should be a typed reference into a color graph.
 - *Master pages as a special inheritance model* → should be general template/instance with override tracking.
 
-You'll generate dozens of these. They are the spine of Verso's 2026+ design document, which you'll write later. The notebook is most valuable *during* the renderer phase, when the insight is at full intensity. After the phase, only "we did it this way" remains and the *why* fades.
+You'll generate dozens of these. They are the spine of Paged's 2026+ design document, which you'll write later. The notebook is most valuable *during* the renderer phase, when the insight is at full intensity. After the phase, only "we did it this way" remains and the *why* fades.
 
 The inspector also helps here: when the computed-vs-authored view in A3 forces you to expose IDML's resolution rules explicitly, the misshapen ones become visible. Many notebook entries will be discovered while building the inspector, not while writing the renderer.
 
-## Track D: Exemplar Prototypes for Verso
+## Track D: Exemplar Prototypes for Paged
 
-When you start designing Verso's broader feature set beyond IDML rendering — later, not now — resist the urge to begin with the format spec or the data model. Begin with three or four *exemplar documents* that prove the new model is doing something different.
+When you start designing Paged's broader feature set beyond IDML rendering — later, not now — resist the urge to begin with the format spec or the data model. Begin with three or four *exemplar documents* that prove the new model is doing something different.
 
 Worth doing right now: keep a running list of candidate exemplars. They will become the design driver later. Some candidates:
 
@@ -123,7 +123,7 @@ Worth doing right now: keep a running list of candidate exemplars. They will bec
 - **Scriptable template** — a quarterly report template where running one script generates 30 country-specific variants with localized content and currency, each correctly typeset.
 - **Mixed-content business document** — text, spreadsheet calculations, charts derived from those calculations, and external data, all in one document, all reactive. The RagTime exemplar.
 
-Don't build any of these now. Just keep the list. When you start the design of Verso's broader feature set, build them as throwaway prototypes against the existing scene graph *first*, and *then* design the format and editor around what those exemplars proved.
+Don't build any of these now. Just keep the list. When you start the design of Paged's broader feature set, build them as throwaway prototypes against the existing scene graph *first*, and *then* design the format and editor around what those exemplars proved.
 
 ## What Not to Do Right Now
 
@@ -131,12 +131,12 @@ These are the anti-patterns to avoid during this phase. Each is tempting and eac
 
 - **Don't start the editor proper.** The inspector is not the editor. Editor UX work would warp the scene graph toward selection/transform/marquee assumptions before those assumptions are validated.
 - **Don't build hit-testing, selection, transform gizmos, or viewport math yet.** These were in the previous draft of this concept and have been deliberately removed. They commit the scene graph to editor-shaped assumptions earlier than needed, and the inspector validates the same architecture more cleanly without them. They come back when the editor phase begins.
-- **Don't design Verso's file format yet.** The format is a serialization of the scene graph, and the scene graph is still being shaped by the renderer phase. Format design comes after the scene graph stops moving structurally.
+- **Don't design Paged's file format yet.** The format is a serialization of the scene graph, and the scene graph is still being shaped by the renderer phase. Format design comes after the scene graph stops moving structurally.
 - **Don't implement bindings, DataSources, or reactivity.** Just the `Value::Literal(T)` enum from Track B. Anything more is premature.
 - **Don't hire an editor team or commit headcount to editor work.** The pressure of people waiting for editor scaffolding will warp judgment about renderer readiness. If new people join, route them into the renderer effort, the inspector, or the discipline tracks.
 - **Don't build a Pimcore DataSource yet.** Pimcore is a target customer, not the architecture's reference point. The first DataSource implementations come later, deliberately, after the abstraction is validated with simpler sources.
 - **Don't worry about plugin architecture yet.** A component-type registry that *can* be extended later is enough. Designing the public plugin API now would be premature standardization.
-- **Don't start the open-source community or public positioning for Verso yet.** The renderer becomes a publicly shippable artifact at some point, and that's when public work begins. Earlier than that, attention spent on positioning is attention not spent on engineering.
+- **Don't start the open-source community or public positioning for Paged yet.** The renderer becomes a publicly shippable artifact at some point, and that's when public work begins. Earlier than that, attention spent on positioning is attention not spent on engineering.
 
 ## Time Budget Sanity Check
 
@@ -155,7 +155,7 @@ The 25% on the inspector is well-spent because, as established earlier, it's a f
 Three checkpoints to revisit this concept:
 
 1. **When the inspector reaches A1–A4 quality and the scene graph has been structurally stable for 6+ weeks** → the architectural validation has done its job. Begin lightweight editor UX design (still not implementation).
-2. **When the inspector's command palette (A6) or history (A7) is in working condition** → the scripting and operation-log infrastructure is mature enough to start the embedded JS runtime and the binding system in earnest. This is also the moment to write the broader Verso design document, using `LESSONS.md` as raw material.
+2. **When the inspector's command palette (A6) or history (A7) is in working condition** → the scripting and operation-log infrastructure is mature enough to start the embedded JS runtime and the binding system in earnest. This is also the moment to write the broader Paged design document, using `LESSONS.md` as raw material.
 3. **When IDML fidelity feels like asymptote-chasing rather than insight-generating** → that's the threshold. Begin editor implementation. Begin format spec drafting. Begin Pimcore DataSource (and any other priority integrations).
 
 Until one of those triggers fires, the strategy is: renderer dominant, inspector secondary, discipline as habit.

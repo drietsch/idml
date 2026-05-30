@@ -1,7 +1,7 @@
-# Verso SDK — Phase 3 Operation-Layer Audit
+# Paged SDK — Phase 3 Operation-Layer Audit
 
 **Status:** Reference. Audit conducted against HEAD `ae5bc0d` (read-only).
-**Owner of follow-through:** Phase 3 critical-path work, per `docs/verso/sdk-implementation-plan.md` §3d.
+**Owner of follow-through:** Phase 3 critical-path work, per `docs/paged/sdk-implementation-plan.md` §3d.
 **Purpose:** Map every Phase 3 + Phase 5 panel field onto the existing `PropertyPath` / `Value` / apply-arm / snapshot surface so the gaps are known before Phase 3 starts. Per `sdk.md` invariant 8 ("panel friction is specification"), Phase 3 does not close while a panel papers over a missing Operation.
 
 The relevant gap-anticipation note in the plan is §3d: the plan explicitly flags `CharacterFontSize | CharacterLeading | CharacterTracking | CharacterFillColor` and `MovePage` as needing verification. This audit goes wider — every panel the plan names plus the Phase 5 panels.
@@ -175,7 +175,7 @@ Of 6 Effects categories, 1 is OK (Opacity), 1 is NEW-PATH primitive-only (BlendM
 |---|---|---|---|---|---|
 | Bounds | `FrameBounds` | **OK** | `Value::Bounds` | — | apply.rs:119, 147; snapshot 1140, 1177. |
 | Transform matrix | `FrameTransform` | **OK** | `Value::Transform` | — | apply.rs:261, 284, 298; snapshot 1149, 1186. |
-| Explicit rotation | (derived from `FrameTransform`) | OK via decomposition | (composite write) | S | Panel can read+write through `FrameTransform`; the catalog renderer's `coerce` keyword is the place to fold rotation/scale extraction. Worth a `verso.input.angle` leaf rather than a Rust-side path. |
+| Explicit rotation | (derived from `FrameTransform`) | OK via decomposition | (composite write) | S | Panel can read+write through `FrameTransform`; the catalog renderer's `coerce` keyword is the place to fold rotation/scale extraction. Worth a `paged.input.angle` leaf rather than a Rust-side path. |
 | Explicit scale | (derived from `FrameTransform`) | OK via decomposition | (composite write) | S | Same as rotation. |
 | Anchor point | `FrameAnchorPoint` | NEW-PATH | `Value::Text` (9-point grid as enum) | M | Not a persisted IDML field — InDesign uses it for transform pivots. Could live as canvas-app state rather than a doc property. **Design call**: is this a doc property or an editor preference? |
 | Locked (page-item lock) | `FrameLocked` | NEW-PATH | `Value::Bool` | M | Parser-side: TextFrame/Rectangle don't carry a `locked` flag in scan. **TBD: confirm parser field or define apply-side as a no-op until parsed.** |

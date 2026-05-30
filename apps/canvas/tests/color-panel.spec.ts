@@ -48,7 +48,7 @@ test.describe("Phase 5 — Color panel", () => {
       const dbg = (window as unknown as { __canvas?: DebugCanvas }).__canvas;
       if (!dbg?.client) throw new Error("no client");
       const treeJson = await dbg.client
-        .executeScript("verso.tree()")
+        .executeScript("paged.tree()")
         .then((r) => r.output[0] ?? "[]");
       type Node = {
         id?: { kind: string; id: string } | null;
@@ -113,7 +113,7 @@ test.describe("Phase 5 — Color panel", () => {
       const dbg = (window as unknown as { __canvas?: DebugCanvas }).__canvas;
       if (!dbg?.client) throw new Error("no client");
       const treeJson = await dbg.client
-        .executeScript("verso.tree()")
+        .executeScript("paged.tree()")
         .then((r) => r.output[0] ?? "[]");
       type Node = {
         id?: { kind: string; id: string } | null;

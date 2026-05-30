@@ -7,10 +7,10 @@ import {
 // Step 3b: cross-package type-only imports. Resolved at typecheck;
 // no runtime dep. Step 3-bindings (future) will extract
 // apps/canvas/src/channel/{client,protocol,camera} into a shared
-// @verso/canvas-bindings package and these paths normalize.
+// @paged-media/canvas-bindings package and these paths normalize.
 //
 // eslint-disable-next-line import/no-relative-parent-imports
-import type { CanvasClient } from "@verso/client";
+import type { CanvasClient } from "@paged-media/client";
 
 const Context = createContext<CanvasClient | null>(null);
 

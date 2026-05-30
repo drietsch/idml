@@ -1,6 +1,6 @@
-# Verso: Technical Briefing — Scripting Layer
+# Paged: Technical Briefing — Scripting Layer
 
-*Companion document to the Verso renderer-phase concept and the editor architecture briefing. Defines the scripting architecture, the runtime choice, the JS API surface, the sandboxing model, and the rollout order. The central claim is that scripting is not a separate feature but the same mechanism as the inspector's mutation channel, the undo/redo system, and the future collaboration layer — and getting that unification right is more important than the runtime choice itself.*
+*Companion document to the Paged renderer-phase concept and the editor architecture briefing. Defines the scripting architecture, the runtime choice, the JS API surface, the sandboxing model, and the rollout order. The central claim is that scripting is not a separate feature but the same mechanism as the inspector's mutation channel, the undo/redo system, and the future collaboration layer — and getting that unification right is more important than the runtime choice itself.*
 
 ## Scope
 
@@ -11,19 +11,19 @@ This briefing covers:
 - The JS API surface design.
 - The capability-based sandboxing model.
 - The staged rollout order and how it fits into the renderer phase.
-- The integration points with the rest of Verso (inspector, renderer, future DuckDB, future bindings).
+- The integration points with the rest of Paged (inspector, renderer, future DuckDB, future bindings).
 
 Out of scope: AI-script generation, script marketplace primitives, multi-engine support (Python via Pyodide as a later option), distributed collaboration protocols. These are deferred and can be added on top of the architecture this briefing specifies without retrofit.
 
 ## Runtime Choice: QuickJS via `rquickjs`
 
-Verso's scripting runtime is **QuickJS**, embedded via the **`rquickjs`** Rust binding.
+Paged's scripting runtime is **QuickJS**, embedded via the **`rquickjs`** Rust binding.
 
 ### Rationale
 
 QuickJS compiled to WASM is small (~700KB–1MB), starts in tens of milliseconds, and embeds cleanly inside another WASM context without ceremony. It is ES2023-complete, supports modules, BigInt, tagged templates, and Proxies (which the JS API design relies on). The license is MIT. `rquickjs` is the strongest Rust binding — actively maintained, supports async, derive macros for exposing Rust types, lifetime-checked at the type-system level.
 
-The audience for DTP scripting is almost entirely JS-speaking. InDesign's ExtendScript, Figma's plugin API, After Effects, Sketch, and every modern browser-based design tool use JS dialects. Pimcore integrators lean JS/TS. The script a user writes to "find every product where the price changed and update the corresponding text frame" is a five-line JS snippet they can read at a glance. Forcing any other language imposes a translation tax on every script ever written for Verso.
+The audience for DTP scripting is almost entirely JS-speaking. InDesign's ExtendScript, Figma's plugin API, After Effects, Sketch, and every modern browser-based design tool use JS dialects. Pimcore integrators lean JS/TS. The script a user writes to "find every product where the price changed and update the corresponding text frame" is a five-line JS snippet they can read at a glance. Forcing any other language imposes a translation tax on every script ever written for Paged.
 
 ### Why not Pyodide
 
@@ -41,7 +41,7 @@ Boa is a pure-Rust JS engine that compiles into the Rust binary without a separa
 
 ### Future option: Pyodide as a second runtime
 
-If, in two to three years, there is strong demand from data-team users for Python access to Verso documents, Pyodide can be added as a second runtime — feature-flagged, lazy-loaded, sharing the same `Operation`-based API surface defined below. The architecture does not preclude it. It just is not the day-one bet.
+If, in two to three years, there is strong demand from data-team users for Python access to Paged documents, Pyodide can be added as a second runtime — feature-flagged, lazy-loaded, sharing the same `Operation`-based API surface defined below. The architecture does not preclude it. It just is not the day-one bet.
 
 ## The Central Architecture: Operation-Based Mutation
 
@@ -97,7 +97,7 @@ impl SceneGraph {
 
 `AppliedOperation` returns the inverse operation plus any diagnostic information. The inverse is what gets pushed onto the undo stack.
 
-### What this gives Verso, immediately and for free
+### What this gives Paged, immediately and for free
 
 - **Inspector mutations** translate property-editor changes into `SetProperty` operations and call `apply`. The inspector has no privileged mutation path.
 - **The REPL** in the inspector parses text into Operations and calls `apply`. The REPL becomes a thin parser.
@@ -116,7 +116,7 @@ The JS API exposes `scene.batch(() => { ... })` for ergonomic batching; the func
 
 ### Identity and stability
 
-`NodeId` is stable across the lifetime of a Verso document. Once assigned, a node's ID never changes. Operations reference nodes by ID, not by path. This is essential for any future collaboration story (an Operation generated on one client must apply meaningfully on another, even if the tree has changed underneath) and is independently the right design for scripting (a script that grabs a reference to a node and later mutates it must not break if the tree was reshuffled).
+`NodeId` is stable across the lifetime of a Paged document. Once assigned, a node's ID never changes. Operations reference nodes by ID, not by path. This is essential for any future collaboration story (an Operation generated on one client must apply meaningfully on another, even if the tree has changed underneath) and is independently the right design for scripting (a script that grabs a reference to a node and later mutates it must not break if the tree was reshuffled).
 
 `PropertyPath` is a typed path within a node, e.g., `["fill", "color"]` or `["stroke", "dash_pattern", 2]`. Typed because Rust enforces it; serialized as an array of strings/indices for transport.
 
@@ -129,13 +129,13 @@ Once `Operation` exists, the JS surface designs itself. The shape should be fami
 Direct property access. No Operations. No round trips beyond the unavoidable WASM/JS boundary.
 
 ```javascript
-const doc = verso.document;
+const doc = paged.document;
 const page = doc.pages[0];
 const frames = page.findAll(n => n.type === 'TextFrame');
 const leadingValue = frames[0].text.leading;
 ```
 
-The global script entry point is `verso` (or equivalently `scene` for shorter aliases — see below).
+The global script entry point is `paged` (or equivalently `scene` for shorter aliases — see below).
 
 ### Write access
 
@@ -154,7 +154,7 @@ The mechanism is JS Proxies, which QuickJS supports fully. Every Rust type expos
 ### Explicit batching
 
 ```javascript
-verso.batch(() => {
+paged.batch(() => {
   for (const frame of frames) {
     frame.fill.color = newColor;
   }
@@ -168,7 +168,7 @@ Without `batch`, the loop produces 50 separate Operations, 50 undo entries, 50 r
 When the DuckDB projection lands, scripts gain SQL access:
 
 ```javascript
-const results = await verso.query(`
+const results = await paged.query(`
   SELECT id, x, y FROM frames WHERE bound_to_pim = true
 `);
 ```
@@ -180,7 +180,7 @@ The projection is read-only from SQL's perspective; mutations still go through t
 Scripts can subscribe to scene-graph changes:
 
 ```javascript
-verso.on('mutation', (op) => {
+paged.on('mutation', (op) => {
   console.log('Applied:', op);
 });
 
@@ -200,12 +200,12 @@ QuickJS supports Promises natively. Long-running operations (loading external re
 Scripts can `import` from a small, controlled set of modules. No filesystem. No node_modules. The host registers modules explicitly:
 
 ```javascript
-import { rgb, cmyk } from 'verso:color';
-import { mm, pt, inches } from 'verso:units';
-import { query } from 'verso:scene';
+import { rgb, cmyk } from 'paged:color';
+import { mm, pt, inches } from 'paged:units';
+import { query } from 'paged:scene';
 ```
 
-The `verso:` URI scheme is the canonical namespace for built-in modules. Custom modules can be registered by the host at runtime, useful for plugin systems and per-document script libraries.
+The `paged:` URI scheme is the canonical namespace for built-in modules. Custom modules can be registered by the host at runtime, useful for plugin systems and per-document script libraries.
 
 ## Sandboxing and Capabilities
 
@@ -242,11 +242,11 @@ For genuinely untrusted scripts, the QuickJS context runs in a separate Web Work
 
 ## Integration Points
 
-### With the Verso inspector
+### With the Paged inspector
 
 The inspector's mutation channel *is* the Operation channel. Every property edit becomes a `SetProperty` operation. The REPL pane parses text commands into Operations. The command palette (A6 in the inspector design) is, once QuickJS is wired, a thin layer over the same JS evaluation context that scripts use. Typing `frame.fill.color = '#FF0000'` in the command palette and the same line in a saved script produce identical behavior.
 
-The inspector also gains a **script editor pane** once QuickJS is wired. CodeMirror or Monaco, syntax-highlighted, with autocomplete driven by the same type information that drives the property panel. Saved scripts live in a `scripts/` directory inside the Verso document container.
+The inspector also gains a **script editor pane** once QuickJS is wired. CodeMirror or Monaco, syntax-highlighted, with autocomplete driven by the same type information that drives the property panel. Saved scripts live in a `scripts/` directory inside the Paged document container.
 
 ### With the renderer
 
@@ -256,7 +256,7 @@ For batch operations, the renderer coalesces — a `Batch` of 50 `SetProperty` o
 
 ### With DuckDB (future)
 
-The DuckDB projection is exposed to scripts via `verso.query(sql)`. The projection is maintained by a sync layer that listens to Operations and updates the DuckDB tables accordingly. Scripts can read via SQL but must mutate via Operations — there is no `UPDATE` path through DuckDB into the scene graph. The projection is a queryable view, not an editing substrate.
+The DuckDB projection is exposed to scripts via `paged.query(sql)`. The projection is maintained by a sync layer that listens to Operations and updates the DuckDB tables accordingly. Scripts can read via SQL but must mutate via Operations — there is no `UPDATE` path through DuckDB into the scene graph. The projection is a queryable view, not an editing substrate.
 
 ### With bindings (future)
 
@@ -264,7 +264,7 @@ Bindings, when they arrive, are exposed to scripts as a separate API surface. Sc
 
 ### With the editor (future)
 
-Verso's editor — drag-on-canvas, transform gizmos, marquee selection, and so on — produces Operations. The editor has no privileged mutation path. A user dragging a frame and a script setting `frame.position` go through the same channel and produce indistinguishable history entries.
+Paged's editor — drag-on-canvas, transform gizmos, marquee selection, and so on — produces Operations. The editor has no privileged mutation path. A user dragging a frame and a script setting `frame.position` go through the same channel and produce indistinguishable history entries.
 
 ## Staged Rollout
 
@@ -295,22 +295,22 @@ Once the Operation system has been exercised by the inspector and REPL for a few
 - Scene-graph types exposed to JS via derive macros and Proxy wrappers.
 - Property read access returns live values from the scene graph.
 - Property write access constructs Operations and applies them.
-- `verso.batch(fn)` ergonomic batching API.
-- `verso.on('mutation', fn)` event subscription.
+- `paged.batch(fn)` ergonomic batching API.
+- `paged.on('mutation', fn)` event subscription.
 - Basic capability sandboxing: no fetch, no filesystem, no DOM, default resource limits.
 - Script editor pane in the inspector (CodeMirror, syntax-highlighted).
-- Saved scripts loadable from the Verso document container's `scripts/` directory.
+- Saved scripts loadable from the Paged document container's `scripts/` directory.
 
 **Time estimate:** 3–4 weeks.
 
 ### Stage 3: SQL query surface (later, when DuckDB lands)
 
-Wire `verso.query(sql)` to the DuckDB projection. Document the projection schema (which scene-graph entities map to which tables and columns). The projection is read-only from SQL; mutations remain Operation-based.
+Wire `paged.query(sql)` to the DuckDB projection. Document the projection schema (which scene-graph entities map to which tables and columns). The projection is read-only from SQL; mutations remain Operation-based.
 
 **Deliverables:**
 - DuckDB-WASM compiled into the build.
 - Projection sync layer listening to Operations and updating DuckDB tables.
-- `verso.query(sql)` JS API.
+- `paged.query(sql)` JS API.
 - Documentation of the projection schema.
 
 **Time estimate:** 4–6 weeks, gated on the DuckDB-attached scripting plane being designed.
@@ -327,7 +327,7 @@ Worker isolation, stricter resource limits, signed scripts, marketplace primitiv
 
 ### Performance
 
-QuickJS is slower than V8 by a meaningful margin (rough estimate: 2–10× depending on workload). For interactive scripts that operate on hundreds of nodes, this is fine. For scripts operating on hundreds of thousands of nodes, this could be a problem. Mitigations: batch operations aggressively (one Batch op of 10,000 changes is far cheaper than 10,000 individual operations), expose bulk operations as native Rust functions callable from JS (`verso.bulkSetProperty(ids, path, value)` bypasses the per-node Proxy overhead), and rely on DuckDB for bulk read queries rather than iterating in JS.
+QuickJS is slower than V8 by a meaningful margin (rough estimate: 2–10× depending on workload). For interactive scripts that operate on hundreds of nodes, this is fine. For scripts operating on hundreds of thousands of nodes, this could be a problem. Mitigations: batch operations aggressively (one Batch op of 10,000 changes is far cheaper than 10,000 individual operations), expose bulk operations as native Rust functions callable from JS (`paged.bulkSetProperty(ids, path, value)` bypasses the per-node Proxy overhead), and rely on DuckDB for bulk read queries rather than iterating in JS.
 
 ### WASM-in-WASM
 
@@ -355,4 +355,4 @@ Three checkpoints where this briefing should be revisited:
 
 ## Summary in One Paragraph
 
-The Verso scripting layer's central insight is that scripting, inspector mutations, the REPL, undo/redo, and future collaboration are all expressions of the same underlying mechanism — a typed, serializable, invertible `Operation` applied through a single `apply` channel on the scene graph. Build the Operation system now, alongside the inspector, even before any JS engine exists. Once that system is stable, embed QuickJS via `rquickjs` and expose the scene graph through Proxy-wrapped types so that natural JS mutation syntax automatically constructs Operations. Default to capability-restricted sandboxing — no network, no filesystem, no DOM, bounded resources — and add capabilities only when deliberately needed. Defer Pyodide, defer worker isolation, defer the marketplace story. The architecture this briefing specifies is the same architecture that supports each of those when they eventually arrive, with no retrofit required.
+The Paged scripting layer's central insight is that scripting, inspector mutations, the REPL, undo/redo, and future collaboration are all expressions of the same underlying mechanism — a typed, serializable, invertible `Operation` applied through a single `apply` channel on the scene graph. Build the Operation system now, alongside the inspector, even before any JS engine exists. Once that system is stable, embed QuickJS via `rquickjs` and expose the scene graph through Proxy-wrapped types so that natural JS mutation syntax automatically constructs Operations. Default to capability-restricted sandboxing — no network, no filesystem, no DOM, bounded resources — and add capabilities only when deliberately needed. Defer Pyodide, defer worker isolation, defer the marketplace story. The architecture this briefing specifies is the same architecture that supports each of those when they eventually arrive, with no retrofit required.

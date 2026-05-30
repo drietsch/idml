@@ -4,7 +4,7 @@
 // for the shell's test harnesses.
 //
 // Pattern that every Worker-side bundle will follow:
-//   1. Provide a `verso` API surface (commands / keybindings /
+//   1. Provide a `paged` API surface (commands / keybindings /
 //      menus) that posts registration messages.
 //   2. Track command handlers locally so the `invoke` message can
 //      dispatch them.
@@ -26,7 +26,7 @@ function post(msg: BundleToShell) {
   worker.postMessage(msg);
 }
 
-const verso = {
+const paged = {
   commands: {
     register(c: {
       id: string;
@@ -70,22 +70,22 @@ const verso = {
 };
 
 function activate(): void {
-  verso.commands.register({
-    id: "verso.sample.hello",
+  paged.commands.register({
+    id: "paged.sample.hello",
     title: "Sample: Hello from Bundle",
     category: "Sample",
     handler: () => {
-      verso.log("info", "sample bundle handler ran");
+      paged.log("info", "sample bundle handler ran");
       return { ok: true, message: "Hello from the sample bundle" };
     },
   });
-  verso.keybindings.register({
+  paged.keybindings.register({
     key: "cmd+shift+h",
-    command: "verso.sample.hello",
+    command: "paged.sample.hello",
   });
-  verso.menus.register({
+  paged.menus.register({
     path: "Tools/Sample Bundle Hello",
-    command: "verso.sample.hello",
+    command: "paged.sample.hello",
     order: 10,
   });
 }

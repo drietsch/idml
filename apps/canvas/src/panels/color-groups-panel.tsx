@@ -5,8 +5,8 @@
 // Tier 2b. Per-group "filter Swatches panel to this group" is
 // a v2 affordance.
 
-import { useCollection } from "@verso/shell";
-import type { ColorGroupSummary } from "@verso/client";
+import { useCollection } from "@paged-media/shell";
+import type { ColorGroupSummary } from "@paged-media/client";
 
 export function ColorGroupsPanel() {
   const items = useCollection<ColorGroupSummary>("colorGroups");

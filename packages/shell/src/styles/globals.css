@@ -1,4 +1,4 @@
-/* Shell global stylesheet. Pulls in Tailwind layers + the verso
+/* Shell global stylesheet. Pulls in Tailwind layers + the paged
  * theme bridge so every consuming app only has to import this one
  * file. */
 

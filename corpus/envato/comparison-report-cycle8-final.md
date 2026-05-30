@@ -2,7 +2,7 @@
 
 Snapshot at cycle-8 end (`4daa1da` — Track 3 spillover findings).
 Baseline reference is cycle-7 final (`c6b0fa0`). Plan companion:
-[`docs/verso/cycle-8-plan.md`](../../docs/verso/cycle-8-plan.md).
+[`docs/paged/cycle-8-plan.md`](../../docs/paged/cycle-8-plan.md).
 
 ## Headline
 

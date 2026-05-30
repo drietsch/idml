@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # apps/canvas/build-wasm.sh — build idml-canvas-wasm for browser use.
 #
-# Outputs (in `packages/client/src/wasm/` — the `@verso/client`
+# Outputs (in `packages/client/src/wasm/` — the `@paged-media/client`
 # package owns the wasm boundary, so the SDK consumer can be moved
 # without dragging wasm-bindgen paths along):
 #   idml_canvas_wasm.js        ES-module loader

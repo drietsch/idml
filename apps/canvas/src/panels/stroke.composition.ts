@@ -7,21 +7,21 @@
 // `Value::Length` / `Value::ColorRef` regardless of which path
 // the composition binds them to.
 
-import type { CompositionNode } from "@verso/catalog";
+import type { CompositionNode } from "@paged-media/catalog";
 import {
-  VERSO_INPUT_COLOR_SWATCH,
-  VERSO_INPUT_LENGTH,
-  VERSO_INPUT_TOGGLE_GROUP,
-  VERSO_LAYOUT_SECTION,
-} from "@verso/shell";
+  PAGED_INPUT_COLOR_SWATCH,
+  PAGED_INPUT_LENGTH,
+  PAGED_INPUT_TOGGLE_GROUP,
+  PAGED_LAYOUT_SECTION,
+} from "@paged-media/shell";
 
 export const strokeComposition: CompositionNode = {
-  catalogId: VERSO_LAYOUT_SECTION,
+  catalogId: PAGED_LAYOUT_SECTION,
   props: { title: "Stroke" },
   bindings: {},
   children: [
     {
-      catalogId: VERSO_INPUT_LENGTH,
+      catalogId: PAGED_INPUT_LENGTH,
       props: { label: "Weight" },
       bindings: {
         value: {
@@ -32,7 +32,7 @@ export const strokeComposition: CompositionNode = {
       },
     },
     {
-      catalogId: VERSO_INPUT_COLOR_SWATCH,
+      catalogId: PAGED_INPUT_COLOR_SWATCH,
       props: { label: "Color" },
       bindings: {
         value: {
@@ -48,7 +48,7 @@ export const strokeComposition: CompositionNode = {
       // GraphicLine carry the field, TextFrame does not (the
       // apply arm returns UnsupportedProperty when wired to a
       // text frame).
-      catalogId: VERSO_INPUT_TOGGLE_GROUP,
+      catalogId: PAGED_INPUT_TOGGLE_GROUP,
       props: {
         label: "End cap",
         options: [

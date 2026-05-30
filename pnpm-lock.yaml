@@ -10,16 +10,16 @@ importers:
 
   apps/canvas:
     dependencies:
-      '@verso/catalog':
+      '@paged-media/catalog':
         specifier: workspace:*
         version: link:../../packages/catalog
-      '@verso/client':
+      '@paged-media/client':
         specifier: workspace:*
         version: link:../../packages/client
-      '@verso/shell':
+      '@paged-media/shell':
         specifier: workspace:*
         version: link:../../packages/shell
-      '@verso/ui':
+      '@paged-media/ui':
         specifier: workspace:*
         version: link:../../packages/ui
       react:
@@ -162,7 +162,7 @@ importers:
 
   packages/catalog:
     dependencies:
-      '@verso/client':
+      '@paged-media/client':
         specifier: workspace:*
         version: link:../client
       react:
@@ -184,6 +184,15 @@ importers:
 
   packages/shell:
     dependencies:
+      '@paged-media/catalog':
+        specifier: workspace:*
+        version: link:../catalog
+      '@paged-media/client':
+        specifier: workspace:*
+        version: link:../client
+      '@paged-media/ui':
+        specifier: workspace:*
+        version: link:../ui
       '@radix-ui/react-dialog':
         specifier: ^1.1.15
         version: 1.1.15(@types/react-dom@18.3.7(@types/react@18.3.29))(@types/react@18.3.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -208,15 +217,6 @@ importers:
       '@radix-ui/react-tooltip':
         specifier: ^1.2.8
         version: 1.2.8(@types/react-dom@18.3.7(@types/react@18.3.29))(@types/react@18.3.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@verso/catalog':
-        specifier: workspace:*
-        version: link:../catalog
-      '@verso/client':
-        specifier: workspace:*
-        version: link:../client
-      '@verso/ui':
-        specifier: workspace:*
-        version: link:../ui
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -266,7 +266,7 @@ importers:
 
   packages/ui:
     dependencies:
-      '@verso/shell':
+      '@paged-media/shell':
         specifier: workspace:*
         version: link:../shell
       clsx:

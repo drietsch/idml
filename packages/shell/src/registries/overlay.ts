@@ -1,9 +1,9 @@
 import type { ComponentType } from "react";
 
 // eslint-disable-next-line import/no-relative-parent-imports
-import type { Camera } from "@verso/client";
+import type { Camera } from "@paged-media/client";
 // eslint-disable-next-line import/no-relative-parent-imports
-import type { PageId } from "@verso/client";
+import type { PageId } from "@paged-media/client";
 
 import type { Disposable, VisibilityPredicate } from "./types";
 
@@ -30,9 +30,9 @@ export interface OverlayPageRect {
  */
 export interface OverlayProps {
   /** Editor handle — registries, client, contexts. Resolved to
-   *  `VersoEditor` at the bind site; left `unknown` here so the
+   *  `PagedEditor` at the bind site; left `unknown` here so the
    *  registry file doesn't depend on the editor module. */
-  verso: unknown;
+  paged: unknown;
   /** Camera at current frame. */
   camera: Camera;
   /** Page rectangles in document space, in page-id order. */

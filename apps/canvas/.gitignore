@@ -4,7 +4,7 @@ dist/
 # lives in this directory during `bash build-wasm.sh` and is consumed
 # by the worker; nothing in here is tracked. The tsify-generated
 # protocol `.d.ts` moved to `packages/client/src/wasm/` so the
-# `@verso/client` package is self-contained.
+# `@paged-media/client` package is self-contained.
 src/wasm/
 *.local
 tsconfig.tsbuildinfo

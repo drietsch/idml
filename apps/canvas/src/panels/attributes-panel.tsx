@@ -10,8 +10,8 @@
 // useBindings around a `selectionProperty:frameNonprinting`
 // binding and renders a checkbox.
 
-import { useBindings } from "@verso/shell";
-import type { Value } from "@verso/client";
+import { useBindings } from "@paged-media/shell";
+import type { Value } from "@paged-media/client";
 
 const NONPRINTING_BINDING = {
   value: {

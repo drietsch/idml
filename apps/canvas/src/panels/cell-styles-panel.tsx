@@ -7,8 +7,8 @@
 // NodeId surface (Tier 2d) lands. Until then this panel is
 // purely informational.
 
-import { useCollection } from "@verso/shell";
-import type { CellStyleSummary } from "@verso/client";
+import { useCollection } from "@paged-media/shell";
+import type { CellStyleSummary } from "@paged-media/client";
 
 export function CellStylesPanel() {
   const items = useCollection<CellStyleSummary>("cellStyles");

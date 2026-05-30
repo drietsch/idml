@@ -1,7 +1,7 @@
 // SDK Phase 5 (named sweep) — Swatches panel acceptance.
 //
 // Validates the `valueType: "colorRef"` extension to the
-// VERSO_INPUT_COLLECTION_SELECT primitive end-to-end. The panel
+// PAGED_INPUT_COLLECTION_SELECT primitive end-to-end. The panel
 // renders the same select as Paragraph / Character / Object
 // Styles, but the commit emits a `Value::ColorRef` payload (not
 // `Value::Text`), addressed to the selected frame's
@@ -58,7 +58,7 @@ test.describe("Phase 5 — Swatches panel", () => {
 
       // Find a TextFrame from the tree.
       const treeJson = await dbg.client
-        .executeScript("verso.tree()")
+        .executeScript("paged.tree()")
         .then((r) => r.output[0] ?? "[]");
       type Node = {
         id?: { kind: string; id: string } | null;
@@ -83,7 +83,7 @@ test.describe("Phase 5 — Swatches panel", () => {
       // Pull the swatches list, pick a known one ("Color/Black"
       // is universal — every IDML ships it as a default).
       const swatchesJson = await dbg.client
-        .executeScript("verso.swatches()")
+        .executeScript("paged.swatches()")
         .then((r) => r.output[0] ?? "[]");
       const swatches = JSON.parse(swatchesJson) as Array<{
         selfId: string;
@@ -110,7 +110,7 @@ test.describe("Phase 5 — Swatches panel", () => {
 
       // Round-trip via inspect.
       const inspectJson = await dbg.client
-        .executeScript(`verso.inspect(${JSON.stringify(addr)});`)
+        .executeScript(`paged.inspect(${JSON.stringify(addr)});`)
         .then((r) => r.output[0] ?? "");
       const inspect = JSON.parse(inspectJson) as {
         entries: Array<{

@@ -5,7 +5,7 @@ import type { DockEdge, Disposable, VisibilityPredicate } from "./types";
 /**
  * Lifecycle handle dockview passes into a panel. Bundles never
  * read this directly — the substrate wraps it so panel code only
- * sees the high-level `verso` handle.
+ * sees the high-level `paged` handle.
  */
 export interface PanelApi {
   // Step 3e fleshes this out alongside `DockingSubstrate`.
@@ -18,7 +18,7 @@ export interface PanelApi {
  */
 export interface PanelProps {
   /** Editor handle — context providers, registries, client. */
-  verso: unknown; // Resolved to VersoEditor in the editor module.
+  paged: unknown; // Resolved to PagedEditor in the editor module.
   /** Substrate-provided lifecycle. */
   api: PanelApi;
 }

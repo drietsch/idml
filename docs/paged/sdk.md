@@ -1,23 +1,23 @@
-# Verso SDK — Technical Concept & First-Steps Plan
+# Paged SDK — Technical Concept & First-Steps Plan
 
-**Project:** Verso SDK (the configurable-frontend layer of the IDML editor)
+**Project:** Paged SDK (the configurable-frontend layer of the IDML editor)
 **Document status:** Draft v1.1
 **Owner:** Dietz Rietsch
 **Repository:** `github.com/drietsch/idml`
 **Companion specs:** `editor-architecture.md`, `canvas.md`, `scripting-layer.md`, `canvas-interaction-plan.md`, `canvas-interaction-plan-2.md`
 **Audience:** Engineering, architecture
 
-*Revision history: v1.0 covered the SDK boundary, the `@verso/client` / `@verso/react` split, the contribution model, the convergence requirement, and the first-steps plan. v1.1 adds the declarative component layer (the catalog + binding model with the composition-vs-leaf distinction), reframes agentic UI generation (A2UI and others) as adapters over an internal declarative layer rather than an integration, rewrites Step 3 around a three-panel slice that proves the binding model, the declarative/imperative boundary, and the expert-leaf contract, and adds the invariants that keep the expert-component escape hatch from becoming a parallel mutation path.*
+*Revision history: v1.0 covered the SDK boundary, the `@paged-media/client` / `@paged-media/react` split, the contribution model, the convergence requirement, and the first-steps plan. v1.1 adds the declarative component layer (the catalog + binding model with the composition-vs-leaf distinction), reframes agentic UI generation (A2UI and others) as adapters over an internal declarative layer rather than an integration, rewrites Step 3 around a three-panel slice that proves the binding model, the declarative/imperative boundary, and the expert-leaf contract, and adds the invariants that keep the expert-component escape hatch from becoming a parallel mutation path.*
 
 ---
 
 ## 1. Purpose and thesis
 
-The Verso SDK is the framework-agnostic public surface through which *every* piece of the editor's user interface is built. The goal is a frontend that is configurable end to end — menus, panels, the dockview arrangement, tools, commands, the whole UX — because all of it is expressed as contributions against one SDK rather than hard-wired into application code.
+The Paged SDK is the framework-agnostic public surface through which *every* piece of the editor's user interface is built. The goal is a frontend that is configurable end to end — menus, panels, the dockview arrangement, tools, commands, the whole UX — because all of it is expressed as contributions against one SDK rather than hard-wired into application code.
 
 The thesis of this document is deliberately narrow and load-bearing:
 
-> The SDK is not a new system. It is the public boundary drawn around systems the Verso doc set already designed — the four registries, the state contexts, the docking substrate, the `CanvasClient` bridge, the Operation/Gesture channels, and the QuickJS scripting surface. Building the SDK is a *contract-extraction and convergence* exercise, not a greenfield build. The one genuinely new requirement is that the UI and the script engine must consume **the same surface through the same door**, with no privileged path for first-party code.
+> The SDK is not a new system. It is the public boundary drawn around systems the Paged doc set already designed — the four registries, the state contexts, the docking substrate, the `CanvasClient` bridge, the Operation/Gesture channels, and the QuickJS scripting surface. Building the SDK is a *contract-extraction and convergence* exercise, not a greenfield build. The one genuinely new requirement is that the UI and the script engine must consume **the same surface through the same door**, with no privileged path for first-party code.
 
 Everything below follows from that. If at any point the work starts inventing new mechanism rather than drawing a boundary around existing mechanism, that is the signal to stop and re-check against this thesis.
 
@@ -53,7 +53,7 @@ The capabilities the SDK needs largely **already exist**, but not in the SDK's i
 
 The starting condition is therefore **refactoring existing capability behind a boundary**, not building new capability. This is lower-risk than greenfield and carries a free correctness check: a correct migration should not change observable behavior. If moving a read or query onto the SDK changes what a panel displays, more than the boundary moved.
 
-It also carries a specific trap, named here so it can be watched for throughout (Invariant 4, Section 9): **wrapping is not converging.** Re-exporting an existing client method through `@verso/client` does not put a capability "on the SDK" if scripts still reach it by a different path. The job is to collapse the script path and the UI path into one surface, not to give the UI a parallel door that happens to live in an SDK package.
+It also carries a specific trap, named here so it can be watched for throughout (Invariant 4, Section 9): **wrapping is not converging.** Re-exporting an existing client method through `@paged-media/client` does not put a capability "on the SDK" if scripts still reach it by a different path. The job is to collapse the script path and the UI path into one surface, not to give the UI a parallel door that happens to live in an SDK package.
 
 ---
 
@@ -72,7 +72,7 @@ The SDK sits between the renderer/scripting layer below and the contributed UI a
 ┌───────────────────────────────────────────────────────────┐
 │  Catalog  (finite, curated)                                │
 │  entries = compositions (declarative) | leaves (primitive  │
-│  @verso/ui widgets | expert code) — all with declared      │
+│  @paged-media/ui widgets | expert code) — all with declared      │
 │  binding points; all mutate only through the one door      │
 └───────────────────────────────────────────────────────────┘
                           ▲
@@ -86,14 +86,14 @@ The SDK sits between the renderer/scripting layer below and the contributed UI a
                           │  Contribution API  (register a manifest)
                           ▼
 ┌───────────────────────────────────────────────────────────┐
-│  @verso/react   — React adapter                            │
+│  @paged-media/react   — React adapter                            │
 │  Hooks · registries · dockview substrate · theming bridge  │
 └───────────────────────────────────────────────────────────┘
                           ▲
                           │  depends on (one direction only)
                           ▼
 ┌───────────────────────────────────────────────────────────┐
-│  @verso/client  — framework-agnostic core (NO React)       │
+│  @paged-media/client  — framework-agnostic core (NO React)       │
 │  CanvasClient · Operation channel · Gesture API · queries  │
 │  ── the SAME surface the QuickJS script engine consumes ── │
 └───────────────────────────────────────────────────────────┘
@@ -106,7 +106,7 @@ The SDK sits between the renderer/scripting layer below and the contributed UI a
 └───────────────────────────────────────────────────────────┘
 ```
 
-The single most consequential structural rule is the **package split between `@verso/client` and `@verso/react`**, addressed next.
+The single most consequential structural rule is the **package split between `@paged-media/client` and `@paged-media/react`**, addressed next.
 
 ---
 
@@ -114,7 +114,7 @@ The single most consequential structural rule is the **package split between `@v
 
 "The SDK touches React and talks to Rust" hides two SDKs with different stability and dependency requirements. Conflating them quietly breaks the scripting briefing's one-door thesis. They must be separate packages with a one-directional dependency.
 
-### 4.1 `@verso/client` — the framework-agnostic core
+### 4.1 `@paged-media/client` — the framework-agnostic core
 
 Contains everything that crosses the boundary to Rust or expresses document/canvas capability:
 
@@ -127,19 +127,19 @@ Contains everything that crosses the boundary to Rust or expresses document/canv
 
 **This package has no React dependency, on purpose.** It is the exact surface the QuickJS script engine consumes. Binding it to React would fork the document surface into "the script one" and "the React one," which is precisely the divergence this design exists to prevent. Keeping it framework-free is what lets one mutation surface serve the inspector, scripts, the UI, and eventually collaboration without parallel APIs.
 
-### 4.2 `@verso/react` — the React adapter
+### 4.2 `@paged-media/react` — the React adapter
 
-Depends on `@verso/client`, never the reverse. Contains:
+Depends on `@paged-media/client`, never the reverse. Contains:
 
-- The **hooks**: `useCanvasClient`, `useDocument`, `useCamera`, `useSelection`, `useContentSelection`, and the composite `useVerso`. These are thin adapters that subscribe to the core client and expose its state to the React tree with correct re-render isolation.
+- The **hooks**: `useCanvasClient`, `useDocument`, `useCamera`, `useSelection`, `useContentSelection`, and the composite `usePaged`. These are thin adapters that subscribe to the core client and expose its state to the React tree with correct re-render isolation.
 - The **four registries** as a React-mountable data layer: `PanelRegistry`, `CommandRegistry`, `SemanticGroupRegistry`, `KeybindingRegistry`.
 - The **state contexts** (five focused providers, not one mega-context — re-render isolation matters: a selection change must not re-render every camera consumer).
 - The **`DockingSubstrate`** wrapping dockview such that exactly one file in the entire codebase imports `dockview-react`.
-- The **theming bridge** (one CSS-variable set themes both shadcn and dockview) and the `@verso/ui` design-system boundary (no contributed UI imports shadcn primitives directly).
+- The **theming bridge** (one CSS-variable set themes both shadcn and dockview) and the `@paged-media/ui` design-system boundary (no contributed UI imports shadcn primitives directly).
 
 ### 4.3 The dependency rule, stated once
 
-`@verso/react` → depends on → `@verso/client` → depends on → the tsify'd Rust contract. Never upward. A lint rule should enforce that `@verso/client` has no React import from day one; it is cheap now and a painful retrofit later.
+`@paged-media/react` → depends on → `@paged-media/client` → depends on → the tsify'd Rust contract. Never upward. A lint rule should enforce that `@paged-media/client` has no React import from day one; it is cheap now and a painful retrofit later.
 
 ---
 
@@ -147,8 +147,8 @@ Depends on `@verso/client`, never the reverse. Contains:
 
 A panel, command, menu item, or tool is **data**, registered against a registry. The registries are passive stores; bridges project their contents onto the imperative substrates (dockview for panels, the menu chrome for commands/menus, the tool layer for tools). The shapes are carried forward from `editor-architecture.md` essentially unchanged — they are already the SDK's specification:
 
-- **`PanelContribution`** — `id`, `title`, `component`, `defaultDock`, `defaultGroup` (semantic group name), `icon`, `when` (visibility predicate), `closable`, `movable`. The component receives a `verso` handle (the editor surface) and a `PanelApi` (lifecycle). It reads everything it needs from the handle; it is a thin renderer.
-- **`CommandContribution`** — `id`, `title`, `category`, `icon`, `handler(verso, payload)`, `when` (enablement predicate). Every menu item and keybinding resolves to a command. Commands are the canonical action primitive.
+- **`PanelContribution`** — `id`, `title`, `component`, `defaultDock`, `defaultGroup` (semantic group name), `icon`, `when` (visibility predicate), `closable`, `movable`. The component receives a `paged` handle (the editor surface) and a `PanelApi` (lifecycle). It reads everything it needs from the handle; it is a thin renderer.
+- **`CommandContribution`** — `id`, `title`, `category`, `icon`, `handler(paged, payload)`, `when` (enablement predicate). Every menu item and keybinding resolves to a command. Commands are the canonical action primitive.
 - **`SemanticGroupRegistry`** — maps semantic placement names (`"structure"`, `"properties"`) to concrete dockview group IDs at runtime, so contributions never hardcode group IDs and survive the user dissolving a group.
 - **`KeybindingContribution`** — `key`, `command`, `when`. Minimal now; the full registry can wait.
 
@@ -166,7 +166,7 @@ First-party UI registers through the same path a bundle eventually will. There i
 
 The contribution model in Section 5 makes *registration* declarative — a panel is data: id, title, placement, predicates. But its `component` field is an opaque React `ComponentType`; the registry declares *that* a panel exists and *where* it goes, while the panel's *interior* is imperative React code. The declarative component layer extends declarativeness to the second axis: a description of a panel's **interior** — its widgets, layout, and data bindings — as data, so the component becomes a tree of catalog references with bindings, rendered by the SDK, rather than a hand-written function.
 
-This is a genuine, larger addition than registration-as-data, and it is worth building for two reasons that are already true of Verso rather than speculative:
+This is a genuine, larger addition than registration-as-data, and it is worth building for two reasons that are already true of Paged rather than speculative:
 
 - **The selection-property tier is a binding problem by nature.** Character, Paragraph, Stroke, Swatches, Effects, Object are sets of fields, each bound to a resolved property of the current selection, each writing back a `SetProperty`. A binding primitive for this tier is owed by Step 3 regardless (it is the same thing as open question §11.1, snapshot-vs-live selection-property reads). The only choice is whether to make it *special* (a property-panel helper) or *general* (a component/binding model). Compatibility with external declarative-UI producers (Section 10.1) is what tips it to general.
 - **The one-door invariant makes bindings sound.** A declarative binding that writes `leading = 14` is safe only because "write `leading`" means "construct a `SetProperty` Operation and call `apply`." That door already exists, so a binding is just a declarative spelling of an Operation. The hard part — a single mutation surface — is done.
@@ -184,7 +184,7 @@ The catalog is **finite and curated, not extensible by the document**. The momen
 Every catalog entry is one of two kinds, and the distinction is **purely how the leaf is implemented** — never how it is registered, referenced, bound, or how it touches the document:
 
 - **Compositions** — declarative. A tree of references to other catalog entries, with bindings. This is what the property/structural panels are made of, and what an external producer emits. No code; pure data.
-- **Leaves** — either a primitive `@verso/ui` widget (label, number field, color swatch, scrubbable input) or an **expert component**: hand-written React with custom geometry, canvas interaction, or a bespoke visualization the catalog vocabulary cannot express.
+- **Leaves** — either a primitive `@paged-media/ui` widget (label, number field, color swatch, scrubbable input) or an **expert component**: hand-written React with custom geometry, canvas interaction, or a bespoke visualization the catalog vocabulary cannot express.
 
 The critical property: an **expert component is a catalog leaf**, not an escape from the catalog. It declares its binding points — *what it reads, what Operations it writes* — exactly as a composition does. It renders its interior however it likes (custom canvas, WebGL, whatever), but its *relationship to the document* is still declared and still goes through `apply`. The expert component gets imperative **rendering**; it does not get imperative **mutation**. That asymmetry is the whole point: the author of a leaf writes code, the author of a composition writes data, but the *system* treats both as a catalog reference with declared props and bindings, and a producer (declarative layer or agent) can compose with either without knowing which kind it is.
 
@@ -199,7 +199,7 @@ The test when unsure: *can this panel's interior be expressed as catalog compone
 
 ### 6.4 The internal model is yours; external formats are adapters
 
-The catalog + composition + binding model is **Verso's own**, designed against Verso's panels. It is *not* any external producer's format. Compatibility with A2UI and others is achieved by an **adapter** that translates external descriptions in and Verso compositions out (and back) — and that adapter is the *only* place in the codebase that knows the external format exists, exactly as `dockview-substrate.ts` is the only file that knows dockview exists. This is what keeps "and others" cheap: A2UI, AG-UI, a future format, or hand-authored JSON are all adapters over one internal tree. Adopting any external format *as* the internal model would turn every other producer into a translation-through-that-format tax forever.
+The catalog + composition + binding model is **Paged's own**, designed against Paged's panels. It is *not* any external producer's format. Compatibility with A2UI and others is achieved by an **adapter** that translates external descriptions in and Paged compositions out (and back) — and that adapter is the *only* place in the codebase that knows the external format exists, exactly as `dockview-substrate.ts` is the only file that knows dockview exists. This is what keeps "and others" cheap: A2UI, AG-UI, a future format, or hand-authored JSON are all adapters over one internal tree. Adopting any external format *as* the internal model would turn every other producer into a translation-through-that-format tax forever.
 
 ---
 
@@ -227,15 +227,15 @@ The plan is sequenced to *probe the most-likely-broken thing first*, validate th
 
 ### Step 0 — Finish the tsify contract for everything the SDK exposes (prerequisite)
 
-The SDK's Rust-facing half is only as stable as the generated contract beneath it. Anything `@verso/client` exposes across the boundary — `DocumentHandle`, selection types, caret/selection geometry, the resolved-property read shape, the `Operation` and `Gesture` payloads, the `WorkerToMain` / `MainToWorker` unions — must be **generated from Rust via tsify**, not hand-written. Internal-only TypeScript types may lag. This goes first because it is cheap to state and annoying to retrofit, and because freezing an SDK surface on a half-generated contract reintroduces exactly the drift class the tsify migration exists to kill.
+The SDK's Rust-facing half is only as stable as the generated contract beneath it. Anything `@paged-media/client` exposes across the boundary — `DocumentHandle`, selection types, caret/selection geometry, the resolved-property read shape, the `Operation` and `Gesture` payloads, the `WorkerToMain` / `MainToWorker` unions — must be **generated from Rust via tsify**, not hand-written. Internal-only TypeScript types may lag. This goes first because it is cheap to state and annoying to retrofit, and because freezing an SDK surface on a half-generated contract reintroduces exactly the drift class the tsify migration exists to kill.
 
 *Done when:* renaming a field on a Rust type that the SDK exposes produces a TypeScript compile error on the consumer side after rebuild. Use the `js` serialization backend (not the `json` default) for the geometry-heavy payloads. Keep the high-frequency camera path on the SAB / raw numeric arguments — it does **not** go through tsify.
 
 ### Step 1 — Stand up the package skeleton and the dependency boundary
 
-Create `@verso/client` (no React) and `@verso/react` (depends on client). Move the existing `CanvasClient` and the boundary types into `@verso/client` as-is. Add the lint rule forbidding React imports in `@verso/client` and forbidding `dockview-react` imports outside the one substrate file. No behavior change; this is pure relocation plus a guardrail.
+Create `@paged-media/client` (no React) and `@paged-media/react` (depends on client). Move the existing `CanvasClient` and the boundary types into `@paged-media/client` as-is. Add the lint rule forbidding React imports in `@paged-media/client` and forbidding `dockview-react` imports outside the one substrate file. No behavior change; this is pure relocation plus a guardrail.
 
-*Done when:* the existing app still runs, unchanged, but now imports its client from `@verso/client`; CI fails if a React import lands in the core.
+*Done when:* the existing app still runs, unchanged, but now imports its client from `@paged-media/client`; CI fails if a React import lands in the core.
 
 ### Step 2 — Probe the convergence on the selection-property query (the diagnostic)
 
@@ -247,15 +247,15 @@ Before building any panel, run the diagnostic the live script engine makes possi
 Two outcomes, both informative:
 
 - **Same call** → the fundamental is already right here; the SDK work for this tier is packaging. Be suspicious it was this easy and move on to verify the structural tier.
-- **Different call** (different entry point, different return shape, one through the inspector/Operation channel and one reaching into worker state) → **that gap is the SDK's first real specification.** Collapse the two into one script-facing surface in `@verso/client`. The property panel rebuilt on that surface is the fix.
+- **Different call** (different entry point, different return shape, one through the inspector/Operation channel and one reaching into worker state) → **that gap is the SDK's first real specification.** Collapse the two into one script-facing surface in `@paged-media/client`. The property panel rebuilt on that surface is the fix.
 
 Probe the property/mutation surface *before* the read surface, because reads are simpler and more likely to already coincide — a clean result on the easy surface would falsely suggest the fundamentals are fine while divergence hides one tier over. Probe the place most likely to be broken first.
 
-*Done when:* there is exactly one documented way, in `@verso/client`, to read the current selection's resolved properties, and the script engine uses it.
+*Done when:* there is exactly one documented way, in `@paged-media/client`, to read the current selection's resolved properties, and the script engine uses it.
 
 ### Step 3 — Build the vertical slice: a declarative property panel, a structural panel, and one expert leaf
 
-This is the slice that proves three things at once: the binding model, the declarative/imperative boundary, and the expert-leaf contract. Build all three end to end through the full path: `@verso/client` → catalog/registry → `@verso/react` adapter/hooks → dockview substrate → rendered panel.
+This is the slice that proves three things at once: the binding model, the declarative/imperative boundary, and the expert-leaf contract. Build all three end to end through the full path: `@paged-media/client` → catalog/registry → `@paged-media/react` adapter/hooks → dockview substrate → rendered panel.
 
 1. **A property panel as a declarative composition** — Character or Swatches, built as a *catalog composition* (a tree of catalog references bound to the selection-property surface), **not** as hand-written React. This is what validates the catalog + binding model. It forces the selection-property read shape (open question §11.1), the `SetProperty` write-through-binding path, and re-render on both selection change and mutation.
 
@@ -265,9 +265,9 @@ This is the slice that proves three things at once: the binding model, the decla
 
 Three panels, three proofs: the binding model (1), the boundary (2), the expert-leaf contract (3). When a declarative composition, a possibly-divergent structural panel, and an imperative leaf all sit on the same catalog and the same one door, the fundamentals are validated by use rather than by argument.
 
-Hold the line during this step: if `@verso/client` cannot yet express, say, a swatch edit as an Operation, that is a **finding about the client surface (or the Rust Operation set)**, not a license to special-case the panel. If a panel wants a widget the catalog lacks, that is a **finding about the catalog** — add the widget once, reviewed, before reaching for an expert leaf. The panel's friction *is* the spec being written. (Color/swatch editing in particular may surface gaps in the Operation layer — treat them as Operation-layer work, the same way Track M still owes the *write* side of layer visibility/lock.)
+Hold the line during this step: if `@paged-media/client` cannot yet express, say, a swatch edit as an Operation, that is a **finding about the client surface (or the Rust Operation set)**, not a license to special-case the panel. If a panel wants a widget the catalog lacks, that is a **finding about the catalog** — add the widget once, reviewed, before reaching for an expert leaf. The panel's friction *is* the spec being written. (Color/swatch editing in particular may surface gaps in the Operation layer — treat them as Operation-layer work, the same way Track M still owes the *write* side of layer visibility/lock.)
 
-*Done when:* a script and each panel perform their reads and writes through the same `@verso/client` surface; the property panel is a declarative composition over the catalog; the expert leaf declares its bindings and mutates only through `apply`; Pages drives a camera jump and selection through application-state primitives the canvas also consumes; all panels re-render correctly on their respective triggers; behavior matches the pre-migration UI exactly.
+*Done when:* a script and each panel perform their reads and writes through the same `@paged-media/client` surface; the property panel is a declarative composition over the catalog; the expert leaf declares its bindings and mutates only through `apply`; Pages drives a camera jump and selection through application-state primitives the canvas also consumes; all panels re-render correctly on their respective triggers; behavior matches the pre-migration UI exactly.
 
 ### Step 4 — Migrate the main menu and commands onto the registries
 
@@ -283,9 +283,9 @@ With the binding model, the boundary, and the expert-leaf contract proven, the r
 
 ### Step 6 — The agentic / external-producer adapter (gated)
 
-Only once the catalog and binding model are proven by real panels (Steps 3–5): write the adapter that translates an external declarative-UI format (A2UI first, others later) into Verso compositions and back. The adapter is the single file that knows the external format exists (Section 6.4, Section 10.1). It maps external component references → Verso catalog IDs and external bindings → the Verso binding model, and rejects anything referencing a component not in the catalog. This step is *gated* because the catalog cannot be designed A2UI-shaped before the panels reveal what the catalog actually needs — designing the internal model around an external format is backwards.
+Only once the catalog and binding model are proven by real panels (Steps 3–5): write the adapter that translates an external declarative-UI format (A2UI first, others later) into Paged compositions and back. The adapter is the single file that knows the external format exists (Section 6.4, Section 10.1). It maps external component references → Paged catalog IDs and external bindings → the Paged binding model, and rejects anything referencing a component not in the catalog. This step is *gated* because the catalog cannot be designed A2UI-shaped before the panels reveal what the catalog actually needs — designing the internal model around an external format is backwards.
 
-*Done when:* an external A2UI description can be rendered as a Verso panel composed entirely of catalog entries (compositions and/or expert leaves), writing only through the Operation door; external-format churn is contained to the adapter; nothing in `@verso/client` or the panel components knows A2UI exists.
+*Done when:* an external A2UI description can be rendered as a Paged panel composed entirely of catalog entries (compositions and/or expert leaves), writing only through the Operation door; external-format churn is contained to the adapter; nothing in `@paged-media/client` or the panel components knows A2UI exists.
 
 ### Sequencing rationale, in one line
 
@@ -298,7 +298,7 @@ Finish the contract (0) → draw the boundary (1) → find the divergence before
 These are the rules that keep "panels on the SDK" a clean foundation rather than a leaky one. Each is cheap to keep and expensive to retrofit.
 
 1. **One door.** All mutation goes through `apply` (Operations). No panel, and no first-party code, gets a privileged mutation or read path the script engine lacks.
-2. **Core stays React-free.** `@verso/client` never imports React. Enforced by lint from day one.
+2. **Core stays React-free.** `@paged-media/client` never imports React. Enforced by lint from day one.
 3. **The canvas is the one special case.** It is the only non-configurable panel. Everything else is data.
 4. **Wrapping is not converging.** Re-exporting an existing method is not "on the SDK" unless the script path uses the same surface. Convergence is the deliverable.
 5. **Five contexts, not one.** Re-render isolation is a correctness property; selection changes must not re-render camera consumers.
@@ -307,7 +307,7 @@ These are the rules that keep "panels on the SDK" a clean foundation rather than
 8. **Panel friction is specification.** When a panel cannot do something through the SDK, fix the SDK (or the Rust Operation set), not the panel.
 9. **Expert components are catalog leaves with declared bindings that write through the Operation door — never a parallel path.** An expert component gets imperative *rendering*, not imperative *mutation*. This is the single rule that keeps the escape hatch from becoming the hole everything leaks through.
 10. **The catalog is finite and curated.** New component types are added in code, reviewed. Neither a document nor an agent may define a new component type inline — that is code execution by another name and forfeits the security and portability properties.
-11. **The internal declarative model is Verso's own.** External formats (A2UI and others) live behind a single adapter, the way dockview lives behind a single substrate. No external format is the internal representation.
+11. **The internal declarative model is Paged's own.** External formats (A2UI and others) live behind a single adapter, the way dockview lives behind a single substrate. No external format is the internal representation.
 12. **A panel that fails the declarative test is first a catalog finding.** Add the missing widget to the catalog (once, reviewed) before declaring a panel an expert leaf. Expert leaves are the few genuinely-bespoke panels, not the default.
 
 ---
@@ -332,13 +332,13 @@ The decision triggers to revisit this posture: when the contribution surface has
 
 ### 10.1 Agentic UI generation (A2UI and others)
 
-Agentic UI generation is **a producer on top of the declarative layer, not an integration beside it.** The framing is deliberately inverted from "integrate A2UI": Verso's catalog + composition + binding model is primary and internal (Section 6); A2UI-compatibility is a *consequence preserved by an adapter* (Step 6), and "and others" stays cheap precisely because no external format is the internal representation (Invariant 11).
+Agentic UI generation is **a producer on top of the declarative layer, not an integration beside it.** The framing is deliberately inverted from "integrate A2UI": Paged's catalog + composition + binding model is primary and internal (Section 6); A2UI-compatibility is a *consequence preserved by an adapter* (Step 6), and "and others" stays cheap precisely because no external format is the internal representation (Invariant 11).
 
-This fits unusually cleanly because A2UI's core discipline — *an agent composes only from the client's pre-approved catalog; it cannot execute code or inject a renderer* — is **structurally the same object** as the catalog Verso already needs for configurability and for the deferred third-party trust boundary. A2UI did not introduce a requirement Verso lacks; it is a wire encoding of a requirement Verso already has. The trust-boundary problem it solves ("safely send UI across a trust boundary") is the same problem deferred in this section.
+This fits unusually cleanly because A2UI's core discipline — *an agent composes only from the client's pre-approved catalog; it cannot execute code or inject a renderer* — is **structurally the same object** as the catalog Paged already needs for configurability and for the deferred third-party trust boundary. A2UI did not introduce a requirement Paged lacks; it is a wire encoding of a requirement Paged already has. The trust-boundary problem it solves ("safely send UI across a trust boundary") is the same problem deferred in this section.
 
-Where it fits: the **property/form tier** — agent-*generated* property panels and forms as a capability *alongside* hand-authored ones, composed from catalog entries (compositions and expert leaves alike, since an agent can reference an expert leaf by catalog ID without authoring it). Where it must **not** go: the canvas, the gesture spine, and the document mutation path. An agentic UI protocol describes UI and binds it to data; it is a producer of *contributions and bindings*, never of *Operations or gestures*. The editor's hard problems are real geometry in Rust (oriented hit-testing, rotation-about-pivot, Knuth-Plass reflow), and the interaction plans are categorical that gesture geometry lives in Rust behind one mutation door. An agent-emitted UI that reached the canvas would either describe things it cannot compute or become a second mutation path — the exact fiction the convergence requirement (Section 7) exists to prevent. A2UI-generated panels write through `@verso/client` like every other panel, or not at all.
+Where it fits: the **property/form tier** — agent-*generated* property panels and forms as a capability *alongside* hand-authored ones, composed from catalog entries (compositions and expert leaves alike, since an agent can reference an expert leaf by catalog ID without authoring it). Where it must **not** go: the canvas, the gesture spine, and the document mutation path. An agentic UI protocol describes UI and binds it to data; it is a producer of *contributions and bindings*, never of *Operations or gestures*. The editor's hard problems are real geometry in Rust (oriented hit-testing, rotation-about-pivot, Knuth-Plass reflow), and the interaction plans are categorical that gesture geometry lives in Rust behind one mutation door. An agent-emitted UI that reached the canvas would either describe things it cannot compute or become a second mutation path — the exact fiction the convergence requirement (Section 7) exists to prevent. A2UI-generated panels write through `@paged-media/client` like every other panel, or not at all.
 
-Maturity caution: A2UI is early (v0.8 stable / v0.9 draft, actively moving) and Verso's own SDK is unstable-by-design right now. Coupling two simultaneously-moving specifications is contained only by the single-adapter discipline (Invariant 11): A2UI churn touches one file, not the catalog, the bindings, or the panels.
+Maturity caution: A2UI is early (v0.8 stable / v0.9 draft, actively moving) and Paged's own SDK is unstable-by-design right now. Coupling two simultaneously-moving specifications is contained only by the single-adapter discipline (Invariant 11): A2UI churn touches one file, not the catalog, the bindings, or the panels.
 
 ---
 
@@ -346,10 +346,10 @@ Maturity caution: A2UI is early (v0.8 stable / v0.9 draft, actively moving) and 
 
 Flagged for explicit resolution before the relevant step.
 
-1. **Selection-property surface shape.** Does the resolved-property read for an element selection return a flat snapshot or a live Proxy-style view? The scripting briefing leans on snapshots for bulk reads to avoid per-property Proxy overhead; the property panels want a coherent single read per selection change. Reconcile the two so there is one shape. *(This is also the binding model's read shape — Section 6 — so it is now doubly load-bearing.)* **RESOLVED (SDK Phase 2):** Snapshot. Both consumers already use a snapshot read — `model.element_properties` returns `Option<ElementProperties>` with a `Vec<PropertyEntry>`, and the Inspector + script bridge both re-fetch on `mutationApplied`. No Proxy-style live view; per-property reactivity is achieved by the consumer subscribing to `mutationApplied` / `undoApplied` / `redoApplied` and re-fetching the snapshot. Pinned by `verso_inspect_matches_element_properties_json` in `crates/idml-script/tests/script_basics.rs`.
-2. **Application-state ownership across panels.** When Pages drives the camera and a script also drives the camera, both write the same application-state primitive. Confirm there is one owner and one write path, not a panel-local copy. **RESOLVED (SDK Phase 2):** Rust is the canonical owner of application state (element selection, content selection, active tool). The main-thread React state is a mirror updated via channel notifications (`ElementSelectionApplied`, `ContentSelectionApplied`). The camera primitive is owned by the Rust worker and mirrored into a SAB. One owner, one write path; scripts and panels both read through the same `verso` handle observables.
+1. **Selection-property surface shape.** Does the resolved-property read for an element selection return a flat snapshot or a live Proxy-style view? The scripting briefing leans on snapshots for bulk reads to avoid per-property Proxy overhead; the property panels want a coherent single read per selection change. Reconcile the two so there is one shape. *(This is also the binding model's read shape — Section 6 — so it is now doubly load-bearing.)* **RESOLVED (SDK Phase 2):** Snapshot. Both consumers already use a snapshot read — `model.element_properties` returns `Option<ElementProperties>` with a `Vec<PropertyEntry>`, and the Inspector + script bridge both re-fetch on `mutationApplied`. No Proxy-style live view; per-property reactivity is achieved by the consumer subscribing to `mutationApplied` / `undoApplied` / `redoApplied` and re-fetching the snapshot. Pinned by `paged_inspect_matches_element_properties_json` in `crates/idml-script/tests/script_basics.rs`.
+2. **Application-state ownership across panels.** When Pages drives the camera and a script also drives the camera, both write the same application-state primitive. Confirm there is one owner and one write path, not a panel-local copy. **RESOLVED (SDK Phase 2):** Rust is the canonical owner of application state (element selection, content selection, active tool). The main-thread React state is a mirror updated via channel notifications (`ElementSelectionApplied`, `ContentSelectionApplied`). The camera primitive is owned by the Rust worker and mirrored into a SAB. One owner, one write path; scripts and panels both read through the same `paged` handle observables.
 3. **Tool registry timing.** The tool tier is stubbed in Step 5. Decide whether the tool-registry foundation lands minimally in Step 1 (so the type exists for later) or is deferred entirely until gesture-driven UI needs it.
-4. **`@verso/ui` granularity vs. catalog vocabulary.** The design-system boundary starts as a thin re-export over shadcn. The catalog's primitive leaves (Section 6.2) are drawn from `@verso/ui`. Decide the relationship: is the catalog's primitive set exactly `@verso/ui`, or a curated subset with declared binding points? Likely resolved empirically when the property-panel editors (color pickers, scrubbable numeric inputs) repeat across the tier.
+4. **`@paged-media/ui` granularity vs. catalog vocabulary.** The design-system boundary starts as a thin re-export over shadcn. The catalog's primitive leaves (Section 6.2) are drawn from `@paged-media/ui`. Decide the relationship: is the catalog's primitive set exactly `@paged-media/ui`, or a curated subset with declared binding points? Likely resolved empirically when the property-panel editors (color pickers, scrubbable numeric inputs) repeat across the tier.
 5. **Binding expressiveness ceiling.** How much may a binding express before it becomes code — computed values, conditionals, simple formatting? Set the ceiling deliberately and low; everything past it is an expert leaf, not a richer binding language. This is the guard against the "worse React in JSON" failure mode.
 6. **What is "configurable" persisted as.** Layout auto-persistence to `localStorage` is enough for first-party. Saved perspectives and per-document UI configuration are out of scope until there is a reason; confirm that boundary.
 
@@ -357,4 +357,4 @@ Flagged for explicit resolution before the relevant step.
 
 ## 12. Summary
 
-The Verso SDK is the public, framework-agnostic boundary around mechanism that already exists — the registries, contexts, docking substrate, client bridge, Operation/Gesture channels, and the live QuickJS surface. It splits into a React-free core (`@verso/client`, shared verbatim with the script engine) and a React adapter (`@verso/react`, holding the hooks, registries, and the single dockview seam). On top of the contribution model sits a declarative component layer: a finite, curated **catalog** of entries that are either declarative **compositions** (trees of references with bindings) or **leaves** (primitive `@verso/ui` widgets, or **expert components** — hand-written code that still declares its bindings and still mutates only through the one Operation door). Binding-shaped panels are compositions; only genuinely-bespoke panels are expert leaves, and a panel that resists the declarative model is first a finding about the catalog. The SDK's correctness comes not from "the UI uses a client method" but from the UI and the script engine using **the same** surface through **one** door — a property the live scripting layer lets us test today rather than assert. The internal declarative model is Verso's own; A2UI and other agentic producers are adapters over it, never the representation itself, which is what keeps "and others" cheap and keeps an early, fast-moving external spec contained to a single seam. The first steps finish the tsify contract, draw the package boundary, probe the selection-property surface for divergence *before* building on it, then prove the binding model, the declarative/imperative boundary, and the expert-leaf contract against three real panels — because three genuinely different consumers fitting the same catalog and the same door is the proof the fundamentals are right. Breadth-first panel work, and any external producer, wait until that proof exists. Third-party support is built for structurally and committed to only later, which means the API is free to evolve cheaply now; that freedom is the whole advantage of the first-party-only window, and the plan is designed to spend it.
+The Paged SDK is the public, framework-agnostic boundary around mechanism that already exists — the registries, contexts, docking substrate, client bridge, Operation/Gesture channels, and the live QuickJS surface. It splits into a React-free core (`@paged-media/client`, shared verbatim with the script engine) and a React adapter (`@paged-media/react`, holding the hooks, registries, and the single dockview seam). On top of the contribution model sits a declarative component layer: a finite, curated **catalog** of entries that are either declarative **compositions** (trees of references with bindings) or **leaves** (primitive `@paged-media/ui` widgets, or **expert components** — hand-written code that still declares its bindings and still mutates only through the one Operation door). Binding-shaped panels are compositions; only genuinely-bespoke panels are expert leaves, and a panel that resists the declarative model is first a finding about the catalog. The SDK's correctness comes not from "the UI uses a client method" but from the UI and the script engine using **the same** surface through **one** door — a property the live scripting layer lets us test today rather than assert. The internal declarative model is Paged's own; A2UI and other agentic producers are adapters over it, never the representation itself, which is what keeps "and others" cheap and keeps an early, fast-moving external spec contained to a single seam. The first steps finish the tsify contract, draw the package boundary, probe the selection-property surface for divergence *before* building on it, then prove the binding model, the declarative/imperative boundary, and the expert-leaf contract against three real panels — because three genuinely different consumers fitting the same catalog and the same door is the proof the fundamentals are right. Breadth-first panel work, and any external producer, wait until that proof exists. Third-party support is built for structurally and committed to only later, which means the API is free to evolve cheaply now; that freedom is the whole advantage of the first-party-only window, and the plan is designed to spend it.

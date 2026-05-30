@@ -47,7 +47,7 @@ test.describe("Phase 5 — Frame Fitting panel", () => {
       // Find the first Rectangle in the tree (the images fixture
       // ships several placed-image rectangles).
       const treeJson = await dbg.client
-        .executeScript("verso.tree()")
+        .executeScript("paged.tree()")
         .then((r) => r.output[0] ?? "[]");
       type Node = {
         id?: { kind: string; id: string } | null;
@@ -68,7 +68,7 @@ test.describe("Phase 5 — Frame Fitting panel", () => {
 
       // 1. Set fitting type → "Proportionally".
       const setType = await dbg.client.executeScript(
-        `verso.set(${JSON.stringify(addr)}, "frameFittingType", "Proportionally");`,
+        `paged.set(${JSON.stringify(addr)}, "frameFittingType", "Proportionally");`,
       );
       if (setType.error || setType.output[0]?.trim() !== "true") {
         throw new Error(`type set failed: ${setType.error ?? setType.output[0]}`);
@@ -88,7 +88,7 @@ test.describe("Phase 5 — Frame Fitting panel", () => {
       await new Promise((r) => setTimeout(r, 30));
 
       const inspectJson = await dbg.client
-        .executeScript(`verso.inspect(${JSON.stringify(addr)});`)
+        .executeScript(`paged.inspect(${JSON.stringify(addr)});`)
         .then((r) => r.output[0] ?? "");
       const inspect = JSON.parse(inspectJson) as {
         entries: Array<{

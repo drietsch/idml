@@ -5,11 +5,11 @@
 // Tier 5. Uses `useDocumentMeta()` directly rather than a
 // catalog-driven composition because v1 has no `label`/`row`
 // primitive carrying a `documentMeta:<key>` binding — that lands
-// when the §9 `verso.layout.popover-section` + a Value::String
+// when the §9 `paged.layout.popover-section` + a Value::String
 // display leaf show up. The Info panel is one of the simpler
 // expert leaves: tiny surface, no commits, no Operations.
 
-import { useDocumentMeta } from "@verso/shell";
+import { useDocumentMeta } from "@paged-media/shell";
 
 function Row({ label, value }: { label: string; value: string }) {
   return (

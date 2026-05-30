@@ -81,7 +81,7 @@ export type WorkerToMainKind = { kind: "ready"; payload: { protocol: ProtocolVer
  * text-side caret + range live in `ContentSelection`); the
  * variant exists so the apply layer can be reached via the
  * existing `Mutation::SetElementProperty` wire shape — see
- * `docs/verso/sdk-implementation-plan.md` §3c.1 ADR.
+ * `docs/paged/sdk-implementation-plan.md` §3c.1 ADR.
  */
 export type ElementId = { kind: "textFrame"; id: string } | { kind: "rectangle"; id: string } | { kind: "oval"; id: string } | { kind: "polygon"; id: string } | { kind: "graphicLine"; id: string } | { kind: "group"; id: string } | { kind: "storyRange"; id: { story_id: string; start: number; end: number } };
 
@@ -505,7 +505,7 @@ export interface GradientSummary {
 /**
  * SDK Phase 3 — one paragraph style\'s identity + display name +
  * based-on link. Surfaced by `CanvasModel::paragraph_styles()`
- * (and `verso.paragraphStyles()`) so collection-backed Style
+ * (and `paged.paragraphStyles()`) so collection-backed Style
  * panels can render the hierarchy without re-parsing styles.xml.
  * The `based_on` field is the parent style\'s `selfId` (the cascade
  * root); `None` means this is a top-level style.
@@ -518,7 +518,7 @@ export interface ParagraphStyleSummary {
 
 /**
  * SDK Phase 3 — one story\'s identity + total character length.
- * Surfaced by `CanvasModel::stories()` and the `verso.stories()`
+ * Surfaced by `CanvasModel::stories()` and the `paged.stories()`
  * script host function so consumers can pick valid character
  * ranges (e.g. `[0, length)` is always a well-formed StoryRange).
  */
@@ -542,7 +542,7 @@ export interface StorySummary {
 
 /**
  * SDK Phase 3 — one swatch\'s identity + display name + kind.
- * Surfaced by `CanvasModel::swatches()` and the `verso.swatches()`
+ * Surfaced by `CanvasModel::swatches()` and the `paged.swatches()`
  * host fn so collection-backed panels (Swatches, the color picker
  * dropdown, the Character/Stroke fill-color enum-select) can
  * enumerate the document\'s colour palette without re-parsing the

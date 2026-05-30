@@ -7,7 +7,7 @@ import {
   useCamera,
   useDocument,
   type PanelProps,
-} from "@verso/shell";
+} from "@paged-media/shell";
 import { Navigator as PageNavigator } from "../ui/Navigator";
 import { useAnimatedCamera } from "../ui/useAnimatedCamera";
 

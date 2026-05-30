@@ -33,7 +33,7 @@ function MarqueeRender(props: OverlayProps) {
 }
 
 export const marqueeContribution: OverlayContribution = {
-  id: "verso.marquee",
+  id: "paged.marquee",
   render: MarqueeRender,
   z: 400,
 };

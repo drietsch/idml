@@ -6,8 +6,8 @@
 // style defaults; the accessor walks them and dedups. Surface
 // is "fonts in use", not "fonts installed".
 
-import { useCollection } from "@verso/shell";
-import type { FontSummary } from "@verso/client";
+import { useCollection } from "@paged-media/shell";
+import type { FontSummary } from "@paged-media/client";
 
 export function FontsPanel() {
   const items = useCollection<FontSummary>("fonts");

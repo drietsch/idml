@@ -2,7 +2,7 @@
 
 Snapshot at cycle-7 end (`de9f0fc` — Track 3 investigation
 findings). Baseline reference is cycle-6 final (`05d4396`). Plan
-companion: [`docs/verso/cycle-7-plan.md`](../../docs/verso/cycle-7-plan.md).
+companion: [`docs/paged/cycle-7-plan.md`](../../docs/paged/cycle-7-plan.md).
 
 ## Headline
 

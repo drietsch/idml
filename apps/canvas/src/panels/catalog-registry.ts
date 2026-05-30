@@ -6,8 +6,8 @@
 // also work (CatalogRegistry is plain data) but the singleton
 // keeps the registration cost a one-time event.
 
-import { createCatalogRegistry, type CatalogRegistry } from "@verso/catalog";
-import { registerBuiltInCatalogEntries } from "@verso/shell";
+import { createCatalogRegistry, type CatalogRegistry } from "@paged-media/catalog";
+import { registerBuiltInCatalogEntries } from "@paged-media/shell";
 
 let singleton: CatalogRegistry | null = null;
 

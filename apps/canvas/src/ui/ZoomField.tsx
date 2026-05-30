@@ -1,11 +1,11 @@
 // Header zoom indicator + scrub control. First consumer of
-// @verso/ui's `NumberInput` — establishes the round-trip for the
+// @paged-media/ui's `NumberInput` — establishes the round-trip for the
 // new gesture-pipeline primitive in a low-stakes corner of the
 // shell (changing zoom is non-destructive). Drag the leading "%"
 // chip horizontally to scrub; native keyboard editing still works.
 
-import { useCamera } from "@verso/shell";
-import { NumberInput } from "@verso/ui";
+import { useCamera } from "@paged-media/shell";
+import { NumberInput } from "@paged-media/ui";
 
 const MIN_ZOOM_PERCENT = 5;
 const MAX_ZOOM_PERCENT = 1600;

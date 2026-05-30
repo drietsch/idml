@@ -10,8 +10,8 @@
 // confirms or supersedes via subsequent caret queries.
 
 import { useEffect } from "react";
-import type { CanvasClient } from "@verso/client";
-import type { ContentSelection } from "@verso/client";
+import type { CanvasClient } from "@paged-media/client";
+import type { ContentSelection } from "@paged-media/client";
 
 export interface TextEditingContext {
   client: CanvasClient | null;

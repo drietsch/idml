@@ -22,8 +22,8 @@ import {
   CatalogRegistryProvider,
   CompositionRenderer,
   useBindings,
-} from "@verso/shell";
-import type { Value } from "@verso/client";
+} from "@paged-media/shell";
+import type { Value } from "@paged-media/client";
 
 import { appCatalogRegistry } from "./catalog-registry";
 import { effectsComposition } from "./effects.composition";

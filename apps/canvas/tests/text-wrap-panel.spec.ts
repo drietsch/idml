@@ -48,7 +48,7 @@ test.describe("Phase 5 — Text Wrap panel", () => {
 
       // First TextFrame from the tree.
       const treeJson = await dbg.client
-        .executeScript("verso.tree()")
+        .executeScript("paged.tree()")
         .then((r) => r.output[0] ?? "[]");
       type Node = {
         id?: { kind: string; id: string } | null;
@@ -69,7 +69,7 @@ test.describe("Phase 5 — Text Wrap panel", () => {
 
       // 1. Set mode → ContourTextWrap.
       const setMode = await dbg.client.executeScript(
-        `verso.set(${JSON.stringify(addr)}, "frameTextWrapMode", "ContourTextWrap");`,
+        `paged.set(${JSON.stringify(addr)}, "frameTextWrapMode", "ContourTextWrap");`,
       );
       if (setMode.error || setMode.output[0]?.trim() !== "true") {
         throw new Error(`mode set failed: ${setMode.error ?? setMode.output[0]}`);
@@ -89,7 +89,7 @@ test.describe("Phase 5 — Text Wrap panel", () => {
 
       // 3. Inspect — both entries reflect the merged state.
       const inspectJson = await dbg.client
-        .executeScript(`verso.inspect(${JSON.stringify(addr)});`)
+        .executeScript(`paged.inspect(${JSON.stringify(addr)});`)
         .then((r) => r.output[0] ?? "");
       const inspect = JSON.parse(inspectJson) as {
         entries: Array<{

@@ -6,15 +6,15 @@
 // The snapshot returns one value per intersecting paragraph,
 // collapsed to `Some(value)` when they agree or `None` for mixed.
 
-import type { CompositionNode } from "@verso/catalog";
+import type { CompositionNode } from "@paged-media/catalog";
 import {
-  VERSO_INPUT_LENGTH,
-  VERSO_INPUT_TOGGLE_GROUP,
-  VERSO_LAYOUT_SECTION,
-} from "@verso/shell";
+  PAGED_INPUT_LENGTH,
+  PAGED_INPUT_TOGGLE_GROUP,
+  PAGED_LAYOUT_SECTION,
+} from "@paged-media/shell";
 
 export const paragraphComposition: CompositionNode = {
-  catalogId: VERSO_LAYOUT_SECTION,
+  catalogId: PAGED_LAYOUT_SECTION,
   props: { title: "Paragraph" },
   bindings: {},
   children: [
@@ -24,7 +24,7 @@ export const paragraphComposition: CompositionNode = {
       // `CenterJustified` / `RightJustified` / `FullyJustified`
       // (binding-aware aliases) land when a binding-side selector
       // ships.
-      catalogId: VERSO_INPUT_TOGGLE_GROUP,
+      catalogId: PAGED_INPUT_TOGGLE_GROUP,
       props: {
         label: "Align",
         options: [
@@ -43,7 +43,7 @@ export const paragraphComposition: CompositionNode = {
       },
     },
     {
-      catalogId: VERSO_INPUT_LENGTH,
+      catalogId: PAGED_INPUT_LENGTH,
       props: { label: "Space before" },
       bindings: {
         value: {
@@ -54,7 +54,7 @@ export const paragraphComposition: CompositionNode = {
       },
     },
     {
-      catalogId: VERSO_INPUT_LENGTH,
+      catalogId: PAGED_INPUT_LENGTH,
       props: { label: "Space after" },
       bindings: {
         value: {
@@ -65,7 +65,7 @@ export const paragraphComposition: CompositionNode = {
       },
     },
     {
-      catalogId: VERSO_INPUT_LENGTH,
+      catalogId: PAGED_INPUT_LENGTH,
       props: { label: "First-line indent" },
       bindings: {
         value: {

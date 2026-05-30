@@ -10,7 +10,7 @@ import {
 import type {
   ElementGeometryItem,
   ElementId,
-} from "@verso/client";
+} from "@paged-media/client";
 
 export type ActiveTool = "select" | "text";
 

@@ -22,8 +22,8 @@ import {
   CompositionRenderer,
   useBindings,
   useCanvasClient,
-} from "@verso/shell";
-import type { ColorPreview, Value } from "@verso/client";
+} from "@paged-media/shell";
+import type { ColorPreview, Value } from "@paged-media/client";
 
 import { appCatalogRegistry } from "./catalog-registry";
 import { colorComposition } from "./color.composition";

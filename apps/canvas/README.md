@@ -15,7 +15,7 @@ render-loop tick (`setTimeout`, 16 ms cadence) and the scene cache is
 composed onto the surface via `Scene::append`. When WebGPU isn't
 available the worker silently falls back to a tiny-skia CPU path
 backed by a 2D `OffscreenCanvasRenderingContext2D`. Full architecture
-spec lives at `docs/verso/canvas.md`.
+spec lives at `docs/paged/canvas.md`.
 
 ## Setup
 

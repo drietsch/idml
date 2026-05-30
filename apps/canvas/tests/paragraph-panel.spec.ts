@@ -62,7 +62,7 @@ test.describe("Phase 3 — Paragraph panel (declarative composition)", () => {
         }
       ).__canvas;
       const result = await c.client.executeScript(
-        `JSON.stringify(JSON.parse(verso.stories())[0] || null)`,
+        `JSON.stringify(JSON.parse(paged.stories())[0] || null)`,
       );
       if (result.error) return null;
       const json = result.output[0] ?? null;

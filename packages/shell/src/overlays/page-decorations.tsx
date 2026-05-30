@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 // eslint-disable-next-line import/no-relative-parent-imports
-import type { PageId } from "@verso/client";
+import type { PageId } from "@paged-media/client";
 
 import type { OverlayContribution, OverlayProps } from "../registries/overlay";
 import { useDocument } from "../state/document-context";
@@ -112,7 +112,7 @@ function renderAnchorBadges(
 }
 
 export const pageDecorationsContribution: OverlayContribution = {
-  id: "verso.page-decorations",
+  id: "paged.page-decorations",
   render: PageDecorationsRender,
   z: 50,
 };

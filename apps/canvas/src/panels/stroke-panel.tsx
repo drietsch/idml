@@ -6,7 +6,7 @@
 import {
   CatalogRegistryProvider,
   CompositionRenderer,
-} from "@verso/shell";
+} from "@paged-media/shell";
 
 import { appCatalogRegistry } from "./catalog-registry";
 import { strokeComposition } from "./stroke.composition";

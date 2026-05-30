@@ -20,11 +20,11 @@ import type {
   MainToWorker,
   SnapLine,
   WorkerToMain,
-} from "@verso/client";
-import { PROTOCOL_VERSION } from "@verso/client";
-import { CameraBuffer, CAMERA_SAB_BYTES, OFFSET_GEN_LO as CAMERA_OFFSET_GEN_LO, OFFSET_GEN_HI as CAMERA_OFFSET_GEN_HI, OFFSET_SCALE as CAMERA_OFFSET_SCALE, OFFSET_TX as CAMERA_OFFSET_TX, OFFSET_TY as CAMERA_OFFSET_TY } from "@verso/client";
-// `@verso/client` has no React; safe to import from the barrel.
-// (Pre-Phase-1 this was a deep-import to bypass the @verso/shell
+} from "@paged-media/client";
+import { PROTOCOL_VERSION } from "@paged-media/client";
+import { CameraBuffer, CAMERA_SAB_BYTES, OFFSET_GEN_LO as CAMERA_OFFSET_GEN_LO, OFFSET_GEN_HI as CAMERA_OFFSET_GEN_HI, OFFSET_SCALE as CAMERA_OFFSET_SCALE, OFFSET_TX as CAMERA_OFFSET_TX, OFFSET_TY as CAMERA_OFFSET_TY } from "@paged-media/client";
+// `@paged-media/client` has no React; safe to import from the barrel.
+// (Pre-Phase-1 this was a deep-import to bypass the @paged-media/shell
 // barrel; after the package split that workaround is unnecessary
 // because client's barrel is React-free by lint.)
 import {
@@ -34,7 +34,7 @@ import {
   GESTURE_MODIFIER_ALT,
   GESTURE_MODIFIER_DISABLE_SNAP,
   GESTURE_SAB_OFFSETS,
-} from "@verso/client";
+} from "@paged-media/client";
 import { WorkerRenderer, type RendererWasm } from "./render";
 
 interface CanvasWorkerInstance {
@@ -99,7 +99,7 @@ let pendingAttach:
 /**
  * SAB-contract reconciliation. Rust owns the canonical byte size +
  * offsets + modifier bit masks (see `crates/idml-canvas/src/camera.rs`
- * + `gesture.rs`). The TS-side mirrors live in `@verso/client`'s
+ * + `gesture.rs`). The TS-side mirrors live in `@paged-media/client`'s
  * `sab/camera.ts` + `sab/gesture.ts` modules — same values declared
  * inline so they can be used at module-load time (the SAB is
  * allocated before wasm has finished loading). This function runs
@@ -172,7 +172,7 @@ function assertSabContract(mod: CanvasWasmModule): string | null {
 }
 
 async function init() {
-  // SDK Phase 1 — the wasm-bindgen output lives in `@verso/client`
+  // SDK Phase 1 — the wasm-bindgen output lives in `@paged-media/client`
   // (see `apps/canvas/build-wasm.sh` OUT_DIR). Deep relative path
   // here so the dynamic import resolves through Vite's module graph
   // without going through any package barrel — the wasm loader

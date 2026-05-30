@@ -22,10 +22,10 @@ import {
   useOverlaySignals,
   type MarqueeRectPageLocal,
   type SelectionState,
-} from "@verso/shell";
+} from "@paged-media/shell";
 
-import type { CanvasClient } from "@verso/client";
-import { viewportToDoc, type Camera } from "@verso/client";
+import type { CanvasClient } from "@paged-media/client";
+import { viewportToDoc, type Camera } from "@paged-media/client";
 import type {
   ElementGeometryItem,
   ElementId,
@@ -36,7 +36,7 @@ import type {
   ResizeHandle,
   ResolutionResult,
   RunningHeader,
-} from "@verso/client";
+} from "@paged-media/client";
 import { documentBounds, fitCamera, layoutPages, zoomAt, type PageRect } from "./layout";
 
 // Re-export the (now shell-owned) overlay state types so existing

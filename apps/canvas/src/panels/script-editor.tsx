@@ -5,12 +5,12 @@
 // and returns captured console.* lines + any thrown error.
 //
 // Same Operation channel as the gestures + Inspector + REPL —
-// every `verso.set(...)` lands as a SetProperty mutation and the
+// every `paged.set(...)` lands as a SetProperty mutation and the
 // existing mutationApplied notification updates the rest of the UI.
 
 import { useCallback, useRef, useState } from "react";
 
-import { useCanvasClient } from "@verso/shell";
+import { useCanvasClient } from "@paged-media/shell";
 
 interface LogEntry {
   source: string;
@@ -24,7 +24,7 @@ type PanelProps = any;
 const EXAMPLE = `// Try editing the textFrame's opacity from JS.
 // All scene-graph writes go through the Operation channel,
 // so Cmd-Z undoes them.
-verso.set("textFrame:ua365e1", "frameOpacity", 50);
+paged.set("textFrame:ua365e1", "frameOpacity", 50);
 console.log("set opacity to 50");
 `;
 

@@ -19,9 +19,9 @@ import {
   useSelection,
   type PanelProps,
   type SelectionState,
-} from "@verso/shell";
+} from "@paged-media/shell";
 
-import type { SelectionMode } from "@verso/client";
+import type { SelectionMode } from "@paged-media/client";
 import { ViewportCanvas } from "../ui/ViewportCanvas";
 
 export function CanvasPanel(_props: PanelProps) {
@@ -172,7 +172,7 @@ export function CanvasPanel(_props: PanelProps) {
 
   const onMarquee = useCallback(
     (
-      pageId: import("@verso/client").PageId,
+      pageId: import("@paged-media/client").PageId,
       rect: [number, number, number, number],
       modifiers?: { shift?: boolean; cmd?: boolean },
     ) => {
@@ -203,7 +203,7 @@ export function CanvasPanel(_props: PanelProps) {
   }, [client, elementSelection, setElementGeometry]);
 
   const onDoubleClickGroup = useCallback(
-    (groupId: string, hitElement: import("@verso/client").ElementId | null) => {
+    (groupId: string, hitElement: import("@paged-media/client").ElementId | null) => {
       // Track L — double-click enters the group: set
       // `activeGroup` AND select the leaf the user clicked.
       // Subsequent single-clicks stay scoped to that group's

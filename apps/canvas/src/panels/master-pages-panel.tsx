@@ -5,8 +5,8 @@
 // §5.1 + §6 Tier 1. Per-master "apply to selected page" actions
 // land when the `Operation::ApplyMasterToPage` ships.
 
-import { useCollection } from "@verso/shell";
-import type { MasterPageSummary } from "@verso/client";
+import { useCollection } from "@paged-media/shell";
+import type { MasterPageSummary } from "@paged-media/client";
 
 export function MasterPagesPanel() {
   const items = useCollection<MasterPageSummary>("masterPages");

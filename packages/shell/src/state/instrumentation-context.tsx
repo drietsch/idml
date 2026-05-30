@@ -7,7 +7,7 @@ import {
 } from "react";
 
 // eslint-disable-next-line import/no-relative-parent-imports
-import type { LayoutCacheStats } from "@verso/client";
+import type { LayoutCacheStats } from "@paged-media/client";
 
 /**
  * HUD-only state: FPS, GPU readiness, layout-cache stats. None of

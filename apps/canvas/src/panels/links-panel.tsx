@@ -6,8 +6,8 @@
 // actions (relocate / update / break link) land when their
 // Operations ship.
 
-import { useCollection } from "@verso/shell";
-import type { LinkSummary } from "@verso/client";
+import { useCollection } from "@paged-media/shell";
+import type { LinkSummary } from "@paged-media/client";
 
 export function LinksPanel() {
   const links = useCollection<LinkSummary>("links");

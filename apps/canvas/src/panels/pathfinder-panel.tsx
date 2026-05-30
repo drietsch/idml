@@ -13,8 +13,8 @@
 // entire op (replace + delete-others) via the inner Batch the
 // Operation builds.
 
-import { useCanvasClient, useSelection } from "@verso/shell";
-import type { ElementId, PathfinderKind } from "@verso/client";
+import { useCanvasClient, useSelection } from "@paged-media/shell";
+import type { ElementId, PathfinderKind } from "@paged-media/client";
 
 interface ButtonDef {
   kind: PathfinderKind;

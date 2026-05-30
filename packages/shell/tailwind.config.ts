@@ -1,7 +1,7 @@
 import type { Config } from "tailwindcss";
 import animate from "tailwindcss-animate";
 
-// shadcn-flavoured Tailwind config for @verso/shell. Apps that
+// shadcn-flavoured Tailwind config for @paged-media/shell. Apps that
 // consume the shell extend this config (typically via the workspace
 // package import) and append their own content globs so Tailwind
 // scans the app's JSX in addition to shell's.

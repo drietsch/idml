@@ -109,7 +109,7 @@ f9e4e11 Q-03: decode inline <Image><Contents> base64 CDATA payloads
 7f3ef7c Q-14: distinguish decode-failed from link-missing for placeholder routing
 6909083 Q-02 parse: AutoSizingType / AutoSizingReferencePoint + thresholds
 3e1e3d9 envato: cycle 2 findings — clean / moderate / rough tiers
-fb7c5b1 docs: archive cycle-1 docs to docs/old/; introduce docs/verso/ architecture set
+fb7c5b1 docs: archive cycle-1 docs to docs/old/; introduce docs/paged/ architecture set
 18189da devtools: add Radix UI + lucide-react deps; regenerate WASM bindings
 8213c58 idml-introspect: track idml-mutate's PropertyPath / Value rename
 87875f6 idml-mutate: split into operation / apply / invert / history / notify / error modules

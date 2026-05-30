@@ -13,19 +13,19 @@
 // Writes: `selectionProperty:appliedObjectStyle` (NodeId::TextFrame
 //          | Rectangle | Oval | Polygon | GraphicLine + Value::Text).
 
-import type { CompositionNode } from "@verso/catalog";
+import type { CompositionNode } from "@paged-media/catalog";
 import {
-  VERSO_INPUT_COLLECTION_SELECT,
-  VERSO_LAYOUT_SECTION,
-} from "@verso/shell";
+  PAGED_INPUT_COLLECTION_SELECT,
+  PAGED_LAYOUT_SECTION,
+} from "@paged-media/shell";
 
 export const objectStylesComposition: CompositionNode = {
-  catalogId: VERSO_LAYOUT_SECTION,
+  catalogId: PAGED_LAYOUT_SECTION,
   props: { title: "Object Styles" },
   bindings: {},
   children: [
     {
-      catalogId: VERSO_INPUT_COLLECTION_SELECT,
+      catalogId: PAGED_INPUT_COLLECTION_SELECT,
       props: {
         label: "Style",
         collectionName: "objectStyles",

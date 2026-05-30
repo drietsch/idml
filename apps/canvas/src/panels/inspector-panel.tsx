@@ -12,8 +12,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { BoundsInput, ColorPicker, LengthInput, NumberInput } from "@verso/ui";
-import { useCanvasClient, useSelection } from "@verso/shell";
+import { BoundsInput, ColorPicker, LengthInput, NumberInput } from "@paged-media/ui";
+import { useCanvasClient, useSelection } from "@paged-media/shell";
 
 import type {
   ElementId,
@@ -21,7 +21,7 @@ import type {
   PropertyEntry,
   PropertyPath,
   Value,
-} from "@verso/client";
+} from "@paged-media/client";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type PanelProps = any;

@@ -11,16 +11,16 @@ import {
   savePerspective,
 } from "../../persistence/layout-persistence";
 import type { PanelContribution, CommandContribution } from "../../registries";
-import type { VersoEditor } from "../verso-editor";
+import type { PagedEditor } from "../paged-editor";
 
-export const VERSO_PALETTE_TOGGLE = "verso.palette.toggle";
+export const PAGED_PALETTE_TOGGLE = "paged.palette.toggle";
 
 /**
  * Toggles the command palette. Bound to Cmd+K via the keybinding
  * registry; can also be invoked from a menu or programmatically.
  */
 export const PALETTE_TOGGLE_COMMAND: CommandContribution = {
-  id: VERSO_PALETTE_TOGGLE,
+  id: PAGED_PALETTE_TOGGLE,
   title: "Toggle Command Palette",
   category: "View",
   handler: () => {
@@ -34,7 +34,7 @@ export const PALETTE_TOGGLE_COMMAND: CommandContribution = {
  */
 export const PALETTE_TOGGLE_KEYBINDING = {
   key: "cmd+k",
-  command: VERSO_PALETTE_TOGGLE,
+  command: PAGED_PALETTE_TOGGLE,
 } as const;
 
 /**
@@ -45,17 +45,17 @@ export const PALETTE_TOGGLE_KEYBINDING = {
  */
 export const PALETTE_TOGGLE_KEYBINDING_CTRL = {
   key: "ctrl+k",
-  command: VERSO_PALETTE_TOGGLE,
+  command: PAGED_PALETTE_TOGGLE,
 } as const;
 
 /**
  * Build a show/hide command pair for a panel contribution. The
  * commands key off the substrate's `addPanel` / `removePanel` —
  * which the substrate owns, not the registry — so handler bodies
- * read `verso.substrate` and bail when it's null (the
+ * read `paged.substrate` and bail when it's null (the
  * pre-DockviewRoot-onReady window).
  *
- * IDs follow `verso.panel.show.{id}` / `.hide.{id}` so bundles can
+ * IDs follow `paged.panel.show.{id}` / `.hide.{id}` so bundles can
  * bind keybindings to a panel toggle without depending on the
  * substrate implementation.
  */
@@ -63,11 +63,11 @@ export function buildPanelToggleCommands(
   panel: PanelContribution,
 ): [CommandContribution, CommandContribution] {
   const show: CommandContribution = {
-    id: `verso.panel.show.${panel.id}`,
+    id: `paged.panel.show.${panel.id}`,
     title: `Show: ${panel.title}`,
     category: "View",
-    handler: (verso) => {
-      const editor = verso as VersoEditor;
+    handler: (paged) => {
+      const editor = paged as PagedEditor;
       const substrate = editor.substrate;
       if (!substrate) return;
       // Add the panel idempotently; the substrate no-ops when the
@@ -80,16 +80,16 @@ export function buildPanelToggleCommands(
         defaultDock: panel.defaultDock ?? "right",
         closable: panel.closable ?? true,
         movable: panel.movable ?? true,
-        hideTabHeader: panel.id === "verso.canvas",
+        hideTabHeader: panel.id === "paged.canvas",
       });
     },
   };
   const hide: CommandContribution = {
-    id: `verso.panel.hide.${panel.id}`,
+    id: `paged.panel.hide.${panel.id}`,
     title: `Hide: ${panel.title}`,
     category: "View",
-    handler: (verso) => {
-      const editor = verso as VersoEditor;
+    handler: (paged) => {
+      const editor = paged as PagedEditor;
       const substrate = editor.substrate;
       if (!substrate) return;
       // The substrate's `removePanel` takes a PanelHandle but only
@@ -102,9 +102,9 @@ export function buildPanelToggleCommands(
 
 // ── Perspective commands ──────────────────────────────────────
 
-export const VERSO_PERSPECTIVE_SAVE_AS = "verso.perspective.saveAs";
-export const VERSO_PERSPECTIVE_EXPORT = "verso.perspective.export";
-export const VERSO_PERSPECTIVE_IMPORT = "verso.perspective.import";
+export const PAGED_PERSPECTIVE_SAVE_AS = "paged.perspective.saveAs";
+export const PAGED_PERSPECTIVE_EXPORT = "paged.perspective.export";
+export const PAGED_PERSPECTIVE_IMPORT = "paged.perspective.import";
 
 /**
  * Prompt the user for a perspective name, then snapshot the current
@@ -112,11 +112,11 @@ export const VERSO_PERSPECTIVE_IMPORT = "verso.perspective.import";
  * palette grows an input-prompt mode (Step 4 follow-up).
  */
 export const PERSPECTIVE_SAVE_AS_COMMAND: CommandContribution = {
-  id: VERSO_PERSPECTIVE_SAVE_AS,
+  id: PAGED_PERSPECTIVE_SAVE_AS,
   title: "Save Perspective…",
   category: "View",
-  handler: (verso) => {
-    const editor = verso as VersoEditor;
+  handler: (paged) => {
+    const editor = paged as PagedEditor;
     const substrate = editor.substrate;
     if (!substrate) return;
     const name = window.prompt("Save perspective as:");
@@ -127,7 +127,7 @@ export const PERSPECTIVE_SAVE_AS_COMMAND: CommandContribution = {
 
 /** Export the named perspective as a downloadable JSON file. */
 export const PERSPECTIVE_EXPORT_COMMAND: CommandContribution = {
-  id: VERSO_PERSPECTIVE_EXPORT,
+  id: PAGED_PERSPECTIVE_EXPORT,
   title: "Export Perspective…",
   category: "View",
   handler: () => {
@@ -142,7 +142,7 @@ export const PERSPECTIVE_EXPORT_COMMAND: CommandContribution = {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `verso-perspective-${name}-${Date.now()}.json`;
+    anchor.download = `paged-perspective-${name}-${Date.now()}.json`;
     document.body.appendChild(anchor);
     anchor.click();
     document.body.removeChild(anchor);
@@ -154,7 +154,7 @@ export const PERSPECTIVE_EXPORT_COMMAND: CommandContribution = {
  * name. The embedded `name` field is ignored — the user names it on
  * import so existing perspectives aren't accidentally clobbered. */
 export const PERSPECTIVE_IMPORT_COMMAND: CommandContribution = {
-  id: VERSO_PERSPECTIVE_IMPORT,
+  id: PAGED_PERSPECTIVE_IMPORT,
   title: "Import Perspective…",
   category: "View",
   handler: async () => {
@@ -183,17 +183,17 @@ export const PERSPECTIVE_IMPORT_COMMAND: CommandContribution = {
 /**
  * Build a load/delete command pair for a named perspective. Auto-
  * registered as perspectives are saved + disposed as they're
- * removed. IDs follow `verso.perspective.load.<name>` / `.delete.<name>`.
+ * removed. IDs follow `paged.perspective.load.<name>` / `.delete.<name>`.
  */
 export function buildPerspectiveLifecycleCommands(
   name: string,
 ): [CommandContribution, CommandContribution] {
   const load: CommandContribution = {
-    id: `verso.perspective.load.${name}`,
+    id: `paged.perspective.load.${name}`,
     title: `Load Perspective: ${name}`,
     category: "View",
-    handler: (verso) => {
-      const editor = verso as VersoEditor;
+    handler: (paged) => {
+      const editor = paged as PagedEditor;
       const substrate = editor.substrate;
       if (!substrate) return;
       const snapshot = getPerspective(name);
@@ -205,7 +205,7 @@ export function buildPerspectiveLifecycleCommands(
     },
   };
   const del: CommandContribution = {
-    id: `verso.perspective.delete.${name}`,
+    id: `paged.perspective.delete.${name}`,
     title: `Delete Perspective: ${name}`,
     category: "View",
     handler: () => {

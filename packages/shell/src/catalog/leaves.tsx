@@ -1,14 +1,14 @@
 // SDK Phase 3 — primitive catalog leaves.
 //
-// Wraps `@verso/ui` widgets with the LeafProps shape the catalog
+// Wraps `@paged-media/ui` widgets with the LeafProps shape the catalog
 // renderer hands them. Each leaf reads its primary value from the
 // `value` prop (already resolved by the binding hook) and writes
 // back via `onCommit`. The leaves are intentionally tiny — the
-// design-system widgets in @verso/ui do the heavy lifting.
+// design-system widgets in @paged-media/ui do the heavy lifting.
 
-import type { LeafProps } from "@verso/catalog";
-import type { CollectionName, Value } from "@verso/client";
-import { BoundsInput, LengthInput, ColorPicker, NumberInput } from "@verso/ui";
+import type { LeafProps } from "@paged-media/catalog";
+import type { CollectionName, Value } from "@paged-media/client";
+import { BoundsInput, LengthInput, ColorPicker, NumberInput } from "@paged-media/ui";
 
 import { useCollection } from "./use-collection";
 

@@ -5,10 +5,10 @@
 // renders the corresponding leaf or descends into a composition
 // sub-tree. The renderer is the single React entry point a
 // declarative-panel registration uses — see
-// docs/verso/sdk-implementation-plan.md §3a.
+// docs/paged/sdk-implementation-plan.md §3a.
 
 import { createContext, useContext, type ReactElement } from "react";
-import type { CatalogRegistry, CompositionNode, LeafProps } from "@verso/catalog";
+import type { CatalogRegistry, CompositionNode, LeafProps } from "@paged-media/catalog";
 
 import { useBindings, type ResolvedBinding } from "./binding-hook";
 

@@ -45,8 +45,8 @@ const Context = createContext<ShellRegistries | null>(null);
 /**
  * Mounts the four registry instances at the shell root. The command
  * registry needs a `getEditor` thunk so its `invoke` can pass the
- * current `VersoEditor` into handlers; the caller (typically the
- * VersoEditor provider) supplies it.
+ * current `PagedEditor` into handlers; the caller (typically the
+ * PagedEditor provider) supplies it.
  */
 export function RegistriesProvider({
   getEditor,

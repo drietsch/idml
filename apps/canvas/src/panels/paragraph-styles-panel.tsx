@@ -12,7 +12,7 @@
 import {
   CatalogRegistryProvider,
   CompositionRenderer,
-} from "@verso/shell";
+} from "@paged-media/shell";
 
 import { appCatalogRegistry } from "./catalog-registry";
 import { paragraphStylesComposition } from "./paragraph-styles.composition";

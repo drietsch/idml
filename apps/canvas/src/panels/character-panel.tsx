@@ -10,7 +10,7 @@
 import {
   CatalogRegistryProvider,
   CompositionRenderer,
-} from "@verso/shell";
+} from "@paged-media/shell";
 
 import { appCatalogRegistry } from "./catalog-registry";
 import { characterComposition } from "./character.composition";

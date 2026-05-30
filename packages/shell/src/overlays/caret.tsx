@@ -63,7 +63,7 @@ function renderCaret(
 }
 
 export const caretContribution: OverlayContribution = {
-  id: "verso.caret",
+  id: "paged.caret",
   render: CaretRender,
   z: 600,
 };

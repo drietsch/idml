@@ -6,7 +6,7 @@ import {
   useCamera,
   useDocument,
   type PanelProps,
-} from "@verso/shell";
+} from "@paged-media/shell";
 import { Outline } from "../ui/Outline";
 import { useAnimatedCamera } from "../ui/useAnimatedCamera";
 

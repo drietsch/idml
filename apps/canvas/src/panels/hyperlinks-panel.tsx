@@ -1,7 +1,7 @@
 // SDK Phase 5 (v1 sweep) — Hyperlinks panel.
 
-import { useCollection } from "@verso/shell";
-import type { HyperlinkSummary } from "@verso/client";
+import { useCollection } from "@paged-media/shell";
+import type { HyperlinkSummary } from "@paged-media/client";
 
 export function HyperlinksPanel() {
   const items = useCollection<HyperlinkSummary>("hyperlinks");

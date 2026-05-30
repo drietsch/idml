@@ -7,12 +7,12 @@
 // NOT depend on React; pass it the setters and it dispatches.
 
 // eslint-disable-next-line import/no-relative-parent-imports
-import type { CanvasClient } from "@verso/client";
+import type { CanvasClient } from "@paged-media/client";
 // eslint-disable-next-line import/no-relative-parent-imports
 import type {
   DocumentHandle,
   PageId,
-} from "@verso/client";
+} from "@paged-media/client";
 
 import type { LoadingState } from "./document-context";
 

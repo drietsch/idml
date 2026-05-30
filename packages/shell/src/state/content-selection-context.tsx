@@ -13,7 +13,7 @@ import type {
   CaretGeometry,
   ContentSelection,
   SelectionRect,
-} from "@verso/client";
+} from "@paged-media/client";
 
 import { useCanvasClient } from "./canvas-client-context";
 

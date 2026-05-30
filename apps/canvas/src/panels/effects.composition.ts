@@ -12,22 +12,22 @@
 // first per-field write into a prior-None state, so the user can
 // dial in fields without first toggling Drop Shadow on.
 
-import type { CompositionNode } from "@verso/catalog";
+import type { CompositionNode } from "@paged-media/catalog";
 import {
-  VERSO_INPUT_COLOR_SWATCH,
-  VERSO_INPUT_LENGTH,
-  VERSO_INPUT_NUMERIC_SCRUB,
-  VERSO_INPUT_TOGGLE_GROUP,
-  VERSO_LAYOUT_SECTION,
-} from "@verso/shell";
+  PAGED_INPUT_COLOR_SWATCH,
+  PAGED_INPUT_LENGTH,
+  PAGED_INPUT_NUMERIC_SCRUB,
+  PAGED_INPUT_TOGGLE_GROUP,
+  PAGED_LAYOUT_SECTION,
+} from "@paged-media/shell";
 
 export const effectsComposition: CompositionNode = {
-  catalogId: VERSO_LAYOUT_SECTION,
+  catalogId: PAGED_LAYOUT_SECTION,
   props: { title: "Drop shadow" },
   bindings: {},
   children: [
     {
-      catalogId: VERSO_INPUT_TOGGLE_GROUP,
+      catalogId: PAGED_INPUT_TOGGLE_GROUP,
       props: {
         label: "Mode",
         options: [
@@ -44,7 +44,7 @@ export const effectsComposition: CompositionNode = {
       },
     },
     {
-      catalogId: VERSO_INPUT_LENGTH,
+      catalogId: PAGED_INPUT_LENGTH,
       props: { label: "X offset" },
       bindings: {
         value: {
@@ -55,7 +55,7 @@ export const effectsComposition: CompositionNode = {
       },
     },
     {
-      catalogId: VERSO_INPUT_LENGTH,
+      catalogId: PAGED_INPUT_LENGTH,
       props: { label: "Y offset" },
       bindings: {
         value: {
@@ -66,7 +66,7 @@ export const effectsComposition: CompositionNode = {
       },
     },
     {
-      catalogId: VERSO_INPUT_LENGTH,
+      catalogId: PAGED_INPUT_LENGTH,
       props: { label: "Blur size" },
       bindings: {
         value: {
@@ -77,7 +77,7 @@ export const effectsComposition: CompositionNode = {
       },
     },
     {
-      catalogId: VERSO_INPUT_NUMERIC_SCRUB,
+      catalogId: PAGED_INPUT_NUMERIC_SCRUB,
       props: { label: "Opacity" },
       bindings: {
         value: {
@@ -88,7 +88,7 @@ export const effectsComposition: CompositionNode = {
       },
     },
     {
-      catalogId: VERSO_INPUT_COLOR_SWATCH,
+      catalogId: PAGED_INPUT_COLOR_SWATCH,
       props: { label: "Shadow color" },
       bindings: {
         value: {

@@ -3,10 +3,10 @@
 // (header, warnings, command palette), and mounts DockviewRoot
 // as the main work area.
 //
-// Apps render `<VersoShell client={...} panels={...}>{integration}</VersoShell>`
+// Apps render `<PagedShell client={...} panels={...}>{integration}</PagedShell>`
 // where `integration` is a (renderless) component that uses the
 // editor hooks to install canvas-app-specific keyboard / camera /
-// text-editing behavior. Keeping that outside VersoShell preserves
+// text-editing behavior. Keeping that outside PagedShell preserves
 // the shell's app-agnostic surface — the canvas-specific hooks
 // import from `apps/canvas/src/ui/` without dragging shell into
 // canvas internals.
@@ -22,11 +22,11 @@ import React, {
 } from "react";
 
 // eslint-disable-next-line import/no-relative-parent-imports
-import type { CanvasClient } from "@verso/client";
+import type { CanvasClient } from "@paged-media/client";
 // eslint-disable-next-line import/no-relative-parent-imports
-import { supportsSharedArrayBuffer } from "@verso/client";
+import { supportsSharedArrayBuffer } from "@paged-media/client";
 // eslint-disable-next-line import/no-relative-parent-imports
-import type { WorkerToMain } from "@verso/client";
+import type { WorkerToMain } from "@paged-media/client";
 
 import { CanvasClientProvider, useCanvasClient } from "./state/canvas-client-context";
 import { CameraProvider } from "./state/camera-context";
@@ -39,14 +39,14 @@ import {
   useSelection,
   type ActiveTool,
 } from "./state/selection-context";
-import { VersoEditorProvider } from "./state/verso-editor";
+import { PagedEditorProvider } from "./state/paged-editor";
 import { useRegistries } from "./state/registries-context";
 import { CommandPalette } from "./chrome/CommandPalette";
 import { DockviewRoot } from "./docking/DockviewRoot";
 import { DockingSubstrateProvider } from "./docking/substrate-context";
 import { loadDocumentFile } from "./state/document-loader";
 import {
-  VERSO_FILE_OPEN_IDML,
+  PAGED_FILE_OPEN_IDML,
   buildOpenIdmlCommand,
 } from "./state/commands/file-commands";
 import {
@@ -56,10 +56,10 @@ import {
   PERSPECTIVE_EXPORT_COMMAND,
   PERSPECTIVE_IMPORT_COMMAND,
   PERSPECTIVE_SAVE_AS_COMMAND,
-  VERSO_PALETTE_TOGGLE,
-  VERSO_PERSPECTIVE_EXPORT,
-  VERSO_PERSPECTIVE_IMPORT,
-  VERSO_PERSPECTIVE_SAVE_AS,
+  PAGED_PALETTE_TOGGLE,
+  PAGED_PERSPECTIVE_EXPORT,
+  PAGED_PERSPECTIVE_IMPORT,
+  PAGED_PERSPECTIVE_SAVE_AS,
   buildPanelToggleCommands,
   buildPerspectiveLifecycleCommands,
 } from "./state/commands/built-in-commands";
@@ -74,7 +74,7 @@ import type { Tool } from "./registries/tool";
 import type { Disposable } from "./registries/types";
 import { useFps } from "./hooks/useFps";
 
-export interface VersoShellProps {
+export interface PagedShellProps {
   client: CanvasClient;
   /** Panel contributions to register at shell startup. */
   panels: PanelContribution[];
@@ -92,18 +92,18 @@ export interface VersoShellProps {
 /**
  * Top-level shell. Wraps the chrome in every provider so consumers
  * (including the `integration` child) have access to the editor
- * hooks. `client` is created by the app and passed in — VersoShell
+ * hooks. `client` is created by the app and passed in — PagedShell
  * doesn't own the worker lifecycle.
  */
-export function VersoShell({
+export function PagedShell({
   client,
   panels,
   overlays,
   headerExtras,
   children,
-}: PropsWithChildren<VersoShellProps>) {
+}: PropsWithChildren<PagedShellProps>) {
   return (
-    <DebugErrorBoundary label="verso-shell">
+    <DebugErrorBoundary label="paged-shell">
       <CanvasClientProvider client={client}>
         <CameraProvider>
           <DocumentProvider>
@@ -111,11 +111,11 @@ export function VersoShell({
               <ContentSelectionProvider>
                 <OverlaySignalsProvider>
                   <InstrumentationProvider>
-                    {/* DockingSubstrateProvider above VersoEditorProvider so
-                     *  the editor handle (`verso.substrate`) sees the live
+                    {/* DockingSubstrateProvider above PagedEditorProvider so
+                     *  the editor handle (`paged.substrate`) sees the live
                      *  substrate once DockviewRoot's onReady publishes it. */}
                     <DockingSubstrateProvider>
-                      <VersoEditorProvider>
+                      <PagedEditorProvider>
                         <ShellChrome
                           panels={panels}
                           overlays={overlays}
@@ -123,7 +123,7 @@ export function VersoShell({
                         >
                           {children}
                         </ShellChrome>
-                      </VersoEditorProvider>
+                      </PagedEditorProvider>
                     </DockingSubstrateProvider>
                   </InstrumentationProvider>
                 </OverlaySignalsProvider>
@@ -277,9 +277,9 @@ function ShellChrome({
     };
   }, [registries]);
 
-  // Auto-generate verso.perspective.load.<name> + delete.<name>
+  // Auto-generate paged.perspective.load.<name> + delete.<name>
   // commands from the persisted list. Re-runs on the custom
-  // `verso:perspectives-changed` event the persistence layer emits
+  // `paged:perspectives-changed` event the persistence layer emits
   // every time a perspective is saved/deleted/imported.
   useEffect(() => {
     let disposables: Disposable[] = [];
@@ -307,27 +307,27 @@ function ShellChrome({
   useEffect(() => {
     const items = registries.menus;
     const handles = [
-      items.register({ path: "File/Open IDML…", command: VERSO_FILE_OPEN_IDML, order: 10 }),
+      items.register({ path: "File/Open IDML…", command: PAGED_FILE_OPEN_IDML, order: 10 }),
       items.register({
         path: "View/Toggle Command Palette",
-        command: VERSO_PALETTE_TOGGLE,
+        command: PAGED_PALETTE_TOGGLE,
         order: 10,
       }),
       items.register({
         path: "View/Save Perspective…",
-        command: VERSO_PERSPECTIVE_SAVE_AS,
+        command: PAGED_PERSPECTIVE_SAVE_AS,
         order: 90,
         group: "perspective",
       }),
       items.register({
         path: "View/Export Perspective…",
-        command: VERSO_PERSPECTIVE_EXPORT,
+        command: PAGED_PERSPECTIVE_EXPORT,
         order: 91,
         group: "perspective",
       }),
       items.register({
         path: "View/Import Perspective…",
-        command: VERSO_PERSPECTIVE_IMPORT,
+        command: PAGED_PERSPECTIVE_IMPORT,
         order: 92,
         group: "perspective",
       }),
@@ -527,7 +527,7 @@ class DebugErrorBoundary extends React.Component<
   componentDidCatch(error: Error) {
     // eslint-disable-next-line no-console
     console.error(`[${this.props.label}] caught:`, error);
-    (globalThis as unknown as { __versoCrash?: string }).__versoCrash =
+    (globalThis as unknown as { __pagedCrash?: string }).__pagedCrash =
       `[${this.props.label}] ${error.message}\n${error.stack ?? ""}`;
   }
   render() {

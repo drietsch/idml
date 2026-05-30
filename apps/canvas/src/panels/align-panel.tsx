@@ -18,8 +18,8 @@
 import {
   useCanvasClient,
   useSelection,
-} from "@verso/shell";
-import type { ElementId } from "@verso/client";
+} from "@paged-media/shell";
+import type { ElementId } from "@paged-media/client";
 
 type AlignKind =
   | "left"

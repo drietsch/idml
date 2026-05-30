@@ -4,7 +4,7 @@ import { useEffect, useState, type MouseEvent } from "react";
 import type {
   ElementId,
   PathAnchorsResult,
-} from "@verso/client";
+} from "@paged-media/client";
 
 import type { OverlayContribution, OverlayProps } from "../registries/overlay";
 import { useCanvasClient } from "../state/canvas-client-context";
@@ -466,7 +466,7 @@ function renderSubpathMarkers(
 }
 
 export const pathEditContribution: OverlayContribution = {
-  id: "verso.path-edit",
+  id: "paged.path-edit",
   render: PathEditRender,
   // Above selection chrome / handles so the anchor dots aren't
   // hidden behind them, but below the marquee + snap-lines (which

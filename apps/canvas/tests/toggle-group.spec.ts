@@ -43,7 +43,7 @@ test.describe("Phase 5 — toggle-group primitive", () => {
       const dbg = (window as unknown as { __canvas?: DebugCanvas }).__canvas;
       if (!dbg?.client) throw new Error("__canvas client not available");
       const storiesJson = await dbg.client
-        .executeScript("verso.stories()")
+        .executeScript("paged.stories()")
         .then((r) => r.output[0] ?? "[]");
       const stories = JSON.parse(storiesJson) as Array<{
         selfId: string;
@@ -60,21 +60,21 @@ test.describe("Phase 5 — toggle-group primitive", () => {
       await new Promise((r) => setTimeout(r, 50));
 
       const setResult = await dbg.client.executeScript(
-        `verso.set("storyRange:${range.storyId}@${range.start}..${range.end}",
+        `paged.set("storyRange:${range.storyId}@${range.start}..${range.end}",
                    "paragraphJustification",
                    "RightAlign");`,
       );
       if (setResult.error) throw new Error(setResult.error);
       if (setResult.output[0]?.trim() !== "true") {
         throw new Error(
-          `verso.set returned ${setResult.output[0]}; expected "true"`,
+          `paged.set returned ${setResult.output[0]}; expected "true"`,
         );
       }
       await new Promise((r) => setTimeout(r, 50));
 
       const inspectJson = await dbg.client
         .executeScript(
-          `verso.inspect("storyRange:${range.storyId}@${range.start}..${range.end}");`,
+          `paged.inspect("storyRange:${range.storyId}@${range.start}..${range.end}");`,
         )
         .then((r) => r.output[0] ?? "");
       const inspect = JSON.parse(inspectJson) as {
@@ -106,7 +106,7 @@ test.describe("Phase 5 — toggle-group primitive", () => {
 
       // Find the first Rectangle id in the fixture's tree.
       const treeJson = await dbg.client
-        .executeScript("verso.tree()")
+        .executeScript("paged.tree()")
         .then((r) => r.output[0] ?? "[]");
       type Node = {
         id?: { kind: string; id: string } | null;
@@ -126,18 +126,18 @@ test.describe("Phase 5 — toggle-group primitive", () => {
 
       const addr = `${target.kind}:${target.id}`;
       const setResult = await dbg.client.executeScript(
-        `verso.set(${JSON.stringify(addr)}, "frameStrokeEndCap", "RoundEndCap");`,
+        `paged.set(${JSON.stringify(addr)}, "frameStrokeEndCap", "RoundEndCap");`,
       );
       if (setResult.error) throw new Error(setResult.error);
       if (setResult.output[0]?.trim() !== "true") {
         throw new Error(
-          `verso.set returned ${setResult.output[0]}; expected "true"`,
+          `paged.set returned ${setResult.output[0]}; expected "true"`,
         );
       }
       await new Promise((r) => setTimeout(r, 50));
 
       const inspectJson = await dbg.client
-        .executeScript(`verso.inspect(${JSON.stringify(addr)});`)
+        .executeScript(`paged.inspect(${JSON.stringify(addr)});`)
         .then((r) => r.output[0] ?? "");
       const inspect = JSON.parse(inspectJson) as {
         entries: Array<{ path: string; value: { value: string } | null }>;

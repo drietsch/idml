@@ -2,7 +2,7 @@
 
 Snapshot at cycle-5 end (`8922a4b` — Track 3 deferral). Baseline
 reference is cycle-4 final (`bb3264a`). Plan companion:
-[`docs/verso/cycle-5-plan.md`](../../docs/verso/cycle-5-plan.md).
+[`docs/paged/cycle-5-plan.md`](../../docs/paged/cycle-5-plan.md).
 
 ## Headline
 

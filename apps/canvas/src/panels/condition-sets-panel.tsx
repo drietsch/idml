@@ -5,8 +5,8 @@
 // Tier 1. Per-set "show only this set" toggle is v2 work (needs
 // `Operation::ActivateConditionSet`).
 
-import { useCollection } from "@verso/shell";
-import type { ConditionSetSummary } from "@verso/client";
+import { useCollection } from "@paged-media/shell";
+import type { ConditionSetSummary } from "@paged-media/client";
 
 export function ConditionSetsPanel() {
   const items = useCollection<ConditionSetSummary>("conditionSets");

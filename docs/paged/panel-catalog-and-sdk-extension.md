@@ -1,4 +1,4 @@
-# Verso — Panel Catalog & SDK Extension
+# Paged — Panel Catalog & SDK Extension
 
 **Status:** Draft v1.0
 **Companions:** `sdk.md` (strategy), `sdk-implementation-plan.md` (tactical phasing), `editor-architecture.md`, `canvas.md`, `scripting-layer.md`
@@ -19,7 +19,7 @@ A complete enumeration of the panel set — all ~55 panels, InDesign-parity, lis
 - **One new *read* kind:** `documentCollection:<name>`.
 - **Zero new *write* kinds.**
 
-Everything richer than a single-path property write — collection mutations, multi-target geometry, boolean path ops, style-definition edits — resolves cleanly into the **expert-leaf** contract that already exists (`sdk.md` invariant 9: expert leaves get imperative *rendering*, never imperative *mutation*; they still write only through `verso.mutate(...)`).
+Everything richer than a single-path property write — collection mutations, multi-target geometry, boolean path ops, style-definition edits — resolves cleanly into the **expert-leaf** contract that already exists (`sdk.md` invariant 9: expert leaves get imperative *rendering*, never imperative *mutation*; they still write only through `paged.mutate(...)`).
 
 This is the load-bearing claim of the document, and §5 proves it kind by kind. The practical consequence: the binding ceiling **holds**. The A2UI adapter's "reject anything not in the catalog" invariant (`sdk.md` invariant 11) stays enforceable because the binding language did not grow a Turing tarpit of write expressions. The one addition is a *read* — and reads cannot violate the mutation invariant.
 
@@ -33,11 +33,11 @@ Every panel in §6 carries a fixed header block:
 
 | Field | Meaning |
 | ----- | ------- |
-| **id** | Catalog/registry id, `verso.*` namespace. |
+| **id** | Catalog/registry id, `paged.*` namespace. |
 | **Disposition** | `composition` \| `expert-leaf` \| `hybrid`. See §2. |
 | **Surface** | `dock` (persistent panel) \| `popover` (launched from a control) \| `bar` (Control/Properties strip) \| `overlay` (on-canvas). |
 | **Reads** | The declared `ReadSpec[]`. The panel re-renders when any of these change. |
-| **Writes** | The declared `WriteSpec[]`. For compositions these are all `selectionProperty`; for expert leaves they are whatever `verso.mutate` carries. |
+| **Writes** | The declared `WriteSpec[]`. For compositions these are all `selectionProperty`; for expert leaves they are whatever `paged.mutate` carries. |
 | **Operations** | The Rust `Operation` variants the panel requires. Gaps here are work items, per `sdk.md` invariant 8 ("panel friction is specification"). |
 | **Phase** | Where it lands relative to `sdk-implementation-plan.md`. |
 
@@ -55,7 +55,7 @@ The panel is a tree of catalog primitives bound to selection properties. **It co
 Examples: Character, Paragraph, Stroke, Object/Transform, Text-Wrap, Hyperlinks.
 
 ### expert-leaf
-The panel renders through opaque code (`<canvas>`, bespoke geometry, gesture coupling, a third-party widget). It declares its bindings in a sibling `*.bindings.ts` manifest, and it **mutates only through `verso.mutate(...)`** — it never reaches past the door. Imperative *rendering*, declarative *contract*.
+The panel renders through opaque code (`<canvas>`, bespoke geometry, gesture coupling, a third-party widget). It declares its bindings in a sibling `*.bindings.ts` manifest, and it **mutates only through `paged.mutate(...)`** — it never reaches past the door. Imperative *rendering*, declarative *contract*.
 
 Examples: Tools, Gradient ramp, Spread Mini-Map, Glyphs grid, Tabs ruler, Separations Preview, REPL, Script-Editor, the Canvas itself.
 
@@ -70,16 +70,16 @@ Examples: Pages (chrome + thumbnail strip), Layers (chrome + drag-reorder row), 
 > **Mostly, but one control is bespoke** → hybrid (composition chrome + expert child).
 > **No, the whole surface is bespoke rendering** → expert-leaf.
 
-Crucially: **document-level collection data is a *read* concern, not a write concern.** A panel that reads a collection but only ever applies entities to the selection (a Style panel applying a paragraph style) is a composition/hybrid, because *applying* a style is a single `selectionProperty` write (§5.3). A panel that *edits the collection itself* (renaming the style, deleting a swatch) does that through `verso.mutate(Operation::…)` from an expert child — still no new write kind.
+Crucially: **document-level collection data is a *read* concern, not a write concern.** A panel that reads a collection but only ever applies entities to the selection (a Style panel applying a paragraph style) is a composition/hybrid, because *applying* a style is a single `selectionProperty` write (§5.3). A panel that *edits the collection itself* (renaming the style, deleting a swatch) does that through `paged.mutate(Operation::…)` from an expert child — still no new write kind.
 
 ---
 
 ## 3. The current SDK surface (recap)
 
-From `sdk-implementation-plan.md` Phase 1–3. The `verso` handle both scripts and panels receive:
+From `sdk-implementation-plan.md` Phase 1–3. The `paged` handle both scripts and panels receive:
 
 ```ts
-export interface VersoHandle {
+export interface PagedHandle {
   readonly client: CanvasClient;
   readonly selection: Observable<ElementId[]>;
   readonly contentSelection: Observable<ContentSelection | null>;
@@ -156,14 +156,14 @@ export type CollectionName =
 **Add to the handle:**
 
 ```ts
-export interface VersoHandle {
+export interface PagedHandle {
   // …existing…
   collection<T = unknown>(name: CollectionName): Observable<readonly T[]>;  // NEW
   documentMeta(): Observable<DocumentMeta>;                                  // NEW
 }
 ```
 
-Backed by a single Rust read method family, mirroring the `model.element_properties` pattern that already serves `verso.inspect` / `client.elementProperties`:
+Backed by a single Rust read method family, mirroring the `model.element_properties` pattern that already serves `paged.inspect` / `client.elementProperties`:
 
 ```rust
 // crates/idml-canvas/src/channel.rs  (request kinds)
@@ -173,7 +173,7 @@ RequestDocumentMeta,                            // -> DocumentMetaReply { .. }
 
 Each `CollectionName` maps to one accessor on the model. The reply is a `Vec` of tsify'd structs. The observable re-fetches on `mutationApplied` (same snapshot discipline closed in `sdk.md` §11.1).
 
-**Script parity (free):** the same method gives scripts `verso.collection("swatches")` with no extra work — the convergence thesis (one Rust source → one shape for UI and script) extends to collections by construction.
+**Script parity (free):** the same method gives scripts `paged.collection("swatches")` with no extra work — the convergence thesis (one Rust source → one shape for UI and script) extends to collections by construction.
 
 **Why this is safe:** it is a *read*. It cannot mutate. Invariant 9 is untouched. The A2UI adapter rejects any composition referencing a `CollectionName` not in the enum — the surface stays finite and inspectable.
 
@@ -185,7 +185,7 @@ Tempting to add a `selectionProperties` (plural) write that sets several paths i
 
 The Object/Transform "drag the bounding box" gesture is already an expert interaction (the gesture spine, not a panel field). The *panel* exposes four independent scalar fields (X, Y, W, H) — each a normal single-path `selectionProperty` write. When the user drags on canvas, that is the gesture spine emitting one `Operation::SetFrameBounds{…}` that happens to carry four numbers. The panel never needs to write four paths in one binding.
 
-For the rare panel control that truly wants atomic multi-field commit (e.g. a "set columns and gutter together" in Text-Frame-Options), that control is a small **expert leaf** whose render is a couple of inputs and whose commit is one `verso.mutate(Operation::SetTextFrameColumns{count, gutter, …})`. The atomic group is one Operation; the binding model never sees plurality.
+For the rare panel control that truly wants atomic multi-field commit (e.g. a "set columns and gutter together" in Text-Frame-Options), that control is a small **expert leaf** whose render is a couple of inputs and whose commit is one `paged.mutate(Operation::SetTextFrameColumns{count, gutter, …})`. The atomic group is one Operation; the binding model never sees plurality.
 
 > **Decision D2:** no plural-write binding kind. Atomic multi-field writes are single `Operation`s emitted by an expert leaf (or the gesture spine). Ceiling preserved.
 
@@ -208,19 +208,19 @@ So a Style panel is a **hybrid**: it *reads* the style collection (§5.1) to ren
 Align / Distribute / Pathfinder operate on the selection *set*. They read `selection` (declared) and emit one geometry Operation over the set:
 
 ```ts
-verso.mutate({ kind: "AlignObjects", ids, axis: "horizontal", mode: "centers", relativeTo: "selection" })
-verso.mutate({ kind: "PathfinderOp", ids, op: "subtract" })
+paged.mutate({ kind: "AlignObjects", ids, axis: "horizontal", mode: "centers", relativeTo: "selection" })
+paged.mutate({ kind: "PathfinderOp", ids, op: "subtract" })
 ```
 
 These panels are thin **expert leaves** (a grid of buttons) — or, cleaner, pure **command contributions** (Phase 4 menu/command surface) surfaced as a button cluster. Either way: declared `reads: ["selection"]`, `writes: ["selection", "geometry"]`, no binding-language change.
 
 > **Decision D4:** multi-target geometry panels are command-backed expert leaves. The work is in the Operation set (`AlignObjects`, `DistributeObjects`, `PathfinderOp`), not the SDK.
 
-### 5.5 G5 — Collection mutation → **expert child + `verso.mutate`**
+### 5.5 G5 — Collection mutation → **expert child + `paged.mutate`**
 
-Creating/renaming/deleting a swatch or style, reordering layers, inserting a page: all are `Operation`s over a collection. The panel *reads* the collection declaratively (§5.1) and the create/edit/delete affordances are an **expert child** inside the hybrid chrome that calls `verso.mutate(Operation::CreateSwatch{…})` etc. Imperative rendering of the "+ New" popover; declarative contract; mutation through the one door.
+Creating/renaming/deleting a swatch or style, reordering layers, inserting a page: all are `Operation`s over a collection. The panel *reads* the collection declaratively (§5.1) and the create/edit/delete affordances are an **expert child** inside the hybrid chrome that calls `paged.mutate(Operation::CreateSwatch{…})` etc. Imperative rendering of the "+ New" popover; declarative contract; mutation through the one door.
 
-> **Decision D5:** collection mutations go through `verso.mutate` from an expert child. The work is Operation-set coverage (§7), not the SDK.
+> **Decision D5:** collection mutations go through `paged.mutate` from an expert child. The work is Operation-set coverage (§7), not the SDK.
 
 ### 5.6 Two supporting refinements (not new kinds)
 
@@ -246,7 +246,7 @@ export type WriteSpec =
   | `selectionProperty:${string}`     // includes applied-entity refs (§5.3)
   | "selection" | "camera" | "geometry" | "collection";
   // "geometry" + "collection" are the *expert-leaf* write surfaces:
-  // they correspond to verso.mutate(Operation::…), declared for audit,
+  // they correspond to paged.mutate(Operation::…), declared for audit,
   // NOT to a declarative binding. No composition emits them.
 
 export type Binding =
@@ -269,7 +269,7 @@ Legend for disposition: **C** = composition, **E** = expert-leaf, **H** = hybrid
 
 ### Tier 0 — The canvas (the one principled exception)
 
-#### `verso.canvas`
+#### `paged.canvas`
 **Disposition:** E · **Surface:** dock (center) · **Phase:** exists
 **Reads:** `camera`, `document` · **Writes:** ø (gesture spine mutates; the panel itself writes nothing)
 **Operations:** none directly — all mutation flows through the gesture spine.
@@ -282,7 +282,7 @@ Legend for disposition: **C** = composition, **E** = expert-leaf, **H** = hybrid
 
 These are the primary consumers of the new `documentCollection` read (§5.1). All are **H** (composition chrome + expert row/thumbnail leaf) because their rows carry bespoke affordances (drag-reorder, thumbnails, status badges).
 
-#### `verso.pages`
+#### `paged.pages`
 **Disposition:** H · **Surface:** dock · **Phase:** 3 (migrates existing `navigator-panel.tsx`)
 **Reads:** `documentCollection:spreads`, `documentCollection:pages`, `documentCollection:masterPages`, `selection`, `camera` · **Writes:** `selection`, `camera`, `collection`
 **Operations:** `InsertPage`, `DeletePage`, `MovePage`, `DuplicateSpread`, `ApplyMaster`, `SetPageSize`, `CreateSection`, `SetPageNumberingStyle`
@@ -295,7 +295,7 @@ These are the primary consumers of the new `documentCollection` read (§5.1). Al
 - Alternate-layout switcher (if liquid layout is in scope)
 **Notes:** The Phase-3 proof panel for the structural tier. The thumbnail strip is the expert child; the chrome (toolbar, master well) is composition.
 
-#### `verso.layers`
+#### `paged.layers`
 **Disposition:** H · **Surface:** dock · **Phase:** 5
 **Reads:** `documentCollection:layers`, `selection` · **Writes:** `selection`, `collection`
 **Operations:** `CreateLayer`, `DeleteLayer`, `RenameLayer`, `MoveLayer`, `SetLayerVisible`, `SetLayerLocked`, `SetLayerColor`, `MoveObjectsToLayer`, `MergeLayers` (Track M already ships rename/move/insert/remove)
@@ -306,20 +306,20 @@ These are the primary consumers of the new `documentCollection` read (§5.1). Al
 - Move-selection-to-layer affordance
 **Notes:** Row is an expert leaf (custom drag affordance + the eye/lock click targets); chrome is composition.
 
-#### `verso.outline`
+#### `paged.outline`
 **Disposition:** C (possibly H) · **Surface:** dock · **Phase:** 5
 **Reads:** `documentCollection:paragraphStyles`, `document`, `selection` · **Writes:** `selection`, `camera`
 **Operations:** none new (read + navigate); jump-to drives camera/selection
 **Fields:** nested heading list (by mapped paragraph styles), click-to-navigate, collapse/expand.
-**Notes:** May need a `verso.layout.tree-list` primitive added once (§9 rule: ≥2 panels). Tree (`verso.tree`) is the second consumer, justifying it.
+**Notes:** May need a `paged.layout.tree-list` primitive added once (§9 rule: ≥2 panels). Tree (`paged.tree`) is the second consumer, justifying it.
 
-#### `verso.tree`
+#### `paged.tree`
 **Disposition:** C (with `tree-list` primitive) · **Surface:** dock · **Phase:** 5
 **Reads:** `document`, `selection` · **Writes:** `selection`
 **Operations:** reorder via `MoveObjectInZOrder`, group/ungroup via `GroupObjects`/`UngroupObjects`
 **Fields:** scene/object hierarchy tree, z-order reorder, group nodes, select-on-click, rename inline.
 
-#### `verso.links`
+#### `paged.links`
 **Disposition:** H · **Surface:** dock · **Phase:** 5
 **Reads:** `documentCollection:links`, `selection` · **Writes:** `selection`, `collection`
 **Operations:** `RelinkAsset`, `UpdateLink`, `EmbedLink`, `UnembedLink`, `EditOriginal` (external)
@@ -329,33 +329,33 @@ These are the primary consumers of the new `documentCollection` read (§5.1). Al
 - Relink / update / update-all / embed / unembed / reveal controls
 **Notes:** Link status badges are an expert-rendered row; the info panel beneath is composition reading link metadata.
 
-#### `verso.articles`
+#### `paged.articles`
 **Disposition:** H · **Surface:** dock · **Phase:** 5
 **Reads:** `documentCollection:articles`, `selection` · **Writes:** `selection`, `collection`
 **Operations:** `CreateArticle`, `AddToArticle`, `ReorderArticleContent`, `SetIncludeInExport`
 **Fields:** article list, threaded content per article (drag to reorder reading order), include-in-export toggle, add-selection-to-article.
 
-#### `verso.bookmarks`
+#### `paged.bookmarks`
 **Disposition:** H · **Surface:** dock · **Phase:** later
 **Reads:** `documentCollection:bookmarks`, `selection` · **Writes:** `collection`, `camera`
 **Operations:** `CreateBookmark`, `DeleteBookmark`, `RenameBookmark`, `ReorderBookmark`
 **Fields:** bookmark tree (for PDF/interactive nav), create-from-selection, reorder, jump-to.
 
-#### `verso.conditional-text`
+#### `paged.conditional-text`
 **Disposition:** H · **Surface:** dock · **Phase:** later
 **Reads:** `documentCollection:conditions`, `documentCollection:conditionSets`, `contentSelection` · **Writes:** `collection`, `selectionProperty:appliedConditions`
 **Operations:** `CreateCondition`, `DeleteCondition`, `SetConditionVisible`, `ApplyConditionToText`, `CreateConditionSet`
 **Fields:** condition list with show/hide + indicator-style controls, condition-set switcher, apply/remove to text selection.
 **Notes:** Apply-to-text is a `contentSelection`-scoped `selectionProperty`-style write (text range, not frame).
 
-#### `verso.index`
+#### `paged.index`
 **Disposition:** E · **Surface:** dock · **Phase:** later
 **Reads:** `documentCollection:indexTopics`, `contentSelection` · **Writes:** `collection`
 **Operations:** `CreateIndexEntry`, `CreateIndexTopic`, `CreateCrossReferenceEntry`, `GenerateIndex`
 **Fields:** topic/entry tree, add-entry-from-selection, cross-reference, page-range options, generate-index.
 **Notes:** Entry tree + generation flow are bespoke; expert leaf reading the topic collection.
 
-#### `verso.toc`
+#### `paged.toc`
 **Disposition:** E / dialog · **Surface:** popover · **Phase:** later
 **Reads:** `documentCollection:paragraphStyles` · **Writes:** `collection`
 **Operations:** `GenerateTOC`, `UpdateTOC`, `CreateTOCStyle`
@@ -368,7 +368,7 @@ These are the primary consumers of the new `documentCollection` read (§5.1). Al
 
 The heart of the editor and the cleanest fit for the binding model. **All C**, no SDK extension, each is a `*.composition.json`. These exercise the `"mixed"` sentinel (§5.6) heavily.
 
-#### `verso.character`
+#### `paged.character`
 **Disposition:** C · **Surface:** dock · **Phase:** 3 (the binding-model proof)
 **Reads:** `selectionProperty:character*` · **Writes:** `selectionProperty:character*`
 **Operations:** `SetProperty{CharacterFontFamily | CharacterFontStyle | CharacterFontSize | CharacterLeading | CharacterKerning | CharacterTracking | CharacterHScale | CharacterVScale | CharacterBaselineShift | CharacterSkew | CharacterCase | CharacterPosition | CharacterLanguage | CharacterFillColor | CharacterStrokeColor | CharacterUnderline | CharacterStrikethrough | CharacterLigatures | CharacterOpenTypeFeatures}`
@@ -385,19 +385,19 @@ The heart of the editor and the cleanest fit for the binding model. **All C**, n
 - OpenType features (sub-section: swashes, ordinals, fractions, alternates)
 **Notes:** Phase-3 proof. The panel `.ts` is *only* `{ component: CompositionRenderer, componentProps: { composition } }` — no JSX (AC-3.1).
 
-#### `verso.paragraph`
+#### `paged.paragraph`
 **Disposition:** C · **Surface:** dock · **Phase:** 5
 **Reads/Writes:** `selectionProperty:paragraph*`
 **Operations:** `SetProperty{ParagraphAlignment | ParagraphLeftIndent | ParagraphRightIndent | ParagraphFirstLineIndent | ParagraphLastLineIndent | ParagraphSpaceBefore | ParagraphSpaceAfter | ParagraphDropCapLines | ParagraphDropCapChars | ParagraphHyphenate | ParagraphAlignToGrid | ParagraphKeepOptions | ParagraphSpanColumns | ParagraphShading | ParagraphBorder | ParagraphBulletsNumbering}`
 **Fields:** alignment (incl. justify variants), L/R/first/last indents, space before/after, drop caps (lines + chars), hyphenation toggle, align-to-baseline-grid, keep options (keep-with-next, keep-lines-together, start), span/split columns, paragraph shading, paragraph border, bullets & numbering.
 
-#### `verso.stroke`
+#### `paged.stroke`
 **Disposition:** C · **Surface:** dock · **Phase:** 5
 **Reads/Writes:** `selectionProperty:frameStroke*`
 **Operations:** `SetProperty{FrameStrokeWeight | FrameStrokeColor | FrameStrokeType | FrameStrokeAlign | FrameStrokeCap | FrameStrokeJoin | FrameStrokeMiter | FrameStrokeDashPattern | FrameStrokeStartArrow | FrameStrokeEndArrow | FrameStrokeGapColor}`
 **Fields:** weight (`length`), cap, miter limit, join, align stroke (center/inside/outside), stroke type (solid/dashed/dotted/custom), dash & gap pattern, start/end arrowheads + scale, gap color/tint.
 
-#### `verso.effects`
+#### `paged.effects`
 **Disposition:** H · **Surface:** dock + popover · **Phase:** 5
 **Reads/Writes:** `selectionProperty:frame{Opacity,BlendMode,DropShadow,InnerShadow,OuterGlow,InnerGlow,Bevel,Satin,Feather}`
 **Operations:** `SetProperty{FrameOpacity | FrameBlendMode | FrameFillOpacity | FrameStrokeOpacity | FrameTextOpacity | FrameDropShadow | FrameInnerShadow | FrameOuterGlow | FrameInnerGlow | FrameBevelEmboss | FrameSatin | FrameBasicFeather | FrameDirectionalFeather | FrameGradientFeather | FrameKnockoutGroup | FrameIsolateBlending}`
@@ -408,58 +408,58 @@ The heart of the editor and the cleanest fit for the binding model. **All C**, n
 - Knockout group, isolate blending, "object knocks out shadow"
 **Notes:** The opacity/blend row is plain composition. Each effect's detailed options is a popover composition launched from a toggle — still C, just deeper nesting. The gradient-feather *angle handle on canvas* is gesture-spine, not panel.
 
-#### `verso.object-transform`
+#### `paged.object-transform`
 **Disposition:** C · **Surface:** dock · **Phase:** 5
 **Reads/Writes:** `selectionProperty:frame{Bounds,Rotation,Shear,Scale}`
 **Operations:** `SetProperty{FrameX | FrameY | FrameWidth | FrameHeight | FrameRotation | FrameShear | FrameScaleX | FrameScaleY | FrameFlipH | FrameFlipV | FrameReferencePoint}`
 **Fields:** X / Y (`length`), W / H (`length`), scale X/Y % (`numeric-scrub`), rotation (`numeric-scrub` °), shear (`numeric-scrub` °), reference-point picker (9-point), flip H/V.
 **Notes:** §5.2 in practice — four independent scalar fields, each a single `selectionProperty` write. The on-canvas drag is the gesture spine emitting one `SetFrameBounds`. No plural binding.
 
-#### `verso.text-frame-options`
+#### `paged.text-frame-options`
 **Disposition:** H · **Surface:** popover · **Phase:** 5
 **Reads/Writes:** `selectionProperty:textFrame*`
 **Operations:** `SetTextFrameColumns`, `SetProperty{TextFrameInsetTop|Bottom|Left|Right | TextFrameVerticalJustify | TextFrameFirstBaselineOffset | TextFrameAutoSize | TextFrameIgnoreWrap}`
 **Fields:** columns (count/gutter/width, balance, fixed-width), inset per side, vertical justification (top/center/bottom/justify + para-spacing limit), first-baseline offset, auto-size, ignore text wrap.
 **Notes:** The columns group is the §5.2 example — a small expert child committing one atomic `SetTextFrameColumns`. Rest is composition.
 
-#### `verso.text-wrap`
+#### `paged.text-wrap`
 **Disposition:** C · **Surface:** dock/popover · **Phase:** 5
 **Reads/Writes:** `selectionProperty:textWrap*`
 **Operations:** `SetProperty{TextWrapMode | TextWrapOffsetTop|Bottom|Left|Right | TextWrapContour | TextWrapInvert | TextWrapAffectsBeneathOnly}`
 **Fields:** wrap mode (none/bounding-box/object-shape/jump-line/jump-column), offset per side, contour options, invert, affects-text-beneath-only.
 
-#### `verso.corner-options`
+#### `paged.corner-options`
 **Disposition:** C · **Surface:** popover · **Phase:** later
 **Reads/Writes:** `selectionProperty:frameCorner*`
 **Operations:** `SetProperty{FrameCornerShape | FrameCornerRadius}` (per-corner, link/unlink)
 **Fields:** per-corner shape (rounded/inverse-rounded/bevel/inset/fancy), radius (`length`), link/unlink corners.
 
-#### `verso.anchored-object`
+#### `paged.anchored-object`
 **Disposition:** C · **Surface:** popover · **Phase:** later
 **Reads/Writes:** `selectionProperty:anchored*`
 **Operations:** `SetProperty{AnchoredPosition | AnchoredReferencePoint | AnchoredOffsetX | AnchoredOffsetY | AnchoredPreventManual}`
 **Fields:** inline / above-line / custom positioning, anchor + object reference points, X/Y offsets, prevent-manual-positioning.
 
-#### `verso.frame-fitting`
+#### `paged.frame-fitting`
 **Disposition:** C · **Surface:** dock/bar · **Phase:** later
 **Reads/Writes:** `selectionProperty:fitting*`
 **Operations:** `SetProperty{FittingMode | FittingReferencePoint | FittingCrop | FittingAutoFit}`
 **Fields:** fitting mode (fill/fit-content/fit-proportionally/fit-frame), align reference point, crop amount, auto-fit toggle.
 
-#### `verso.story`
+#### `paged.story`
 **Disposition:** C · **Surface:** dock · **Phase:** later
 **Reads/Writes:** `selectionProperty:storyOpticalMargin`
 **Operations:** `SetProperty{StoryOpticalMarginAlignment}`
 **Fields:** optical margin alignment toggle + size.
 
-#### `verso.tabs`
+#### `paged.tabs`
 **Disposition:** E · **Surface:** bar (above text frame) · **Phase:** later
 **Reads:** `selectionProperty:paragraphTabStops`, `camera` · **Writes:** `selectionProperty:paragraphTabStops`
 **Operations:** `SetProperty{ParagraphTabStops}` (array of {alignment, position, leader, alignChar})
 **Fields:** ruler with draggable tab stops (L/C/R/decimal), leader characters, align-on character, indent markers.
 **Notes:** The ruler is a bespoke draggable surface positioned over the frame → expert leaf. Writes the whole tab-stop array as one property (single path, array value — fits the ceiling per §5.2's array-value note; the *interaction* is expert, the *write* is one path).
 
-#### `verso.hyphenation-justification`
+#### `paged.hyphenation-justification`
 **Disposition:** C · **Surface:** popover · **Phase:** later
 **Reads/Writes:** `selectionProperty:hj*` (usually edited within a paragraph style)
 **Operations:** `SetProperty{HJWordSpacing | HJLetterSpacing | HJGlyphScaling | HJSingleWordJustify}`
@@ -469,7 +469,7 @@ The heart of the editor and the cleanest fit for the binding model. **All C**, n
 
 ### Tier 2b — Color panels
 
-#### `verso.swatches`
+#### `paged.swatches`
 **Disposition:** H · **Surface:** dock · **Phase:** 5
 **Reads:** `documentCollection:swatches`, `documentCollection:colorGroups`, `selection` · **Writes:** `selectionProperty:frameFillColor`, `selectionProperty:frameStrokeColor`, `collection`
 **Operations:** `CreateSwatch`, `EditSwatch`, `DeleteSwatch`, `RenameSwatch`, `CreateColorGroup`, `MergeSwatches`, `SetSwatchType` (process/spot), plus the apply paths above
@@ -478,23 +478,23 @@ The heart of the editor and the cleanest fit for the binding model. **All C**, n
 - Fill vs stroke target toggle; tint slider
 - Swatch groups; load/save library
 - New/edit/delete/duplicate swatch (popover composition for new-swatch dialog)
-**Notes:** Canonical §5.3 + §5.5 panel. Apply = `selectionProperty` write of swatch ref (declarative). Create/edit = `verso.mutate` from the new-swatch popover (expert child). Read = `documentCollection:swatches`.
+**Notes:** Canonical §5.3 + §5.5 panel. Apply = `selectionProperty` write of swatch ref (declarative). Create/edit = `paged.mutate` from the new-swatch popover (expert child). Read = `documentCollection:swatches`.
 
-#### `verso.color`
+#### `paged.color`
 **Disposition:** C · **Surface:** dock · **Phase:** later
 **Reads:** `selectionProperty:frameFillColor` / `frameStrokeColor` · **Writes:** same + `collection` (add-to-swatches)
 **Operations:** `SetProperty{FrameFillColor|FrameStrokeColor}`, `CreateSwatch` (add-to-swatches)
 **Fields:** live mixer (CMYK/RGB/Lab/HSB sliders), tint slider, out-of-gamut warning, hex input, add-to-swatches.
 **Notes:** A live mixer is a handful of bound sliders → composition. The gamut warning is a derived read (resolution-level), not a binding kind.
 
-#### `verso.gradient`
+#### `paged.gradient`
 **Disposition:** E · **Surface:** dock · **Phase:** later
 **Reads:** `selectionProperty:frameGradient`, `documentCollection:gradients` · **Writes:** `selectionProperty:frameGradient`, `collection`
 **Operations:** `SetProperty{FrameGradient}`, `CreateGradientSwatch`
 **Fields:** type (linear/radial), angle, gradient ramp with draggable stops + midpoints, reverse, per-stop color/location.
 **Notes:** The ramp (draggable multi-stop control) is bespoke → expert leaf. Writes the whole gradient as one property.
 
-#### `verso.color-themes`
+#### `paged.color-themes`
 **Disposition:** E · **Surface:** dock · **Phase:** later
 **Reads:** external (Adobe Color) · **Writes:** `collection`
 **Operations:** `CreateSwatch` (import theme)
@@ -509,20 +509,20 @@ All **H**, all the same shape (§5.3 + §5.5). One template, five instances.
 
 | id | Collection read | Apply write (`selectionProperty`) | Edit/define Operations | Phase |
 | -- | --------------- | --------------------------------- | ---------------------- | ----- |
-| `verso.paragraph-styles` | `paragraphStyles` | `appliedParagraphStyle` | `CreateParagraphStyle`, `EditParagraphStyle`, `DeleteParagraphStyle`, `RenameStyle`, `DuplicateStyle`, `SetStyleBasedOn`, `SetNextStyle`, `RedefineStyleFromSelection`, `ClearOverrides` | 5 |
-| `verso.character-styles` | `characterStyles` | `appliedCharacterStyle` | same family (Character) | 5 |
-| `verso.object-styles` | `objectStyles` | `appliedObjectStyle` | same family (Object) | later |
-| `verso.cell-styles` | `cellStyles` | `appliedCellStyle` | same family (Cell) | later |
-| `verso.table-styles` | `tableStyles` | `appliedTableStyle` | same family (Table) | later |
+| `paged.paragraph-styles` | `paragraphStyles` | `appliedParagraphStyle` | `CreateParagraphStyle`, `EditParagraphStyle`, `DeleteParagraphStyle`, `RenameStyle`, `DuplicateStyle`, `SetStyleBasedOn`, `SetNextStyle`, `RedefineStyleFromSelection`, `ClearOverrides` | 5 |
+| `paged.character-styles` | `characterStyles` | `appliedCharacterStyle` | same family (Character) | 5 |
+| `paged.object-styles` | `objectStyles` | `appliedObjectStyle` | same family (Object) | later |
+| `paged.cell-styles` | `cellStyles` | `appliedCellStyle` | same family (Cell) | later |
+| `paged.table-styles` | `tableStyles` | `appliedTableStyle` | same family (Table) | later |
 
 **Shared fields:** style list (grouped, with override indicator `+`), apply-on-click, new/edit/delete/duplicate, based-on / next-style, redefine-from-selection, clear-overrides, load styles from library.
-**Shared notes:** The list + apply is composition (`enum-select`-like over a collection read). The **style-options editor** (what "Heading 1" *means* — all character/paragraph/indent/tab/GREP/nested-style settings) is a large popover composition for *defining* a style, committing via `verso.mutate(Operation::EditParagraphStyle{…})`. That editor reuses the same primitive leaves as the Character/Paragraph panels — strong reuse argument.
+**Shared notes:** The list + apply is composition (`enum-select`-like over a collection read). The **style-options editor** (what "Heading 1" *means* — all character/paragraph/indent/tab/GREP/nested-style settings) is a large popover composition for *defining* a style, committing via `paged.mutate(Operation::EditParagraphStyle{…})`. That editor reuses the same primitive leaves as the Character/Paragraph panels — strong reuse argument.
 
 ---
 
 ### Tier 2d — Table panels
 
-#### `verso.table`
+#### `paged.table`
 **Disposition:** H · **Surface:** dock + bar · **Phase:** later
 **Reads:** `selectionProperty:table*`, `contentSelection` (cell range) · **Writes:** `selectionProperty:table*`, `collection`
 **Operations:** `SetTableDimensions`, `SetRowHeight`, `SetColumnWidth`, `InsertRow`, `InsertColumn`, `DeleteRow`, `DeleteColumn`, `MergeCells`, `SplitCell`, `SetCellInset`, `SetCellVerticalJustify`, `SetCellStroke`, `SetCellFill`, `SetAlternatingPattern`, `SetTableBorder`, `SetHeaderFooterRows`
@@ -533,14 +533,14 @@ All **H**, all the same shape (§5.3 + §5.5). One template, five instances.
 
 ### Tier 3 — Object operation panels (multi-target geometry → command-backed)
 
-#### `verso.align`
+#### `paged.align`
 **Disposition:** E / command-backed · **Surface:** dock/bar · **Phase:** later
 **Reads:** `selection` · **Writes:** `selection`, `geometry`
 **Operations:** `AlignObjects{axis, mode, relativeTo}`, `DistributeObjects{axis, mode}`, `DistributeSpacing{axis, amount}`
 **Fields:** align edges/centers (H/V), distribute objects, distribute spacing, align-to (selection/margins/page/spread), use-spacing value.
 **Notes:** §5.4. A button grid; ideally pure command contributions surfaced as a cluster.
 
-#### `verso.pathfinder`
+#### `paged.pathfinder`
 **Disposition:** E / command-backed · **Surface:** dock/bar · **Phase:** later
 **Reads:** `selection` · **Writes:** `selection`, `geometry`
 **Operations:** `PathfinderOp{op}` (add/subtract/intersect/exclude/minus-back), `ConvertShape{to}`, `ConvertPoint{to}`, `OpenPath`, `ClosePath`, `ReversePath`
@@ -550,7 +550,7 @@ All **H**, all the same shape (§5.3 + §5.5). One template, five instances.
 
 ### Tier 3b — Typography utility
 
-#### `verso.glyphs`
+#### `paged.glyphs`
 **Disposition:** E · **Surface:** dock · **Phase:** later
 **Reads:** `documentCollection:fonts` + per-font glyph set (a `documentCollection:fontGlyphs` scoped read), `contentSelection` · **Writes:** `selectionProperty` (insert glyph into text) / `collection` (glyph sets)
 **Operations:** `InsertGlyph`, `CreateGlyphSet`, `AddToGlyphSet`
@@ -561,46 +561,46 @@ All **H**, all the same shape (§5.3 + §5.5). One template, five instances.
 
 ### Tier 4 — Interactive / digital publishing
 
-#### `verso.buttons-forms`
+#### `paged.buttons-forms`
 **Disposition:** H · **Surface:** dock · **Phase:** later
 **Reads:** `selectionProperty:interactive*` · **Writes:** `selectionProperty:interactive*`, `collection`
 **Operations:** `SetInteractiveType`, `AddButtonEvent`, `AddButtonAction`, `SetButtonState`, `SetFormFieldProperties`
 **Fields:** object type (button/checkbox/radio/text-field/list/combo/signature), events (on-release/click/rollover/…), actions (go-to-page/URL/show-hide/video/sound/form-actions), appearance states (Normal/Rollover/Click), PDF/EPUB options.
 **Notes:** The appearance-state editor is an expert child; type/event/action lists are composition.
 
-#### `verso.animation`
+#### `paged.animation`
 **Disposition:** H · **Surface:** dock · **Phase:** later
 **Reads:** `selectionProperty:animation*` · **Writes:** `selectionProperty:animation*`
 **Operations:** `SetAnimationPreset`, `SetAnimationProperties`, `SetMotionPath`
 **Fields:** preset, duration, plays count, speed/easing, event trigger, animate-from (opacity/scale/rotation), motion path edit.
 **Notes:** Motion-path edit is on-canvas/gesture; the property block is composition.
 
-#### `verso.timing`
+#### `paged.timing`
 **Disposition:** E · **Surface:** dock · **Phase:** later
 **Reads:** `documentCollection` (animations on active spread) · **Writes:** `collection`
 **Operations:** `SetAnimationOrder`, `SetAnimationDelay`, `GroupAnimations`
 **Fields:** per-event animation sequence, reorder, delay, play-together grouping.
 
-#### `verso.media`
+#### `paged.media`
 **Disposition:** H · **Surface:** dock · **Phase:** later
 **Reads:** `selectionProperty:media*` · **Writes:** `selectionProperty:media*`
 **Operations:** `SetMediaSource`, `SetPosterFrame`, `SetMediaController`, `AddNavigationPoint`
 **Fields:** place video/audio, poster frame, controller skin, play-on-load, loop, navigation points.
 
-#### `verso.object-states`
+#### `paged.object-states`
 **Disposition:** E · **Surface:** dock · **Phase:** later
 **Reads:** `selectionProperty:objectStates` · **Writes:** `selectionProperty:objectStates`, `collection`
 **Operations:** `CreateObjectState`, `DeleteObjectState`, `PasteIntoState`, `ReorderStates`
 **Fields:** multi-state object list, state thumbnails, paste-into-state, reorder.
 **Notes:** State thumbnails are bespoke → expert leaf.
 
-#### `verso.hyperlinks`
+#### `paged.hyperlinks`
 **Disposition:** H · **Surface:** dock · **Phase:** later
 **Reads:** `documentCollection:hyperlinks`, `contentSelection` · **Writes:** `collection`, `selectionProperty:appliedCharacterStyle` (link style)
 **Operations:** `CreateHyperlink`, `DeleteHyperlink`, `EditHyperlink`, `CreateHyperlinkDestination`
 **Fields:** destination types (URL/email/page/text-anchor/file), hyperlink list, character style for links, shared destinations.
 
-#### `verso.cross-references`
+#### `paged.cross-references`
 **Disposition:** H · **Surface:** dock · **Phase:** later
 **Reads:** `documentCollection:crossReferences` · **Writes:** `collection`
 **Operations:** `CreateCrossReference`, `UpdateCrossReference`, `SetCrossReferenceFormat`
@@ -610,45 +610,45 @@ All **H**, all the same shape (§5.3 + §5.5). One template, five instances.
 
 ### Tier 5 — Production / output
 
-#### `verso.separations-preview`
+#### `paged.separations-preview`
 **Disposition:** E · **Surface:** dock · **Phase:** later
 **Reads:** `documentCollection:swatches` (inks), `camera` · **Writes:** view-state only (not document)
 **Operations:** none (view-only)
 **Fields:** per-plate ink visibility, ink-limit (total area coverage) view, overprint preview.
 **Notes:** Renders a re-separated raster of the canvas → expert leaf. Writes *view state*, not the document — its `.bindings.ts` declares `writes: []`.
 
-#### `verso.flattener-preview`
+#### `paged.flattener-preview`
 **Disposition:** E · **Surface:** dock · **Phase:** later
 **Reads:** `camera`, `document` · **Writes:** view-state only
 **Operations:** none
 **Fields:** highlight transparency-affected areas, flattener preset selection.
 
-#### `verso.preflight`
+#### `paged.preflight`
 **Disposition:** H · **Surface:** dock · **Phase:** later
 **Reads:** `documentMeta`, `documentCollection:links`, `documentCollection:fonts`, `document` · **Writes:** `collection` (profiles)
 **Operations:** `CreatePreflightProfile`, `SetActivePreflightProfile`, `RunPreflight`
 **Fields:** active profile, live error list (links/color/images/overset/fonts), error → navigate-to, define profiles.
 **Notes:** Error list is composition over a derived read; navigation drives camera/selection.
 
-#### `verso.attributes`
+#### `paged.attributes`
 **Disposition:** C · **Surface:** dock/popover · **Phase:** later
 **Reads/Writes:** `selectionProperty:{overprintFill,overprintStroke,nonprinting}`
 **Operations:** `SetProperty{OverprintFill | OverprintStroke | Nonprinting}`
 **Fields:** overprint fill, overprint stroke, nonprinting toggle.
 
-#### `verso.info`
+#### `paged.info`
 **Disposition:** C · **Surface:** dock · **Phase:** later
 **Reads:** `documentMeta`, `selection`, `contentSelection` · **Writes:** ø
 **Operations:** none (read-only)
 **Fields:** cursor position, selection dimensions, character/word counts, link/font/color summary, file info. Pure `documentMeta` + selection read.
 
-#### `verso.background-tasks`
+#### `paged.background-tasks`
 **Disposition:** E · **Surface:** dock/toast · **Phase:** later
 **Reads:** task queue (infrastructure, not document) · **Writes:** ø
 **Fields:** async export/IDML/package progress.
 **Notes:** Infrastructure panel, not document-bound. Sits outside the catalog read model (reads the client's task queue, not the model).
 
-#### `verso.trap-presets`
+#### `paged.trap-presets`
 **Disposition:** C · **Surface:** dock · **Phase:** far-future
 **Reads/Writes:** `documentCollection` (trap presets)
 **Operations:** `CreateTrapPreset`, `EditTrapPreset`
@@ -658,27 +658,27 @@ All **H**, all the same shape (§5.3 + §5.5). One template, five instances.
 
 ### Tier 6 — Tools & chrome (expert-rendering + the contextual bars)
 
-#### `verso.tools`
+#### `paged.tools`
 **Disposition:** E · **Surface:** bar (left rail) · **Phase:** 5
 **Reads:** `activeTool` · **Writes:** `activeTool`
 **Operations:** none (tool state is application state, not a document Operation)
 **Fields:** Selection, Direct-Selection, Page, Gap, Type, Type-on-Path, Line, Pen (+add/delete/convert anchor), Pencil, Rectangle/Ellipse/Polygon (frame + shape), Scissors, Free-Transform, Rotate, Scale, Shear, Gradient-Swatch, Gradient-Feather, Note, Eyedropper, Measure, Hand, Zoom. Fill/stroke swatches, formatting-affects-container/text toggles, screen-mode selector.
-**Notes:** Wires the `activeTool` observable (extracted to `@verso/client` in Phase 1) through the registry. Bespoke geometry + gesture-spine coupling → expert leaf. Writes `activeTool`, not the document.
+**Notes:** Wires the `activeTool` observable (extracted to `@paged-media/client` in Phase 1) through the registry. Bespoke geometry + gesture-spine coupling → expert leaf. Writes `activeTool`, not the document.
 
-#### `verso.path-edit-toolbar`
+#### `paged.path-edit-toolbar`
 **Disposition:** E · **Surface:** bar/overlay · **Phase:** later
 **Reads:** `selection`, `activeTool` · **Writes:** `geometry`
 **Operations:** `AddAnchor`, `DeleteAnchor`, `ConvertAnchor`, `SmoothPath`
 **Fields:** anchor add/delete/convert, smooth, corner. Gesture-adjacent → expert leaf.
 
-#### `verso.control`
+#### `paged.control`
 **Disposition:** C (selection-switched) · **Surface:** bar (top) · **Phase:** 4–5
 **Reads:** `selection`, `contentSelection`, `selectionProperty:*` · **Writes:** `selectionProperty:*`
 **Operations:** (delegates to whatever the contextual sub-panel covers)
 **Fields:** A contextual strip that swaps composition based on selection type — text mode shows a condensed Character+Paragraph composition; object mode shows a condensed Object+Stroke composition. Implemented as *several* compositions with a switch on `selection` kind.
 **Notes:** Not a new mechanism — it is composition-of-compositions keyed on selection type. The switch lives in a tiny expert wrapper choosing which composition to render; the contents are pure compositions reusing the property-panel leaves.
 
-#### `verso.properties`
+#### `paged.properties`
 **Disposition:** C (selection-switched) · **Surface:** dock · **Phase:** 5
 **Reads/Writes:** as Control, plus quick-actions
 **Fields:** Consolidated context panel — Transform, Appearance (fill/stroke/effects), Text, Frame-fitting, Quick-Actions. Same switch-on-selection composition pattern as Control, denser.
@@ -688,30 +688,30 @@ All **H**, all the same shape (§5.3 + §5.5). One template, five instances.
 
 ### Tier 7 — Scripting / dev
 
-#### `verso.repl`
+#### `paged.repl`
 **Disposition:** E · **Surface:** dock · **Phase:** 5
 **Reads:** declared `[]` structural; reads via script eval · **Writes:** `collection` / `geometry` / `selectionProperty` (any Operation via parsed text)
 **Operations:** any (it is a script surface)
 **Fields:** input line, output log, history.
-**Notes:** Reclassified from "unchanged" to expert-leaf in the plan's Phase 5 table — correct, because it makes the binding-declaration discipline universal (nothing escapes a `.bindings.ts`). Its manifest honestly declares `writes: ["collection","geometry","selectionProperty"]` since a script can do anything `verso.mutate` can.
+**Notes:** Reclassified from "unchanged" to expert-leaf in the plan's Phase 5 table — correct, because it makes the binding-declaration discipline universal (nothing escapes a `.bindings.ts`). Its manifest honestly declares `writes: ["collection","geometry","selectionProperty"]` since a script can do anything `paged.mutate` can.
 
-#### `verso.script-editor`
+#### `paged.script-editor`
 **Disposition:** E · **Surface:** dock · **Phase:** 5
 **Reads/Writes:** as REPL · **Operations:** any
 **Fields:** code editor (Monaco/CodeMirror), run, save, script list, error surface.
-**Notes:** Same shape as REPL. Reads current selection via `verso.selection()` (the Phase-2 host fn). The convergence test (AC-3.2: same edit succeeds from a script) runs through here.
+**Notes:** Same shape as REPL. Reads current selection via `paged.selection()` (the Phase-2 host fn). The convergence test (AC-3.2: same edit succeeds from a script) runs through here.
 
 ---
 
 ### Tier 8 — Asset / library (likely post-v1)
 
-#### `verso.cc-libraries`
+#### `paged.cc-libraries`
 **Disposition:** E · **Surface:** dock · **Phase:** far-future
 **Reads:** external library service · **Writes:** `collection` (import asset)
 **Fields:** shared colors/type/graphics/text across documents.
 **Notes:** External-service expert leaf. Out of v1.
 
-#### `verso.content-conveyor`
+#### `paged.content-conveyor`
 **Disposition:** E · **Surface:** overlay · **Phase:** far-future
 **Reads:** `selection`, conveyor buffer · **Writes:** `geometry` / `collection`
 **Fields:** collect & place repeated content across docs (collector/placer).
@@ -786,12 +786,12 @@ New primitive leaves the inventory justifies (each meets the §9 ">= 2 panels" r
 
 | New primitive | Used by (≥2) | Notes |
 | ------------- | ------------ | ----- |
-| `verso.layout.tree-list` | Outline, Tree, Bookmarks, Index | Nested, collapsible, selectable list. The most-reused structural primitive. Add once when Outline+Tree migrate. |
-| `verso.input.font-select` | Character, Character-style editor, Paragraph-style editor | `enum-select` specialized with font preview + `documentCollection:fonts` source. |
-| `verso.input.collection-select` | Swatches-as-fill, all Style panels, Hyperlink-style | `enum-select` whose options come from a `documentCollection` read rather than a literal list. **This is the primitive that operationalizes §5.3** — apply-an-entity as a bound select. |
-| `verso.input.toggle-group` | Paragraph (alignment), Object (flip), Stroke (cap/join) | Segmented multi-state toggle; pure `selectionProperty` write of an enum. |
-| `verso.input.reference-point` | Object/Transform, Frame-fitting, Anchored-object | 9-point picker writing one enum property. |
-| `verso.layout.popover-section` | Effects, Corner-options, Text-frame-options, H&J | A section that launches a composition in a popover. Layout-only. |
+| `paged.layout.tree-list` | Outline, Tree, Bookmarks, Index | Nested, collapsible, selectable list. The most-reused structural primitive. Add once when Outline+Tree migrate. |
+| `paged.input.font-select` | Character, Character-style editor, Paragraph-style editor | `enum-select` specialized with font preview + `documentCollection:fonts` source. |
+| `paged.input.collection-select` | Swatches-as-fill, all Style panels, Hyperlink-style | `enum-select` whose options come from a `documentCollection` read rather than a literal list. **This is the primitive that operationalizes §5.3** — apply-an-entity as a bound select. |
+| `paged.input.toggle-group` | Paragraph (alignment), Object (flip), Stroke (cap/join) | Segmented multi-state toggle; pure `selectionProperty` write of an enum. |
+| `paged.input.reference-point` | Object/Transform, Frame-fitting, Anchored-object | 9-point picker writing one enum property. |
+| `paged.layout.popover-section` | Effects, Corner-options, Text-frame-options, H&J | A section that launches a composition in a popover. Layout-only. |
 
 Lint rule (extends the plan's set): every `documentCollection`-sourced `collection-select` must name a valid `CollectionName` — a compile-time check against the enum, so a typo'd collection name fails CI rather than rendering empty.
 
@@ -799,27 +799,27 @@ Lint rule (extends the plan's set): every `documentCollection`-sourced `collecti
 
 ## 10. Expert-leaf register (the audit list for invariant 9)
 
-Every expert leaf in the inventory, with its declared write surface. This is the list a release-time audit walks to confirm none has started reaching past `verso.mutate`.
+Every expert leaf in the inventory, with its declared write surface. This is the list a release-time audit walks to confirm none has started reaching past `paged.mutate`.
 
 | Panel | Renders | Declared writes | Mutation path |
 | ----- | ------- | --------------- | ------------- |
-| `verso.canvas` | document raster | ø | gesture spine |
-| `pages` thumbnail strip | spread thumbnails | `selection`, `camera`, `collection` | `verso.mutate` |
-| `layers` row | drag-reorder row | `collection` | `verso.mutate` |
-| `swatches` grid | swatch chips | `selectionProperty`, `collection` | `verso.mutate` |
-| `gradient` ramp | multi-stop ramp | `selectionProperty`, `collection` | `verso.mutate` |
-| `tabs` ruler | draggable ruler | `selectionProperty` | `verso.mutate` |
-| `glyphs` grid | glyph grid | `selectionProperty`, `collection` | `verso.mutate` |
+| `paged.canvas` | document raster | ø | gesture spine |
+| `pages` thumbnail strip | spread thumbnails | `selection`, `camera`, `collection` | `paged.mutate` |
+| `layers` row | drag-reorder row | `collection` | `paged.mutate` |
+| `swatches` grid | swatch chips | `selectionProperty`, `collection` | `paged.mutate` |
+| `gradient` ramp | multi-stop ramp | `selectionProperty`, `collection` | `paged.mutate` |
+| `tabs` ruler | draggable ruler | `selectionProperty` | `paged.mutate` |
+| `glyphs` grid | glyph grid | `selectionProperty`, `collection` | `paged.mutate` |
 | `tools` | tool rail | `activeTool` | observable set (not document) |
-| `path-edit-toolbar` | anchor controls | `geometry` | `verso.mutate` |
-| `align` / `pathfinder` | button cluster | `selection`, `geometry` | `verso.mutate` / command |
+| `path-edit-toolbar` | anchor controls | `geometry` | `paged.mutate` |
+| `align` / `pathfinder` | button cluster | `selection`, `geometry` | `paged.mutate` / command |
 | `separations-preview` / `flattener-preview` | re-rendered raster | ø (view-state) | none |
-| `object-states` / `timing` | thumbnails / sequence | `collection` | `verso.mutate` |
-| `repl` / `script-editor` | text I/O | any | `verso.mutate` (via script) |
-| `index` | entry tree | `collection` | `verso.mutate` |
-| `cc-libraries` / `content-conveyor` | external/buffer | `collection`, `geometry` | `verso.mutate` |
+| `object-states` / `timing` | thumbnails / sequence | `collection` | `paged.mutate` |
+| `repl` / `script-editor` | text I/O | any | `paged.mutate` (via script) |
+| `index` | entry tree | `collection` | `paged.mutate` |
+| `cc-libraries` / `content-conveyor` | external/buffer | `collection`, `geometry` | `paged.mutate` |
 
-Invariant: **every row's mutation path is `verso.mutate`, the gesture spine, or an observable set — never a direct model reach.** A leaf whose audit row cannot name one of these three is a bug.
+Invariant: **every row's mutation path is `paged.mutate`, the gesture spine, or an observable set — never a direct model reach.** A leaf whose audit row cannot name one of these three is a bug.
 
 ---
 
@@ -831,7 +831,7 @@ Invariant: **every row's mutation path is `verso.mutate`, the gesture spine, or 
 | D2 | No plural-write binding kind. Atomic multi-field writes are single `Operation`s from an expert leaf or gesture spine. | Proposed |
 | D3 | Entity application (style/swatch) is a `selectionProperty` write whose value is an entity id. No new write kind. | Proposed |
 | D4 | Multi-target geometry (Align/Distribute/Pathfinder) is command-backed expert leaves; work is in the Operation set. | Proposed |
-| D5 | Collection mutation goes through `verso.mutate` from an expert child; work is Operation coverage. | Proposed |
+| D5 | Collection mutation goes through `paged.mutate` from an expert child; work is Operation coverage. | Proposed |
 | D6 | `documentCollection` lands in **Phase 3**, forced by Pages, unblocking the whole collection tier. | Proposed |
 | D7 | Add 6 catalog primitives (§9); `collection-select` is the load-bearing one (operationalizes D3). | Proposed |
 | D8 | `"mixed"` resolution sentinel for heterogeneous selection — resolution refinement, not a binding kind. | Proposed |
@@ -842,4 +842,4 @@ All redirectable, in the plan's house style.
 
 ## 12. One-sentence summary
 
-Enumerating the full InDesign-class panel set proves the binding ceiling holds: the entire surface needs **one new read kind** (`documentCollection`) and **zero new write kinds** — collection mutation, entity application, multi-target geometry, and atomic multi-field writes all resolve into the existing expert-leaf + `selectionProperty` + `verso.mutate` triad, so the catalog stays finite, the mutation invariant stays intact, and the A2UI adapter stays enforceable.
+Enumerating the full InDesign-class panel set proves the binding ceiling holds: the entire surface needs **one new read kind** (`documentCollection`) and **zero new write kinds** — collection mutation, entity application, multi-target geometry, and atomic multi-field writes all resolve into the existing expert-leaf + `selectionProperty` + `paged.mutate` triad, so the catalog stays finite, the mutation invariant stays intact, and the A2UI adapter stays enforceable.

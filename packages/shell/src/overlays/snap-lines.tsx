@@ -49,7 +49,7 @@ function SnapLinesRender(props: OverlayProps) {
 }
 
 export const snapLinesContribution: OverlayContribution = {
-  id: "verso.snap-lines",
+  id: "paged.snap-lines",
   render: SnapLinesRender,
   z: 500,
 };

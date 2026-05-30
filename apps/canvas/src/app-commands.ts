@@ -4,11 +4,11 @@
 // (Cmd+Z, Cmd+0, the header file-picker button, etc.). Lifting them
 // onto `CommandContribution`s means menu / palette / future bundle
 // can all reach the same surface. The shell registers
-// `verso.file.openIdml` and `verso.palette.toggle` itself; this
+// `paged.file.openIdml` and `paged.palette.toggle` itself; this
 // module fills in the canvas-specific gaps:
 //
-//   verso.editor.undo / verso.editor.redo
-//   verso.view.zoomIn / zoomOut / zoom100 / zoomFit
+//   paged.editor.undo / paged.editor.redo
+//   paged.view.zoomIn / zoomOut / zoom100 / zoomFit
 //
 // The "Show: <panel>" Window-menu entries are deferred — the
 // DockingSubstrate today exposes `addPanel` / `removePanel` but no
@@ -18,14 +18,14 @@
 import type {
   CommandContribution,
   KeybindingContribution,
-} from "@verso/shell";
+} from "@paged-media/shell";
 
-export const VERSO_EDITOR_UNDO = "verso.editor.undo";
-export const VERSO_EDITOR_REDO = "verso.editor.redo";
-export const VERSO_VIEW_ZOOM_IN = "verso.view.zoomIn";
-export const VERSO_VIEW_ZOOM_OUT = "verso.view.zoomOut";
-export const VERSO_VIEW_ZOOM_100 = "verso.view.zoom100";
-export const VERSO_VIEW_ZOOM_FIT = "verso.view.zoomFit";
+export const PAGED_EDITOR_UNDO = "paged.editor.undo";
+export const PAGED_EDITOR_REDO = "paged.editor.redo";
+export const PAGED_VIEW_ZOOM_IN = "paged.view.zoomIn";
+export const PAGED_VIEW_ZOOM_OUT = "paged.view.zoomOut";
+export const PAGED_VIEW_ZOOM_100 = "paged.view.zoom100";
+export const PAGED_VIEW_ZOOM_FIT = "paged.view.zoomFit";
 
 export interface AppCommandHandlers {
   undo: () => void | Promise<void>;
@@ -45,37 +45,37 @@ export function buildAppCommands(
 ): CommandContribution[] {
   return [
     {
-      id: VERSO_EDITOR_UNDO,
+      id: PAGED_EDITOR_UNDO,
       title: "Undo",
       category: "Edit",
       handler: () => handlers.undo(),
     },
     {
-      id: VERSO_EDITOR_REDO,
+      id: PAGED_EDITOR_REDO,
       title: "Redo",
       category: "Edit",
       handler: () => handlers.redo(),
     },
     {
-      id: VERSO_VIEW_ZOOM_IN,
+      id: PAGED_VIEW_ZOOM_IN,
       title: "Zoom In",
       category: "View",
       handler: () => handlers.zoomIn(),
     },
     {
-      id: VERSO_VIEW_ZOOM_OUT,
+      id: PAGED_VIEW_ZOOM_OUT,
       title: "Zoom Out",
       category: "View",
       handler: () => handlers.zoomOut(),
     },
     {
-      id: VERSO_VIEW_ZOOM_100,
+      id: PAGED_VIEW_ZOOM_100,
       title: "Zoom to 100%",
       category: "View",
       handler: () => handlers.zoom100(),
     },
     {
-      id: VERSO_VIEW_ZOOM_FIT,
+      id: PAGED_VIEW_ZOOM_FIT,
       title: "Fit Document",
       category: "View",
       handler: () => handlers.zoomFit(),
@@ -87,7 +87,7 @@ export function buildAppCommands(
  *  these grouped by the leading path segment.
  *
  *  The shell already registers `File/Open IDML…` (pointing at
- *  `verso.file.openIdml`) and `View/Toggle Command Palette`, so
+ *  `paged.file.openIdml`) and `View/Toggle Command Palette`, so
  *  this projection covers only the items unique to the canvas app:
  *  Edit > Undo/Redo and View > Zoom*. */
 export const APP_MENU_ITEMS: Array<{
@@ -97,13 +97,13 @@ export const APP_MENU_ITEMS: Array<{
   group?: string;
 }> = [
   // Edit menu
-  { path: "Edit/Undo", command: VERSO_EDITOR_UNDO, order: 10, group: "undo" },
-  { path: "Edit/Redo", command: VERSO_EDITOR_REDO, order: 20, group: "undo" },
+  { path: "Edit/Undo", command: PAGED_EDITOR_UNDO, order: 10, group: "undo" },
+  { path: "Edit/Redo", command: PAGED_EDITOR_REDO, order: 20, group: "undo" },
   // View menu
-  { path: "View/Zoom In", command: VERSO_VIEW_ZOOM_IN, order: 20, group: "zoom" },
-  { path: "View/Zoom Out", command: VERSO_VIEW_ZOOM_OUT, order: 30, group: "zoom" },
-  { path: "View/Zoom to 100%", command: VERSO_VIEW_ZOOM_100, order: 40, group: "zoom" },
-  { path: "View/Fit Document", command: VERSO_VIEW_ZOOM_FIT, order: 50, group: "zoom" },
+  { path: "View/Zoom In", command: PAGED_VIEW_ZOOM_IN, order: 20, group: "zoom" },
+  { path: "View/Zoom Out", command: PAGED_VIEW_ZOOM_OUT, order: 30, group: "zoom" },
+  { path: "View/Zoom to 100%", command: PAGED_VIEW_ZOOM_100, order: 40, group: "zoom" },
+  { path: "View/Fit Document", command: PAGED_VIEW_ZOOM_FIT, order: 50, group: "zoom" },
 ];
 
 /** Keybindings that route through the command registry. Cmd-Z /
@@ -116,8 +116,8 @@ export const APP_MENU_ITEMS: Array<{
  *  contributions per the parseCombo modifier vocabulary
  *  (`cmd` / `meta`, `ctrl` / `control`, `alt` / `option`, `shift`). */
 export const APP_KEYBINDINGS: KeybindingContribution[] = [
-  { key: "cmd+=", command: VERSO_VIEW_ZOOM_IN },
-  { key: "ctrl+=", command: VERSO_VIEW_ZOOM_IN },
-  { key: "cmd+-", command: VERSO_VIEW_ZOOM_OUT },
-  { key: "ctrl+-", command: VERSO_VIEW_ZOOM_OUT },
+  { key: "cmd+=", command: PAGED_VIEW_ZOOM_IN },
+  { key: "ctrl+=", command: PAGED_VIEW_ZOOM_IN },
+  { key: "cmd+-", command: PAGED_VIEW_ZOOM_OUT },
+  { key: "ctrl+-", command: PAGED_VIEW_ZOOM_OUT },
 ];

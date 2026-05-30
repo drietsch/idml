@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useScrubGesture } from "@verso/shell";
+import { useScrubGesture } from "@paged-media/shell";
 
 export interface NumberInputProps {
   /** Current value. Treated as controlled — caller drives. */

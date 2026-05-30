@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import {
   useScrubGesture,
   type ScrubGestureOptions,
-} from "@verso/shell";
+} from "@paged-media/shell";
 
 export interface ScrubFieldProps
   extends Omit<ScrubGestureOptions, "onUpdate" | "onCommit" | "onCancel"> {

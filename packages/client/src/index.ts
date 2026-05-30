@@ -1,4 +1,4 @@
-// @verso/client — the framework-agnostic canvas client.
+// @paged-media/client — the framework-agnostic canvas client.
 //
 // Public surface: CanvasClient + the wire types + SAB primitives.
 // No React, no DOM dependencies beyond Worker + SharedArrayBuffer.

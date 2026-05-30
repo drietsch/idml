@@ -1,5 +1,5 @@
 // Scripting Stage 1.b — text-to-Mutation grammar. Per
-// docs/verso/scripting-layer.md §269 the v1 commands are
+// docs/paged/scripting-layer.md §269 the v1 commands are
 // `set / insert / remove / move / undo / redo / inspect`. v1
 // covers element-property writes, layer-level structural ops,
 // undo/redo, and inspect. Scene-graph-level insert/remove/move
@@ -11,7 +11,7 @@ import type {
   Mutation,
   PropertyPath,
   Value,
-} from "@verso/client";
+} from "@paged-media/client";
 
 export type ParsedCommand =
   | { kind: "mutation"; mutation: Mutation }

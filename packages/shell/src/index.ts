@@ -1,7 +1,7 @@
-// @verso/shell — application-shell scaffolding for the canvas
+// @paged-media/shell — application-shell scaffolding for the canvas
 // editor. Owns the React state contexts, registries, docking
 // substrate, and command palette per
-// `docs/verso/editor-architecture.md` §17.
+// `docs/paged/editor-architecture.md` §17.
 
 // ── State contexts ─────────────────────────────────────────────
 export {
@@ -48,11 +48,11 @@ export {
 
 // ── Editor handle + registries provider ────────────────────────
 export {
-  VersoEditorProvider,
-  useVerso,
-  useOptionalVerso,
-  type VersoEditor,
-} from "./state/verso-editor";
+  PagedEditorProvider,
+  usePaged,
+  useOptionalPaged,
+  type PagedEditor,
+} from "./state/paged-editor";
 
 export {
   RegistriesProvider,
@@ -99,7 +99,7 @@ export {
 // ── Built-in commands ──────────────────────────────────────────
 export {
   buildOpenIdmlCommand,
-  VERSO_FILE_OPEN_IDML,
+  PAGED_FILE_OPEN_IDML,
 } from "./state/commands/file-commands";
 
 // ── Loaders ────────────────────────────────────────────────────
@@ -109,7 +109,7 @@ export {
 } from "./state/document-loader";
 
 // ── Shell root ─────────────────────────────────────────────────
-export { VersoShell, type VersoShellProps } from "./VersoShell";
+export { PagedShell, type PagedShellProps } from "./PagedShell";
 
 // ── Chrome ─────────────────────────────────────────────────────
 export { CommandPalette } from "./chrome/CommandPalette";
@@ -142,9 +142,9 @@ export {
   type ScrubGestureOptions,
 } from "./gestures/use-scrub-gesture";
 
-// SDK Phase 1 — gesture SAB primitives moved to `@verso/client`
+// SDK Phase 1 — gesture SAB primitives moved to `@paged-media/client`
 // alongside camera SAB and the framework-agnostic CanvasClient.
-// Re-exported here so existing `@verso/shell` consumers keep
+// Re-exported here so existing `@paged-media/shell` consumers keep
 // working without an import-path change.
 export {
   GestureBuffer,
@@ -153,7 +153,7 @@ export {
   GESTURE_MODIFIER_ALT,
   supportsGestureSab,
   type GestureUpdateRecord,
-} from "@verso/client";
+} from "@paged-media/client";
 
 // ── Overlay layer ──────────────────────────────────────────────
 export {
@@ -208,12 +208,12 @@ export { useBindings, type ResolvedBinding } from "./catalog/binding-hook";
 export { useCollection, useDocumentMeta } from "./catalog/use-collection";
 export {
   registerBuiltInCatalogEntries,
-  VERSO_INPUT_LENGTH,
-  VERSO_INPUT_COLOR_SWATCH,
-  VERSO_INPUT_NUMERIC_SCRUB,
-  VERSO_INPUT_BOUNDS,
-  VERSO_INPUT_COLLECTION_SELECT,
-  VERSO_INPUT_TOGGLE_GROUP,
-  VERSO_LAYOUT_SECTION,
-  VERSO_LABEL,
+  PAGED_INPUT_LENGTH,
+  PAGED_INPUT_COLOR_SWATCH,
+  PAGED_INPUT_NUMERIC_SCRUB,
+  PAGED_INPUT_BOUNDS,
+  PAGED_INPUT_COLLECTION_SELECT,
+  PAGED_INPUT_TOGGLE_GROUP,
+  PAGED_LAYOUT_SECTION,
+  PAGED_LABEL,
 } from "./catalog/built-in";

@@ -20,7 +20,7 @@ import { useDockingSubstrate } from "../docking/substrate-context";
 import type { DockingSubstrate } from "../docking/substrate";
 
 // eslint-disable-next-line import/no-relative-parent-imports
-import type { CanvasClient } from "@verso/client";
+import type { CanvasClient } from "@paged-media/client";
 
 /**
  * Aggregate handle: the single argument every panel + command
@@ -29,7 +29,7 @@ import type { CanvasClient } from "@verso/client";
  * renders is NOT guaranteed — consumers should destructure and
  * pin sub-slices via context hooks for re-render isolation.
  */
-export interface VersoEditor {
+export interface PagedEditor {
   /** The worker client. Stable for the shell's lifetime. */
   client: CanvasClient;
 
@@ -61,37 +61,37 @@ export interface VersoEditor {
  * Must be mounted *inside* the five state-context providers (it
  * reads from them).
  */
-export function VersoEditorProvider({ children }: PropsWithChildren) {
-  // Thunk hands the registry a way to materialize `VersoEditor` on
+export function PagedEditorProvider({ children }: PropsWithChildren) {
+  // Thunk hands the registry a way to materialize `PagedEditor` on
   // demand — defined before the inner consumer so the registry can
   // be constructed in a `useRef` (which fires once per mount).
-  const editorRef = useRef<VersoEditor | null>(null);
+  const editorRef = useRef<PagedEditor | null>(null);
   const getEditor = () => {
     const editor = editorRef.current;
     if (!editor) {
-      throw new Error("VersoEditor accessed before mount");
+      throw new Error("PagedEditor accessed before mount");
     }
     return editor;
   };
 
   return (
     <RegistriesProvider getEditor={getEditor}>
-      <VersoEditorBinder editorRef={editorRef}>{children}</VersoEditorBinder>
+      <PagedEditorBinder editorRef={editorRef}>{children}</PagedEditorBinder>
     </RegistriesProvider>
   );
 }
 
 /**
  * Inner component that has access to every context (registries +
- * the five state contexts) and assembles the `VersoEditor`. It
+ * the five state contexts) and assembles the `PagedEditor`. It
  * writes the assembled handle into `editorRef` so the registry's
  * `getEditor` thunk can read the current value.
  */
-function VersoEditorBinder({
+function PagedEditorBinder({
   editorRef,
   children,
 }: PropsWithChildren<{
-  editorRef: React.MutableRefObject<VersoEditor | null>;
+  editorRef: React.MutableRefObject<PagedEditor | null>;
 }>) {
   const client = useCanvasClient();
   const document = useDocument();
@@ -101,7 +101,7 @@ function VersoEditorBinder({
   const registries = useRegistries();
   const substrate = useDockingSubstrate();
 
-  const editor = useMemo<VersoEditor>(
+  const editor = useMemo<PagedEditor>(
     () => ({
       client,
       document,
@@ -120,14 +120,14 @@ function VersoEditorBinder({
 
 // React-context surface for the editor handle. Distinct from the
 // editorRef the command registry uses — components consume via the
-// `useVerso` hook; the ref exists for non-React consumers
+// `usePaged` hook; the ref exists for non-React consumers
 // (registry invoke handlers that fire outside React's lifecycle).
-const EditorContext = createContext<VersoEditor | null>(null);
+const EditorContext = createContext<PagedEditor | null>(null);
 
 function EditorContextProvider({
   editor,
   children,
-}: PropsWithChildren<{ editor: VersoEditor }>) {
+}: PropsWithChildren<{ editor: PagedEditor }>) {
   return <EditorContext.Provider value={editor}>{children}</EditorContext.Provider>;
 }
 
@@ -136,16 +136,16 @@ function EditorContextProvider({
  * that only need a single slice should prefer the focused hook
  * (`useDocument`, `useCamera`, …) for finer re-render control.
  */
-export function useVerso(): VersoEditor {
+export function usePaged(): PagedEditor {
   const ctx = useContext(EditorContext);
   if (!ctx) {
-    throw new Error("useVerso called outside VersoEditorProvider");
+    throw new Error("usePaged called outside PagedEditorProvider");
   }
   return ctx;
 }
 
-/** Same as `useVerso` but returns `null` outside the provider. */
-export function useOptionalVerso(): VersoEditor | null {
+/** Same as `usePaged` but returns `null` outside the provider. */
+export function useOptionalPaged(): PagedEditor | null {
   return useContext(EditorContext);
 }
 

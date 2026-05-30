@@ -1,6 +1,6 @@
-# Verso: Technical Specification — Application Shell (Step 3 Substrate)
+# Paged: Technical Specification — Application Shell (Step 3 Substrate)
 
-*Companion document to the Verso Editor Architecture briefing. The briefing defines the four-layer architecture (renderer → scripting → shell → bundles), the two mutation channels (Operations + Gestures), and the build sequence. This specification zooms in on Step 3 of that sequence: the empty application shell that hosts the existing IDML canvas, with a declarative panel registry, the dockview docking substrate, the shadcn UI foundation, the application-state context layer, and the tsify-generated WASM ↔ TypeScript type contract. The deliverable of Step 3 is a shell that can run with zero bundles loaded, into which the existing `CanvasApp` is decomposed and re-mounted as a configurable arrangement of panels, with all types crossing the WASM boundary derived from Rust as the single source of truth.*
+*Companion document to the Paged Editor Architecture briefing. The briefing defines the four-layer architecture (renderer → scripting → shell → bundles), the two mutation channels (Operations + Gestures), and the build sequence. This specification zooms in on Step 3 of that sequence: the empty application shell that hosts the existing IDML canvas, with a declarative panel registry, the dockview docking substrate, the shadcn UI foundation, the application-state context layer, and the tsify-generated WASM ↔ TypeScript type contract. The deliverable of Step 3 is a shell that can run with zero bundles loaded, into which the existing `CanvasApp` is decomposed and re-mounted as a configurable arrangement of panels, with all types crossing the WASM boundary derived from Rust as the single source of truth.*
 
 *This is the spec, not the implementation plan. The implementation plan is the build sequence at the end.*
 
@@ -18,7 +18,7 @@ This spec covers:
 - The Application State context layer (camera, selection, content selection, document, client).
 - The `DockingSubstrate` abstraction and the single `DockviewSubstrate` implementation.
 - The `SemanticGroupRegistry` mapping semantic group names to dockview group IDs at runtime.
-- The shadcn UI setup, the `@verso/ui` panel design system layered on top, and the substrate-isolation discipline that mirrors the dockview wrapping.
+- The shadcn UI setup, the `@paged-media/ui` panel design system layered on top, and the substrate-isolation discipline that mirrors the dockview wrapping.
 - The CSS-variable theme bridge between shadcn and dockview.
 - The command palette built on shadcn's `Command` primitive, with an initially empty `CommandRegistry`.
 - Layout auto-persistence to `localStorage`.
@@ -46,7 +46,7 @@ The shell sits on top of the renderer + scripting layer, beneath bundles. It is 
                        │ Contribution API
                        ▼
 ┌─────────────────────────────────────────────────┐
-│  Verso Application Shell                  ← Step 3 substrate
+│  Paged Application Shell                  ← Step 3 substrate
 │  ┌───────────────────────────────────────────┐  │
 │  │  Panel Registry                           │  │
 │  │  Command Registry                         │  │
@@ -164,7 +164,7 @@ serde-wasm-bindgen = "0.6"
 tsify = { version = "0.5", default-features = false, features = ["js"] }
 ```
 
-The `js` feature is non-default and is the right choice for Verso. The default (`json`) routes Rust ↔ JS data through `serde_json` — fine for small messages, wasteful for large ones (the geometry payloads in `SelectionRect[]` or `CaretGeometry` are not small once a real document is loaded). The `js` feature uses `serde-wasm-bindgen` instead, marshaling directly into JS values without an intermediate JSON string. For a renderer that emits selection geometry on every keystroke and layout cache stats on every mutation, the difference matters.
+The `js` feature is non-default and is the right choice for Paged. The default (`json`) routes Rust ↔ JS data through `serde_json` — fine for small messages, wasteful for large ones (the geometry payloads in `SelectionRect[]` or `CaretGeometry` are not small once a real document is loaded). The `js` feature uses `serde-wasm-bindgen` instead, marshaling directly into JS values without an intermediate JSON string. For a renderer that emits selection geometry on every keystroke and layout cache stats on every mutation, the difference matters.
 
 ### Type annotation pattern
 
@@ -274,8 +274,8 @@ The declarative panel manifest is the central abstraction. A panel is data:
 import type { ComponentType } from "react";
 
 export interface PanelProps {
-  /** The Verso editor handle — context providers, registries, client. */
-  verso: VersoEditor;
+  /** The Paged editor handle — context providers, registries, client. */
+  paged: PagedEditor;
   /** Dockview-provided lifecycle. Bundles never read this directly. */
   api: PanelApi;
 }
@@ -343,7 +343,7 @@ export interface CommandContribution {
   category?: string;
   icon?: string;
   /** The handler. Receives the editor and an optional payload. */
-  handler: (verso: VersoEditor, payload?: unknown) => void | Promise<void>;
+  handler: (paged: PagedEditor, payload?: unknown) => void | Promise<void>;
   /** Optional enablement predicate. Disabled commands appear greyed in UI. */
   when?: VisibilityPredicate;
 }
@@ -357,7 +357,7 @@ export interface CommandRegistry {
 }
 ```
 
-In Step 3, the only command registered is `verso.file.openIdml` — the existing file-picker functionality, lifted into a command so it's invocable from the palette. The header file picker becomes a UI element that invokes this command.
+In Step 3, the only command registered is `paged.file.openIdml` — the existing file-picker functionality, lifted into a command so it's invocable from the palette. The header file picker becomes a UI element that invokes this command.
 
 ### 3. SemanticGroupRegistry
 
@@ -458,7 +458,7 @@ export function useSelection(): SelectionState { /* ... */ }
 export function useContentSelection(): ContentSelectionState { /* ... */ }
 
 // Composite — most panels want the whole editor handle.
-export function useVerso(): VersoEditor { /* aggregates the above */ }
+export function usePaged(): PagedEditor { /* aggregates the above */ }
 ```
 
 ### The mutation subscription consolidation
@@ -627,7 +627,7 @@ export class PanelBridge {
       groupId,
       closable: contribution.closable ?? true,
       movable: contribution.movable ?? true,
-      hideTabHeader: contribution.id === "verso.canvas",  // the only special case
+      hideTabHeader: contribution.id === "paged.canvas",  // the only special case
     });
     this.handles.set(contribution.id, handle);
   }
@@ -652,7 +652,7 @@ The IDML viewport is a special panel: permanently present, non-closable, non-tab
 // packages/shell/src/panels/canvas.ts
 
 export const canvasContribution: PanelContribution = {
-  id: "verso.canvas",
+  id: "paged.canvas",
   title: "Canvas",
   component: CanvasPanel,
   defaultDock: "center",
@@ -704,7 +704,7 @@ The two existing panels in `CanvasApp.tsx` migrate to the registry as built-in c
 // packages/shell/src/panels/pages.ts
 
 export const pagesContribution: PanelContribution = {
-  id: "verso.pages",
+  id: "paged.pages",
   title: "Pages",
   component: PagesPanel,           // wraps PageNavigator, sources from contexts
   defaultDock: "left",
@@ -714,7 +714,7 @@ export const pagesContribution: PanelContribution = {
 // packages/shell/src/panels/outline.ts
 
 export const outlineContribution: PanelContribution = {
-  id: "verso.outline",
+  id: "paged.outline",
   title: "Outline",
   component: OutlinePanel,         // wraps Outline, sources from contexts
   defaultDock: "left",
@@ -730,7 +730,7 @@ In Step 4+, these become bundle-contributed instead of shell-internal. The regis
 
 ## shadcn/ui Integration
 
-shadcn is the foundation for the shell's chrome and the basis on which `@verso/ui` (the panel design system) is built. The substrate-isolation discipline mirrors dockview's: **no bundle code ever imports from `packages/shell/components/ui/*`**.
+shadcn is the foundation for the shell's chrome and the basis on which `@paged-media/ui` (the panel design system) is built. The substrate-isolation discipline mirrors dockview's: **no bundle code ever imports from `packages/shell/components/ui/*`**.
 
 ### Setup
 
@@ -742,7 +742,7 @@ pnpm dlx shadcn@latest init
 Configuration choices for the init:
 
 - **Style:** "new-york" (denser, more appropriate for a creative tool than "default").
-- **Base color:** "neutral" — the actual Verso brand colors come later via CSS variable overrides.
+- **Base color:** "neutral" — the actual Paged brand colors come later via CSS variable overrides.
 - **CSS variables:** yes — this is the entire point.
 - **Tailwind config:** customize `tailwind.config.ts` to extend the CSS-variable token set rather than hardcoding values.
 
@@ -757,12 +757,12 @@ pnpm dlx shadcn@latest add button command dialog dropdown-menu input \
 
 `command` is the highest-priority addition — the command palette is built on it.
 
-### The @verso/ui boundary
+### The @paged-media/ui boundary
 
 The panel design system is a separate package:
 
 ```
-packages/ui/                       # @verso/ui
+packages/ui/                       # @paged-media/ui
 ├── package.json
 ├── src/
 │   ├── layout/
@@ -783,17 +783,17 @@ packages/ui/                       # @verso/ui
 └── tsconfig.json
 ```
 
-`@verso/ui` re-exports a curated subset of shadcn primitives plus its own composites. Bundles import from `@verso/ui`; the shell can import from both `@verso/ui` and `@/components/ui/*` (shadcn directly) for its own chrome.
+`@paged-media/ui` re-exports a curated subset of shadcn primitives plus its own composites. Bundles import from `@paged-media/ui`; the shell can import from both `@paged-media/ui` and `@/components/ui/*` (shadcn directly) for its own chrome.
 
-In Step 3, `@verso/ui` is intentionally minimal — just enough to support the existing panels' visual needs. The scrub-aware inputs (`LengthInput`, `NumberInput` with scrub, `ColorInput`) are deferred to Step 5 when the gesture pipeline lands and there's something for them to scrub against.
+In Step 3, `@paged-media/ui` is intentionally minimal — just enough to support the existing panels' visual needs. The scrub-aware inputs (`LengthInput`, `NumberInput` with scrub, `ColorInput`) are deferred to Step 5 when the gesture pipeline lands and there's something for them to scrub against.
 
-### Why two layers (shadcn + @verso/ui)
+### Why two layers (shadcn + @paged-media/ui)
 
 Three reasons, same shape as the dockview wrapping:
 
 1. **Curation.** Bundle authors should see a curated set of components designed for panel construction, not the full shadcn surface area. `PropertyRow` exists; `NavigationMenu` does not, because no panel needs it.
-2. **Composition.** `LengthInput` is not a shadcn component and never will be — it's a DTP composite of `Input` + scrub handle + unit toggle. These composites are what `@verso/ui` adds on top of shadcn primitives.
-3. **Substrate isolation.** If shadcn ever needs replacing (it won't, probably), or if the Verso visual language diverges far enough that components are rewritten from scratch, the bundle code is shielded.
+2. **Composition.** `LengthInput` is not a shadcn component and never will be — it's a DTP composite of `Input` + scrub handle + unit toggle. These composites are what `@paged-media/ui` adds on top of shadcn primitives.
+3. **Substrate isolation.** If shadcn ever needs replacing (it won't, probably), or if the Paged visual language diverges far enough that components are rewritten from scratch, the bundle code is shielded.
 
 ## Theming: One Variable Set, Two Substrates
 
@@ -804,45 +804,45 @@ shadcn defines its tokens as CSS variables. Dockview supports CSS-variable themi
 
 :root {
   /* The semantic token layer — single source of truth. */
-  --verso-bg: 0 0% 100%;
-  --verso-fg: 0 0% 9%;
-  --verso-border: 0 0% 89%;
-  --verso-accent: 263 73% 43%;        /* Pimcore Purple, eventually */
-  --verso-muted: 0 0% 96%;
+  --paged-bg: 0 0% 100%;
+  --paged-fg: 0 0% 9%;
+  --paged-border: 0 0% 89%;
+  --paged-accent: 263 73% 43%;        /* Pimcore Purple, eventually */
+  --paged-muted: 0 0% 96%;
   /* ... */
 
   /* shadcn mapping. */
-  --background: var(--verso-bg);
-  --foreground: var(--verso-fg);
-  --border: var(--verso-border);
-  --primary: var(--verso-accent);
-  --muted: var(--verso-muted);
+  --background: var(--paged-bg);
+  --foreground: var(--paged-fg);
+  --border: var(--paged-border);
+  --primary: var(--paged-accent);
+  --muted: var(--paged-muted);
   /* ... */
 
   /* dockview mapping. */
-  --dv-background-color: hsl(var(--verso-bg));
-  --dv-tabs-and-actions-container-background-color: hsl(var(--verso-muted));
-  --dv-separator-border: hsl(var(--verso-border));
-  --dv-activegroup-visiblepanel-tab-color: hsl(var(--verso-accent));
+  --dv-background-color: hsl(var(--paged-bg));
+  --dv-tabs-and-actions-container-background-color: hsl(var(--paged-muted));
+  --dv-separator-border: hsl(var(--paged-border));
+  --dv-activegroup-visiblepanel-tab-color: hsl(var(--paged-accent));
   /* ... */
 }
 
 .dark {
-  --verso-bg: 0 0% 9%;
-  --verso-fg: 0 0% 98%;
+  --paged-bg: 0 0% 9%;
+  --paged-fg: 0 0% 98%;
   /* ... etc. */
 }
 ```
 
-When the design language brief from Step 1 produces specific values, only the `--verso-*` tokens change. Both shadcn and dockview pick up the change automatically.
+When the design language brief from Step 1 produces specific values, only the `--paged-*` tokens change. Both shadcn and dockview pick up the change automatically.
 
 ### Theming dockview specifically
 
-Dockview ships with a few default themes (`dockview-theme-light`, `dockview-theme-abyss`, etc.). For Verso, write a custom theme class — `dockview-theme-verso` — that overrides dockview's CSS variables to read from `--verso-*` tokens. Apply this class to the `DockviewReact` root:
+Dockview ships with a few default themes (`dockview-theme-light`, `dockview-theme-abyss`, etc.). For Paged, write a custom theme class — `dockview-theme-paged` — that overrides dockview's CSS variables to read from `--paged-*` tokens. Apply this class to the `DockviewReact` root:
 
 ```tsx
 <DockviewReact
-  className="dockview-theme-verso"
+  className="dockview-theme-paged"
   /* ... */
 />
 ```
@@ -870,7 +870,7 @@ import {
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const commands = useCommandRegistry();
-  const verso = useVerso();
+  const paged = usePaged();
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -916,12 +916,12 @@ Just one, reflecting the existing file-picker functionality:
 
 ```typescript
 const fileOpenCommand: CommandContribution = {
-  id: "verso.file.openIdml",
+  id: "paged.file.openIdml",
   title: "Open IDML…",
   category: "File",
-  handler: async (verso) => {
+  handler: async (paged) => {
     const file = await pickFile({ accept: ".idml" });
-    if (file) await loadIdmlDocument(verso, file);
+    if (file) await loadIdmlDocument(paged, file);
   },
 };
 ```
@@ -939,7 +939,7 @@ Two storage scopes, distinct policies, both straightforward.
 ```typescript
 // packages/shell/src/persistence/layout-persistence.ts
 
-const STORAGE_KEY = "verso.layout.current";
+const STORAGE_KEY = "paged.layout.current";
 const DEBOUNCE_MS = 500;
 
 export function setupLayoutPersistence(substrate: DockingSubstrate): Disposable {
@@ -974,13 +974,13 @@ export function restoreLayoutOrDefault(
     const snapshot = JSON.parse(raw) as LayoutSnapshot;
     substrate.restore(snapshot);
   } catch (err) {
-    console.warn("verso: failed to restore layout, using default", err);
+    console.warn("paged: failed to restore layout, using default", err);
     defaultLayout();
   }
 }
 ```
 
-The defensive fallback to `defaultLayout()` matters: schema changes between Verso versions will eventually invalidate stored snapshots. Better to fall back than to crash on startup.
+The defensive fallback to `defaultLayout()` matters: schema changes between Paged versions will eventually invalidate stored snapshots. Better to fall back than to crash on startup.
 
 ### Saved perspectives — deferred to Step 4+
 
@@ -996,7 +996,7 @@ idml/
 │   └── canvas/                     # existing — minimal changes
 │       ├── package.json
 │       └── src/
-│           ├── main.tsx            # mounts <VersoShell />, not <CanvasApp />
+│           ├── main.tsx            # mounts <PagedShell />, not <CanvasApp />
 │           ├── channel/
 │           │   ├── client.ts       # CanvasClient — unchanged orchestration
 │           │   ├── protocol.ts     # SHRUNK — re-exports tsify-generated types
@@ -1015,12 +1015,12 @@ idml/
 │           ├── protocol.rs         # all #[derive(Tsify)] types — source of truth
 │           └── …
 ├── packages/
-│   ├── shell/                      # NEW — @verso/shell
+│   ├── shell/                      # NEW — @paged-media/shell
 │   │   ├── package.json
 │   │   ├── tailwind.config.ts
 │   │   ├── components.json         # shadcn config
 │   │   └── src/
-│   │       ├── index.tsx           # <VersoShell /> root component
+│   │       ├── index.tsx           # <PagedShell /> root component
 │   │       ├── components/ui/      # shadcn primitives
 │   │       ├── chrome/
 │   │       │   ├── CommandPalette.tsx
@@ -1045,10 +1045,10 @@ idml/
 │   │       │   └── document-loader.ts    # the file-load orchestration
 │   │       ├── styles/
 │   │       │   ├── theme.css
-│   │       │   └── dockview-theme-verso.css
+│   │       │   └── dockview-theme-paged.css
 │   │       └── persistence/
 │   │           └── layout-persistence.ts
-│   └── ui/                         # NEW — @verso/ui
+│   └── ui/                         # NEW — @paged-media/ui
 │       ├── package.json
 │       └── src/
 │           ├── index.ts
@@ -1065,7 +1065,7 @@ The reasoning for `packages/shell` vs `apps/canvas`:
 - `apps/canvas` is the *application* — the deployable artifact. It mounts the shell, provides the worker client, points to a particular set of built-in panels.
 - `packages/shell` is the *substrate* — the reusable bundle host. In principle it could host a different application some day (a different renderer, a different default panel set). In practice it never will, but the conceptual separation is what makes "the shell is its own first plugin" honest.
 
-A second app at some point — `apps/verso` proper, with a different default panel set — would consume the same `@verso/shell` and `@verso/ui` packages.
+A second app at some point — `apps/paged` proper, with a different default panel set — would consume the same `@paged-media/shell` and `@paged-media/ui` packages.
 
 ## Migration Path from CanvasApp.tsx
 
@@ -1088,7 +1088,7 @@ Step 3-pre completes when `protocol.ts` is a thin re-export layer plus the `Canv
 
 Create `packages/shell` and `packages/ui` with their respective `package.json`, `tsconfig.json`, Tailwind config. Workspace tooling: pnpm workspaces, Turborepo or Nx if you want orchestrated builds (optional at this scale).
 
-Update `apps/canvas/package.json` to depend on `@verso/shell` and `@verso/ui` as workspace packages.
+Update `apps/canvas/package.json` to depend on `@paged-media/shell` and `@paged-media/ui` as workspace packages.
 
 ### Step 3b: Lift state into contexts, no dockview yet
 
@@ -1126,7 +1126,7 @@ Build `CommandPalette` and wire `Cmd+K`. Add layout auto-persistence. Add the fi
 
 ### Step 3i: Delete CanvasApp.tsx
 
-Move `CanvasApp.tsx`'s remaining content into `packages/shell/src/index.tsx` as `<VersoShell />`. The `apps/canvas/src/main.tsx` now mounts `<VersoShell client={canvasClient}>...</VersoShell>` directly. `apps/canvas/src/ui/CanvasApp.tsx` is deleted.
+Move `CanvasApp.tsx`'s remaining content into `packages/shell/src/index.tsx` as `<PagedShell />`. The `apps/canvas/src/main.tsx` now mounts `<PagedShell client={canvasClient}>...</PagedShell>` directly. `apps/canvas/src/ui/CanvasApp.tsx` is deleted.
 
 ## What Not to Do
 
@@ -1135,9 +1135,9 @@ Move `CanvasApp.tsx`'s remaining content into `packages/shell/src/index.tsx` as 
 - **Don't tsify the camera-update path or future gesture-pipeline frame updates.** High-frequency continuous updates stay on SAB or raw numeric wasm-bindgen arguments. tsify is for discrete structured messages.
 - **Don't edit the tsify-generated `.d.ts` by hand.** If a type comes out wrong, fix the Rust side or use tsify's `#[tsify(type = "...")]` attribute to override.
 - **Don't commit the generated `.d.ts` to source control without a clear convention.** Either gitignore it (build artifact, regenerated on every build) or vendor it intentionally (review-visible, drift-detectable in PRs). Don't do both. The default recommendation is to vendor: regeneration is non-trivial, drift is review-relevant, and the file is small.
-- **Don't merge shadcn primitives and `@verso/ui` composites into one package.** The boundary is what protects bundle code from substrate churn. Even though `@verso/ui` will start out as a thin re-export layer, the indirection matters once composites accumulate.
+- **Don't merge shadcn primitives and `@paged-media/ui` composites into one package.** The boundary is what protects bundle code from substrate churn. Even though `@paged-media/ui` will start out as a thin re-export layer, the indirection matters once composites accumulate.
 - **Don't import from `dockview-react` outside `dockview-substrate.ts`.** Same discipline as the briefing's general rule. The CI lint rule that enforces this should be in place from day one.
-- **Don't import from `@/components/ui/*` outside `packages/shell`.** Bundle code (eventually third-party) goes through `@verso/ui`.
+- **Don't import from `@/components/ui/*` outside `packages/shell`.** Bundle code (eventually third-party) goes through `@paged-media/ui`.
 - **Don't combine the five state contexts into one mega-context.** Re-render isolation matters; selection changes shouldn't cause the camera context to re-render every consumer.
 - **Don't hardcode dockview group IDs anywhere.** All placement is by semantic group name.
 - **Don't ship saved perspectives or per-document UI configuration in Step 3.** Auto-persistence of the current layout is enough.
@@ -1145,7 +1145,7 @@ Move `CanvasApp.tsx`'s remaining content into `packages/shell/src/index.tsx` as 
 - **Don't theme dockview by editing its source or maintaining a fork.** Use only CSS variables. If a dockview style proves uncustomizable via CSS, file an upstream issue rather than working around it.
 - **Don't add a menu bar in Step 3.** The command palette covers Step 3's needs. Menus, contributed via the registry pattern, come in Step 4.
 - **Don't optimize the document-loading path.** The existing sequential snapshot loop is correct given the single-threaded worker; lift it as-is.
-- **Don't rename `window.__canvas` to `window.__verso` in Step 3.** Tests depend on the name. Renaming is free later if the name turns out to matter; renaming now while the surface is in flux is unnecessary churn.
+- **Don't rename `window.__canvas` to `window.__paged` in Step 3.** Tests depend on the name. Renaming is free later if the name turns out to matter; renaming now while the surface is in flux is unnecessary churn.
 
 ## Time Budget
 
@@ -1192,8 +1192,8 @@ Four checkpoints to revisit this spec:
 1. **After Step 3-pre (the tsify migration), before any shell work.** Pause and review the generated TypeScript types against the previous hand-written ones. If significant structural differences exist that aren't bug-fixes, the Rust types may need refactoring before they're a comfortable source of truth. Better to do that refactor here than after the shell depends on them.
 2. **After Step 3g (the swap), before Step 3h.** Pause and review whether the registry → bridge → substrate chain feels right in practice. If it feels overengineered for three built-in panels, the answer is "no, this is the floor; it pays off at panel #6, not panel #3." If it feels under-engineered (you keep wanting to add fields to `PanelContribution`), that's the time to add them.
 3. **When the first third-party-style bundle is being prototyped in Step 4.** This is the moment to assess whether the Contribution API surface is right. The shell's own panel registration is the rehearsal; the first external bundle is the real test.
-4. **When the gesture pipeline lands in Step 5 and the scrub-aware inputs are added to `@verso/ui`.** Reassess whether `@verso/ui` has the right granularity. The DTP composites are the components that will most stress the design system; they're the right moment to revise its shape. Also revisit the tsify/SAB split here — Step 5 introduces a lot of high-frequency wire traffic, and the "raw numeric args for gestures" rule will be exercised for the first time.
+4. **When the gesture pipeline lands in Step 5 and the scrub-aware inputs are added to `@paged-media/ui`.** Reassess whether `@paged-media/ui` has the right granularity. The DTP composites are the components that will most stress the design system; they're the right moment to revise its shape. Also revisit the tsify/SAB split here — Step 5 introduces a lot of high-frequency wire traffic, and the "raw numeric args for gestures" rule will be exercised for the first time.
 
 ## Summary in One Paragraph
 
-The Step 3 shell decomposes the existing 513-line `CanvasApp.tsx` into a declarative, configurable substrate: the WASM ↔ TypeScript type contract is unified via tsify, with Rust types in the renderer crate as the single source of truth for everything crossing the boundary and `apps/canvas/src/channel/protocol.ts` shrunk to a re-export layer plus the `CanvasClient` dispatch class; four registries (panels, commands, semantic groups, keybindings) hold contribution data; five React contexts (client, document, camera, selection, content-selection) hold application state; a `DockingSubstrate` abstraction wraps dockview such that exactly one file in the codebase imports `dockview-react`; a `PanelBridge` projects registry contributions onto the substrate; the canvas, pages panel, and outline panel are registered as data, not hardcoded; shadcn/ui provides the chrome and a curated subset is re-exposed as `@verso/ui` for bundles, with a parallel substrate-isolation discipline; a single set of CSS variables themes both shadcn and dockview through a custom `dockview-theme-verso` class; the command palette built on shadcn's `Command` primitive opens with `Cmd+K` and dispatches against the command registry; layout state auto-persists to `localStorage` with a defensive fallback to the default layout if the snapshot fails to restore. The tsify migration uses the `js` serialization backend for efficient marshaling of geometry-heavy payloads, while the camera-update SAB path and the future Step 5 gesture pipeline stay on raw numeric arguments because high-frequency continuous updates have different needs than discrete structured messages. By the end of Step 3, adding a panel means registering a manifest entry; rearranging the layout means dragging; replacing the docking substrate or the design system is a contained refactor; renaming a field on a Rust type produces a TypeScript compile error rather than a runtime bug; and the bundle loader in Step 4 has a clean place to plug into because the registration path it will use is the same path the shell uses to register its own built-in panels.
+The Step 3 shell decomposes the existing 513-line `CanvasApp.tsx` into a declarative, configurable substrate: the WASM ↔ TypeScript type contract is unified via tsify, with Rust types in the renderer crate as the single source of truth for everything crossing the boundary and `apps/canvas/src/channel/protocol.ts` shrunk to a re-export layer plus the `CanvasClient` dispatch class; four registries (panels, commands, semantic groups, keybindings) hold contribution data; five React contexts (client, document, camera, selection, content-selection) hold application state; a `DockingSubstrate` abstraction wraps dockview such that exactly one file in the codebase imports `dockview-react`; a `PanelBridge` projects registry contributions onto the substrate; the canvas, pages panel, and outline panel are registered as data, not hardcoded; shadcn/ui provides the chrome and a curated subset is re-exposed as `@paged-media/ui` for bundles, with a parallel substrate-isolation discipline; a single set of CSS variables themes both shadcn and dockview through a custom `dockview-theme-paged` class; the command palette built on shadcn's `Command` primitive opens with `Cmd+K` and dispatches against the command registry; layout state auto-persists to `localStorage` with a defensive fallback to the default layout if the snapshot fails to restore. The tsify migration uses the `js` serialization backend for efficient marshaling of geometry-heavy payloads, while the camera-update SAB path and the future Step 5 gesture pipeline stay on raw numeric arguments because high-frequency continuous updates have different needs than discrete structured messages. By the end of Step 3, adding a panel means registering a manifest entry; rearranging the layout means dragging; replacing the docking substrate or the design system is a contained refactor; renaming a field on a Rust type produces a TypeScript compile error rather than a runtime bug; and the bundle loader in Step 4 has a clean place to plug into because the registration path it will use is the same path the shell uses to register its own built-in panels.

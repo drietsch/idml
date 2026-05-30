@@ -4,9 +4,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { useCanvasClient, useSelection } from "@verso/shell";
+import { useCanvasClient, useSelection } from "@paged-media/shell";
 
-import type { ElementId, SceneTreeNode } from "@verso/client";
+import type { ElementId, SceneTreeNode } from "@paged-media/client";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type PanelProps = any;

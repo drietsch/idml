@@ -19,7 +19,7 @@
 // `ItemTransform = T(GROUP_ANCHOR_X, GROUP_ANCHOR_Y)` enclosing two
 // un-rotated Rect leaves. Identity Group + identity leaves are the
 // easiest case to verify by hand and the one
-// `docs/verso/canvas-interaction-plan-2.md` calls out for L.4.
+// `docs/paged/canvas-interaction-plan-2.md` calls out for L.4.
 
 import { dirname, resolve as pathResolve } from "node:path";
 import { fileURLToPath } from "node:url";

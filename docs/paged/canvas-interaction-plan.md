@@ -1,7 +1,7 @@
 # Canvas Interaction Plan — selection, gestures, transforms
 
 *Implementation plan for the direct-manipulation primitives on the
-Verso canvas: element selection, hit-testing, the gesture spine, and
+Paged canvas: element selection, hit-testing, the gesture spine, and
 frame transforms (move / resize / rotate / scale). Companion to
 `editor-architecture.md` (the Operation/Gesture-channel and
 document/application-state model) and `canvas.md` (the four-tier
@@ -12,8 +12,8 @@ sequencing the briefings deliberately left abstract.*
 *Scope note: this is renderer/scene-graph-layer + canvas-app work. It
 is **below** the shell and bundle system in the four-layer
 architecture — it builds the Gesture API surface and the
-selection-state foundation that a later `verso.selection` /
-`verso.transform` bundle will consume. None of it requires the shell
+selection-state foundation that a later `paged.selection` /
+`paged.transform` bundle will consume. None of it requires the shell
 to exist, so it is safe to build now without committing the
 shell/bundle architecture. See "The toolbox" at the end for how this
 relates to the eventual shell.*
@@ -366,14 +366,14 @@ and management UI** do not — see "out of scope" below).
 - **Z-order.** Already covered by §5 #2 — the layer-aware order is the
   one selection must use.
 
-**State-ambiguity note (for the later `verso.layers` work, not here).**
+**State-ambiguity note (for the later `paged.layers` work, not here).**
 `editor-architecture.md` flags layer *visibility* as a
 document-vs-application-state decision: "hidden in the document"
 (persisted, affects export + all collaborators) vs. "hidden in my view"
 (per-user application state). This plan only *reads* the current
 `visible` flag to gate hit-testing; it does not decide that question.
 
-**Out of scope here (→ `verso.layers`, build-sequence Step 7):**
+**Out of scope here (→ `paged.layers`, build-sequence Step 7):**
 creating / reordering / renaming layers, the visibility & lock toggles,
 re-assigning items to layers (`ItemLayer`), and the Layers panel. Those
 need *new* Operations (reorder layer, set `ItemLayer`, set
@@ -595,8 +595,8 @@ InDesign-style toolbox. Architecturally (`editor-architecture.md`):
   active-tool application state, keybindings (V/T/H), and pointer
   routing — but it ships **empty**.
 - Individual **tools** (`select.tool`, `text.tool`, …) are **bundle
-  contributions**, arriving in the shell's Step 7 (`verso.selection`,
-  `verso.transform`, `verso.text`).
+  contributions**, arriving in the shell's Step 7 (`paged.selection`,
+  `paged.transform`, `paged.text`).
 
 So a real toolbox depends on the tool/bundle system, which depends on
 the gesture primitives in this plan. The dependency order is: **Rust

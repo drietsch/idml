@@ -3,7 +3,7 @@
 //
 // Element-scope binding to `frameFillColor` (a `Value::ColorRef`
 // payload, NOT `Value::Text`). Uses the same
-// `VERSO_INPUT_COLLECTION_SELECT` primitive that drives Paragraph
+// `PAGED_INPUT_COLLECTION_SELECT` primitive that drives Paragraph
 // / Character / Object Styles, with `valueType: "colorRef"` so
 // the leaf emits the matching wire shape on commit. This is the
 // fourth panel exercising the §9 ≥2-panels rule for the
@@ -16,19 +16,19 @@
 // Reads:  `documentCollection:swatches`
 // Writes: `selectionProperty:frameFillColor` (ColorRef payload)
 
-import type { CompositionNode } from "@verso/catalog";
+import type { CompositionNode } from "@paged-media/catalog";
 import {
-  VERSO_INPUT_COLLECTION_SELECT,
-  VERSO_LAYOUT_SECTION,
-} from "@verso/shell";
+  PAGED_INPUT_COLLECTION_SELECT,
+  PAGED_LAYOUT_SECTION,
+} from "@paged-media/shell";
 
 export const swatchesComposition: CompositionNode = {
-  catalogId: VERSO_LAYOUT_SECTION,
+  catalogId: PAGED_LAYOUT_SECTION,
   props: { title: "Swatches" },
   bindings: {},
   children: [
     {
-      catalogId: VERSO_INPUT_COLLECTION_SELECT,
+      catalogId: PAGED_INPUT_COLLECTION_SELECT,
       props: {
         label: "Fill",
         collectionName: "swatches",

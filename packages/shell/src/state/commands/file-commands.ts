@@ -3,10 +3,10 @@
 // contribution so there's a single load path.
 
 import { loadDocumentFile } from "../document-loader";
-import type { VersoEditor } from "../verso-editor";
+import type { PagedEditor } from "../paged-editor";
 import type { CommandContribution } from "../../registries";
 
-export const VERSO_FILE_OPEN_IDML = "verso.file.openIdml";
+export const PAGED_FILE_OPEN_IDML = "paged.file.openIdml";
 
 /**
  * Build the file-open command contribution. The `pickFile` thunk
@@ -21,11 +21,11 @@ export function buildOpenIdmlCommand(options: {
   pushWarning: (w: string) => void;
 }): CommandContribution {
   return {
-    id: VERSO_FILE_OPEN_IDML,
+    id: PAGED_FILE_OPEN_IDML,
     title: "Open IDML…",
     category: "File",
-    handler: async (verso) => {
-      const editor = verso as VersoEditor;
+    handler: async (paged) => {
+      const editor = paged as PagedEditor;
       const file = await options.pickFile();
       if (!file) return;
       await loadDocumentFile(editor.client, file, {

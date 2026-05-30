@@ -4,27 +4,27 @@
 // v1 ships fill picking + fill-tint scrub. Per
 // `panel-catalog-and-sdk-extension.md` §6 Tier 2b. Future v2:
 // CMYK / RGB channel sliders (would land as a new
-// `verso.input.color-channel-sliders` primitive once we have a
+// `paged.input.color-channel-sliders` primitive once we have a
 // resolved-rgb side channel and a matching apply path).
 //
 // Reads:  `selectionProperty:frameFillColor` +
 //         `selectionProperty:frameFillTint`
 // Writes: same.
 
-import type { CompositionNode } from "@verso/catalog";
+import type { CompositionNode } from "@paged-media/catalog";
 import {
-  VERSO_INPUT_COLLECTION_SELECT,
-  VERSO_INPUT_NUMERIC_SCRUB,
-  VERSO_LAYOUT_SECTION,
-} from "@verso/shell";
+  PAGED_INPUT_COLLECTION_SELECT,
+  PAGED_INPUT_NUMERIC_SCRUB,
+  PAGED_LAYOUT_SECTION,
+} from "@paged-media/shell";
 
 export const colorComposition: CompositionNode = {
-  catalogId: VERSO_LAYOUT_SECTION,
+  catalogId: PAGED_LAYOUT_SECTION,
   props: { title: "Color" },
   bindings: {},
   children: [
     {
-      catalogId: VERSO_INPUT_COLLECTION_SELECT,
+      catalogId: PAGED_INPUT_COLLECTION_SELECT,
       props: {
         label: "Fill",
         collectionName: "swatches",
@@ -39,7 +39,7 @@ export const colorComposition: CompositionNode = {
       },
     },
     {
-      catalogId: VERSO_INPUT_NUMERIC_SCRUB,
+      catalogId: PAGED_INPUT_NUMERIC_SCRUB,
       props: { label: "Tint" },
       bindings: {
         value: {

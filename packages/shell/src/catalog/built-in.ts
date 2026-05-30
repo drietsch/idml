@@ -3,7 +3,7 @@
 // Adds the primitive leaves to a `CatalogRegistry`. Apps call
 // `registerBuiltInCatalogEntries(registry)` once at startup.
 
-import type { CatalogEntry, CatalogRegistry } from "@verso/catalog";
+import type { CatalogEntry, CatalogRegistry } from "@paged-media/catalog";
 
 import {
   BoundsLeaf,
@@ -17,14 +17,14 @@ import {
 } from "./leaves";
 
 /** Stable catalog ids the rest of the codebase references. */
-export const VERSO_INPUT_LENGTH = "verso.input.length";
-export const VERSO_INPUT_COLOR_SWATCH = "verso.input.color-swatch";
-export const VERSO_INPUT_NUMERIC_SCRUB = "verso.input.numeric-scrub";
-export const VERSO_INPUT_BOUNDS = "verso.input.bounds";
-export const VERSO_INPUT_COLLECTION_SELECT = "verso.input.collection-select";
-export const VERSO_INPUT_TOGGLE_GROUP = "verso.input.toggle-group";
-export const VERSO_LAYOUT_SECTION = "verso.layout.section";
-export const VERSO_LABEL = "verso.label";
+export const PAGED_INPUT_LENGTH = "paged.input.length";
+export const PAGED_INPUT_COLOR_SWATCH = "paged.input.color-swatch";
+export const PAGED_INPUT_NUMERIC_SCRUB = "paged.input.numeric-scrub";
+export const PAGED_INPUT_BOUNDS = "paged.input.bounds";
+export const PAGED_INPUT_COLLECTION_SELECT = "paged.input.collection-select";
+export const PAGED_INPUT_TOGGLE_GROUP = "paged.input.toggle-group";
+export const PAGED_LAYOUT_SECTION = "paged.layout.section";
+export const PAGED_LABEL = "paged.label";
 
 // Leaf binding declarations describe the leaf's *write surface* —
 // the audit-only declaration that this primitive emits a typed
@@ -38,7 +38,7 @@ export const VERSO_LABEL = "verso.label";
 
 const ENTRIES: CatalogEntry[] = [
   {
-    id: VERSO_INPUT_LENGTH,
+    id: PAGED_INPUT_LENGTH,
     kind: "leaf",
     props: { label: "string" },
     bindings: {
@@ -48,7 +48,7 @@ const ENTRIES: CatalogEntry[] = [
     leaf: LengthLeaf,
   },
   {
-    id: VERSO_INPUT_COLOR_SWATCH,
+    id: PAGED_INPUT_COLOR_SWATCH,
     kind: "leaf",
     props: { label: "string" },
     bindings: {
@@ -58,7 +58,7 @@ const ENTRIES: CatalogEntry[] = [
     leaf: ColorSwatchLeaf,
   },
   {
-    id: VERSO_INPUT_NUMERIC_SCRUB,
+    id: PAGED_INPUT_NUMERIC_SCRUB,
     kind: "leaf",
     props: { label: "string" },
     bindings: {
@@ -68,7 +68,7 @@ const ENTRIES: CatalogEntry[] = [
     leaf: NumericScrubLeaf,
   },
   {
-    id: VERSO_INPUT_BOUNDS,
+    id: PAGED_INPUT_BOUNDS,
     kind: "leaf",
     props: { label: "string" },
     bindings: {
@@ -89,7 +89,7 @@ const ENTRIES: CatalogEntry[] = [
     // `selectionProperty:*` — the composition binds the leaf's
     // `value` to whichever applied-entity path (e.g.
     // `appliedParagraphStyle`).
-    id: VERSO_INPUT_COLLECTION_SELECT,
+    id: PAGED_INPUT_COLLECTION_SELECT,
     kind: "leaf",
     props: { label: "string", collectionName: "string" },
     bindings: {
@@ -105,7 +105,7 @@ const ENTRIES: CatalogEntry[] = [
     // `panel-catalog-and-sdk-extension.md` §9. First users in
     // v1: Paragraph alignment (justification) + Stroke end-cap
     // (≥2 panels rule).
-    id: VERSO_INPUT_TOGGLE_GROUP,
+    id: PAGED_INPUT_TOGGLE_GROUP,
     kind: "leaf",
     props: { label: "string", options: "JsonValue" },
     bindings: {
@@ -115,14 +115,14 @@ const ENTRIES: CatalogEntry[] = [
     leaf: ToggleGroupLeaf,
   },
   {
-    id: VERSO_LAYOUT_SECTION,
+    id: PAGED_LAYOUT_SECTION,
     kind: "leaf", // layout-only leaf; children come from the composition node
     props: { title: "string" },
     bindings: { reads: [], writes: [] },
     leaf: LayoutSectionLeaf,
   },
   {
-    id: VERSO_LABEL,
+    id: PAGED_LABEL,
     kind: "leaf",
     props: { text: "string" },
     bindings: { reads: [], writes: [] },

@@ -5,7 +5,7 @@
 // messages and awaits typed replies; the protocol envelope shape
 // stays internal.
 //
-// SDK Phase 1 — this lives in `@verso/client`, framework-agnostic.
+// SDK Phase 1 — this lives in `@paged-media/client`, framework-agnostic.
 // No React imports. The worker URL is injected by the consumer
 // (the canvas app constructs it via `new URL("./worker/worker.ts",
 // import.meta.url)`) because `import.meta.url` here would resolve
@@ -52,7 +52,7 @@ type PendingReply = (msg: WorkerToMain) => void;
  * `new URL("./worker/worker.ts", import.meta.url)` so the resolution
  * happens in the *app's* module graph. Bundlers (Vite) walk these
  * URL constructors statically and emit the worker chunk; resolving
- * the URL here in `@verso/client` would point at a path inside the
+ * the URL here in `@paged-media/client` would point at a path inside the
  * package that doesn't have the worker code.
  */
 export interface CanvasClientOptions {
@@ -281,7 +281,7 @@ export class CanvasClient {
 
   /**
    * SDK Phase 5 (D1) — typed read of any document collection per
-   * `docs/verso/panel-catalog-and-sdk-extension.md` §5.1. Generic
+   * `docs/paged/panel-catalog-and-sdk-extension.md` §5.1. Generic
    * over the consumer's expected summary shape — e.g.
    * `client.collection<SwatchSummary>("swatches")` or
    * `client.collection<ParagraphStyleSummary>("paragraphStyles")`.
@@ -311,7 +311,7 @@ export class CanvasClient {
 
   /**
    * SDK Phase 5 (D1) — singleton document-meta snapshot per
-   * `docs/verso/panel-catalog-and-sdk-extension.md` §5.6. The
+   * `docs/paged/panel-catalog-and-sdk-extension.md` §5.6. The
    * `documentMeta:<key>` ReadSpec form binds against fields of
    * this object. Re-fetch on `mutationApplied` / `undoApplied` /
    * `redoApplied` to keep the panel reactive — same snapshot-
@@ -370,7 +370,7 @@ export class CanvasClient {
 
   /**
    * Scripting Stage 2 — run JS source against the loaded document.
-   * The Verso JS API (verso.set / get / inspect / undo / redo,
+   * The Paged JS API (paged.set / get / inspect / undo / redo,
    * frame Proxy, console.*) is available to the script; every
    * mutation routes through the standard Operation channel, so
    * undo/redo + the inspector + the canvas re-render all work

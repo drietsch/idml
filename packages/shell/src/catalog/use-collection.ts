@@ -17,7 +17,7 @@
 // Same convention `useBindings` follows.
 
 import { useEffect, useState } from "react";
-import type { CollectionName, DocumentMeta } from "@verso/client";
+import type { CollectionName, DocumentMeta } from "@paged-media/client";
 
 import { useCanvasClient } from "../state/canvas-client-context";
 
@@ -28,7 +28,7 @@ import { useCanvasClient } from "../state/canvas-client-context";
  * The cast to `T[]` is the deliberate boundary where the caller
  * commits to a typed `*Summary` shape — the wire-format
  * `CollectionReply.items` is `any` so one envelope serves every
- * collection. Use the matching summary type from `@verso/client`
+ * collection. Use the matching summary type from `@paged-media/client`
  * (e.g. `SwatchSummary`, `ParagraphStyleSummary`,
  * `CharacterStyleSummary`, `GradientSummary`, `LayerSummary`,
  * `StorySummary`).

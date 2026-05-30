@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 // eslint-disable-next-line import/no-relative-parent-imports
-import type { ElementGeometryItem } from "@verso/client";
+import type { ElementGeometryItem } from "@paged-media/client";
 
 import type { OverlayContribution, OverlayProps } from "../registries/overlay";
 import { useSelection } from "../state/selection-context";
@@ -136,7 +136,7 @@ export function unionAabb(
 }
 
 export const selectionChromeContribution: OverlayContribution = {
-  id: "verso.selection-chrome",
+  id: "paged.selection-chrome",
   render: SelectionChromeRender,
   z: 200,
 };

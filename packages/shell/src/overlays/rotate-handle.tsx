@@ -1,5 +1,5 @@
 // eslint-disable-next-line import/no-relative-parent-imports
-import type { ElementGeometryItem } from "@verso/client";
+import type { ElementGeometryItem } from "@paged-media/client";
 
 import type { OverlayContribution, OverlayProps } from "../registries/overlay";
 import { useSelection } from "../state/selection-context";
@@ -116,7 +116,7 @@ function renderTether(
 }
 
 export const rotateHandleContribution: OverlayContribution = {
-  id: "verso.rotate-handle",
+  id: "paged.rotate-handle",
   render: RotateHandleRender,
   z: 310,
 };

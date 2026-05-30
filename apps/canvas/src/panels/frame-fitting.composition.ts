@@ -12,20 +12,20 @@
 //         `selectionProperty:frameFittingType`
 // Writes: same.
 
-import type { CompositionNode } from "@verso/catalog";
+import type { CompositionNode } from "@paged-media/catalog";
 import {
-  VERSO_INPUT_BOUNDS,
-  VERSO_INPUT_TOGGLE_GROUP,
-  VERSO_LAYOUT_SECTION,
-} from "@verso/shell";
+  PAGED_INPUT_BOUNDS,
+  PAGED_INPUT_TOGGLE_GROUP,
+  PAGED_LAYOUT_SECTION,
+} from "@paged-media/shell";
 
 export const frameFittingComposition: CompositionNode = {
-  catalogId: VERSO_LAYOUT_SECTION,
+  catalogId: PAGED_LAYOUT_SECTION,
   props: { title: "Frame Fitting" },
   bindings: {},
   children: [
     {
-      catalogId: VERSO_INPUT_TOGGLE_GROUP,
+      catalogId: PAGED_INPUT_TOGGLE_GROUP,
       props: {
         label: "Fit",
         options: [
@@ -44,7 +44,7 @@ export const frameFittingComposition: CompositionNode = {
       },
     },
     {
-      catalogId: VERSO_INPUT_BOUNDS,
+      catalogId: PAGED_INPUT_BOUNDS,
       props: { label: "Crops (pt)" },
       bindings: {
         value: {

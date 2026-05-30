@@ -6,10 +6,10 @@
 // bindings — declarative, no code) or a **leaf** (a hand-written
 // React component that still declares its bindings).
 //
-// See docs/verso/sdk-implementation-plan.md §3a + sdk.md §6 for
+// See docs/paged/sdk-implementation-plan.md §3a + sdk.md §6 for
 // the full rationale; this file is the type-level translation.
 
-import type { PropertyPath, Value } from "@verso/client";
+import type { PropertyPath, Value } from "@paged-media/client";
 import type { ComponentType } from "react";
 
 // ---------------------------------------------------------------- bindings
@@ -138,8 +138,8 @@ export type ReadSpec =
  *
  * `"geometry"` and `"collection"` are AUDIT-ONLY tags: an expert
  * leaf's `*.bindings.ts` declares them when its commits go through
- * `verso.mutate(Operation::AlignObjects{…})` (geometry) or
- * `verso.mutate(Operation::CreateSwatch{…})` (collection
+ * `paged.mutate(Operation::AlignObjects{…})` (geometry) or
+ * `paged.mutate(Operation::CreateSwatch{…})` (collection
  * mutation). A composition cannot emit them — only expert leaves —
  * and a lint follow-up enforces that every panel declaring these
  * is an expert leaf with a `.bindings.ts` sibling.
@@ -208,7 +208,7 @@ export interface LeafProps {
 /**
  * A node in a composition tree. References a catalog entry by id;
  * supplies props (literal) + bindings (looked up against the
- * `verso` handle at render time); children are nested nodes.
+ * `paged` handle at render time); children are nested nodes.
  */
 export interface CompositionNode {
   catalogId: string;

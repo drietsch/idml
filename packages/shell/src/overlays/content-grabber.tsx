@@ -48,7 +48,7 @@ function ContentGrabberRender(props: OverlayProps) {
 }
 
 export const contentGrabberContribution: OverlayContribution = {
-  id: "verso.content-grabber",
+  id: "paged.content-grabber",
   render: ContentGrabberRender,
   z: 320,
 };

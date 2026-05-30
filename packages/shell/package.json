@@ -1,5 +1,5 @@
 {
-  "name": "@verso/shell",
+  "name": "@paged-media/shell",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -21,9 +21,9 @@
     "react-dom": "^18.3.0"
   },
   "dependencies": {
-    "@verso/catalog": "workspace:*",
-    "@verso/client": "workspace:*",
-    "@verso/ui": "workspace:*",
+    "@paged-media/catalog": "workspace:*",
+    "@paged-media/client": "workspace:*",
+    "@paged-media/ui": "workspace:*",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
     "@radix-ui/react-popover": "^1.1.15",

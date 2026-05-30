@@ -60,7 +60,7 @@ function HitMarkerRender(props: OverlayProps) {
 }
 
 export const hitMarkerContribution: OverlayContribution = {
-  id: "verso.hit-marker",
+  id: "paged.hit-marker",
   render: HitMarkerRender,
   z: 100,
 };

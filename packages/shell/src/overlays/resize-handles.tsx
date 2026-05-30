@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import type {
   ElementGeometryItem,
   ResizeHandle,
-} from "@verso/client";
+} from "@paged-media/client";
 
 import type { OverlayContribution, OverlayProps } from "../registries/overlay";
 import { useSelection } from "../state/selection-context";
@@ -155,7 +155,7 @@ function renderHandle(
 }
 
 export const resizeHandlesContribution: OverlayContribution = {
-  id: "verso.resize-handles",
+  id: "paged.resize-handles",
   render: ResizeHandlesRender,
   z: 300,
 };

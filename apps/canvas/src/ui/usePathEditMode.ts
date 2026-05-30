@@ -25,7 +25,7 @@
 
 import { useEffect } from "react";
 
-import { elementSupportsPathEdit, useCanvasClient, useSelection } from "@verso/shell";
+import { elementSupportsPathEdit, useCanvasClient, useSelection } from "@paged-media/shell";
 
 export function usePathEditMode() {
   const {

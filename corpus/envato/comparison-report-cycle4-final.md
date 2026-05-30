@@ -2,7 +2,7 @@
 
 Snapshot at cycle-4 end (`e15f9a9` — Track 5 Q-07 closeout). Baseline
 reference is cycle-3 final (`f83cf8c`). Plan companion:
-[`docs/verso/cycle-4-plan.md`](../../docs/verso/cycle-4-plan.md).
+[`docs/paged/cycle-4-plan.md`](../../docs/paged/cycle-4-plan.md).
 
 ## Headline
 

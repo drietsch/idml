@@ -49,7 +49,7 @@ test.describe("Phase 4 — menu via commands", () => {
     page,
   }) => {
     // Open View menu, click Fit Document. The handler invokes
-    // `commands.invoke("verso.view.zoomFit")` which queues a camera
+    // `commands.invoke("paged.view.zoomFit")` which queues a camera
     // animation; we don't observe the camera state here (it's not
     // exposed through __canvas) — the assertion is just that the
     // click doesn't throw and the menu closes.
@@ -70,7 +70,7 @@ test.describe("Phase 4 — menu via commands", () => {
   test("AC-MENU-5 — File menu lists 'Open IDML…' (registered by the shell, not the app)", async ({
     page,
   }) => {
-    // The shell registers `verso.file.openIdml`; the app's menu
+    // The shell registers `paged.file.openIdml`; the app's menu
     // projection maps it onto File/Open IDML…. This confirms the
     // convergence — same command id, different consumer surface.
     await page.locator('nav[aria-label="Main menu"]').getByRole("button", { name: "File" }).click();

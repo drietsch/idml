@@ -4,8 +4,8 @@
 // with the same wire-shape-only caveat for the apply path
 // (AppliedTableStyle is reserved for Tier 2d / v2).
 
-import { useCollection } from "@verso/shell";
-import type { TableStyleSummary } from "@verso/client";
+import { useCollection } from "@paged-media/shell";
+import type { TableStyleSummary } from "@paged-media/client";
 
 export function TableStylesPanel() {
   const items = useCollection<TableStyleSummary>("tableStyles");

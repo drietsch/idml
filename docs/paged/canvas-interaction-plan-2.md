@@ -1,7 +1,7 @@
 # Canvas Interaction Plan — Part 2 (post-H deferred work)
 
 *Follow-up to `canvas-interaction-plan.md` and the Phase A–H landings
-(`docs/verso/` history). Phases A–H shipped the gesture spine
+(`docs/paged/` history). Phases A–H shipped the gesture spine
 (selection, marquee, oriented hit-testing, translate, resize, rotate,
 scale, snap, multi-select union handles, image content gestures,
 Alt-duplicate, vector path-point editing at the Rust/mutate layer) +
@@ -477,7 +477,7 @@ it with a "modal active group" application state:
 **Goal:** a panel that lists every `<Layer>` from the IDML, exposes
 visibility / lock / printable toggles, supports renaming and
 reordering, and lets the user move items between layers. This is
-the missing **write** side of Phase A's `verso.layers` read-side
+the missing **write** side of Phase A's `paged.layers` read-side
 gating.
 
 ### 7.1 New operations
@@ -750,7 +750,7 @@ A pragmatic order, low → high risk:
 - [ ] **N.5 Cursor affordances.** Wraps up Phase H.2 + adds the
       Cmd-hover state. ~2 days.
 - [ ] **Track M.** Layers panel. Long-tail but unblocks
-      `verso.layers`. ~2 weeks.
+      `paged.layers`. ~2 weeks.
 - [ ] **Track J.** Path topology ops. Math-heavy. ~1.5 weeks.
 - [ ] **Track L.** Group transform. Touches multiple files + UX
       shift in AC-L-1. ~2 weeks.

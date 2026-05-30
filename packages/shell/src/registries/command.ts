@@ -4,7 +4,7 @@ import type { Disposable, VisibilityPredicate } from "./types";
  * Canonical action primitive. Every menu item, every keybinding,
  * every command-palette entry resolves to a command. The handler
  * receives the editor handle (and an optional payload for
- * parameterised commands like `verso.page.goto`).
+ * parameterised commands like `paged.page.goto`).
  */
 export interface CommandContribution {
   id: string;
@@ -15,7 +15,7 @@ export interface CommandContribution {
    * implementations can surface a result through the registry's
    * `invoke` (bundles use this for the round-trip RPC). Most
    * shell-internal commands return nothing. */
-  handler: (verso: unknown, payload?: unknown) => unknown | Promise<unknown>;
+  handler: (paged: unknown, payload?: unknown) => unknown | Promise<unknown>;
   /** Optional enablement predicate. Disabled commands appear greyed. */
   when?: VisibilityPredicate;
 }
@@ -30,7 +30,7 @@ export interface CommandRegistry {
 
 /**
  * Backing for `invoke`: callers expect the registered handler to
- * run against the current `VersoEditor`. The registry holds a thunk
+ * run against the current `PagedEditor`. The registry holds a thunk
  * provided at construction so the shell can rebind the editor
  * reference without recreating the registry.
  */

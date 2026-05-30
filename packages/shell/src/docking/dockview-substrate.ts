@@ -1,5 +1,5 @@
 // THE ONLY FILE that imports from dockview-react. Everything else
-// in @verso/shell, every consuming app, and every third-party
+// in @paged-media/shell, every consuming app, and every third-party
 // bundle interacts with the abstract `DockingSubstrate`. Keep
 // this discipline absolute — a single leak and the substrate seam
 // no longer protects swappability.
@@ -177,7 +177,7 @@ export class DockviewSubstrate implements DockingSubstrate {
 }
 
 /**
- * Translate `@verso/shell`'s ergonomic `DockEdge` into the
+ * Translate `@paged-media/shell`'s ergonomic `DockEdge` into the
  * direction string dockview-react accepts on `addPanel` /
  * `addGroup`. `top` → `above`, `bottom` → `below`; `center` and
  * the other edges pass through (with `center` translating to

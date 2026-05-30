@@ -14,9 +14,9 @@
 // loop — see /Users/drietsch/.claude/plans/...canvas... for the full
 // plan.
 
-import { CameraBuffer, type Camera } from "@verso/client";
+import { CameraBuffer, type Camera } from "@paged-media/client";
 import { layoutPages, type PageRect } from "../ui/layout";
-import type { PageId } from "@verso/client";
+import type { PageId } from "@paged-media/client";
 
 /**
  * Wasm-side bindings the renderer needs. Subset of the

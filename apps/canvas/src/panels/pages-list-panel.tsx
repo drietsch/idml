@@ -7,8 +7,8 @@
 // catalog-bindable list of pages is available to compositions
 // that want a textual outline.
 
-import { useCollection } from "@verso/shell";
-import type { PageSummary } from "@verso/client";
+import { useCollection } from "@paged-media/shell";
+import type { PageSummary } from "@paged-media/client";
 
 export function PagesListPanel() {
   const items = useCollection<PageSummary>("pages");

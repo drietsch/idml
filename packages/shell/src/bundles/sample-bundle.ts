@@ -7,12 +7,12 @@ import type { BundleManifest } from "./manifest";
 
 export function sampleBundleManifest(): BundleManifest {
   return {
-    id: "verso.sample",
-    name: "Verso Sample Bundle",
+    id: "paged.sample",
+    name: "Paged Sample Bundle",
     version: "0.0.0",
     kernel: new URL("./sample-bundle.worker.ts", import.meta.url),
     contributes: {
-      commands: ["verso.sample.hello"],
+      commands: ["paged.sample.hello"],
       keybindings: ["cmd+shift+h"],
       menus: ["Tools/Sample Bundle Hello"],
     },

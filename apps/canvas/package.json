@@ -18,10 +18,10 @@
     "fonts:resolve": "tsx scripts/fonts-resolve.ts"
   },
   "dependencies": {
-    "@verso/catalog": "workspace:*",
-    "@verso/client": "workspace:*",
-    "@verso/shell": "workspace:*",
-    "@verso/ui": "workspace:*",
+    "@paged-media/catalog": "workspace:*",
+    "@paged-media/client": "workspace:*",
+    "@paged-media/shell": "workspace:*",
+    "@paged-media/ui": "workspace:*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

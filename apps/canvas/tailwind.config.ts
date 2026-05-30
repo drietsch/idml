@@ -6,7 +6,7 @@
 // both the canvas-side source and every workspace package whose JSX
 // participates in the rendered tree.
 
-import shellConfig from "@verso/shell/tailwind.config";
+import shellConfig from "@paged-media/shell/tailwind.config";
 import type { Config } from "tailwindcss";
 
 const config: Config = {

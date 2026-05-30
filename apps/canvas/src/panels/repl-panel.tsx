@@ -8,7 +8,7 @@
 
 import { useCallback, useRef, useState } from "react";
 
-import { useCanvasClient } from "@verso/shell";
+import { useCanvasClient } from "@paged-media/shell";
 
 import { parseLine, type ParsedCommand } from "../repl/parser";
 

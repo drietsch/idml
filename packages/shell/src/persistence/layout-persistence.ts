@@ -1,7 +1,7 @@
 // Layout persistence. Two storage scopes:
-// 1. `verso.layout.current` — single snapshot, auto-persisted on
+// 1. `paged.layout.current` — single snapshot, auto-persisted on
 //    every layout change with a 500ms debounce.
-// 2. `verso.layout.perspectives` — JSON map `{name: snapshot}` of
+// 2. `paged.layout.perspectives` — JSON map `{name: snapshot}` of
 //    named perspectives the user has explicitly saved + JSON-
 //    exportable for cross-device portability.
 //
@@ -14,18 +14,18 @@ import type {
 } from "../docking/substrate";
 import type { Disposable } from "../registries/types";
 
-const STORAGE_KEY = "verso.layout.current";
-const PERSPECTIVES_KEY = "verso.layout.perspectives";
+const STORAGE_KEY = "paged.layout.current";
+const PERSPECTIVES_KEY = "paged.layout.perspectives";
 const DEBOUNCE_MS = 500;
 
 /**
  * Custom event fired on `window` whenever the named-perspectives
  * map changes. The shell subscribes to keep auto-generated
- * `verso.perspective.load.<name>` / `delete.<name>` commands in
+ * `paged.perspective.load.<name>` / `delete.<name>` commands in
  * sync. Distinct from the built-in `storage` event because the
  * latter only fires for cross-tab writes.
  */
-export const PERSPECTIVES_CHANGED_EVENT = "verso:perspectives-changed";
+export const PERSPECTIVES_CHANGED_EVENT = "paged:perspectives-changed";
 
 function emitPerspectivesChanged(): void {
   try {
@@ -55,7 +55,7 @@ export function setupLayoutPersistence(
         // Quota exceeded, JSON cycles, etc. Better to log than to
         // crash the whole shell.
         // eslint-disable-next-line no-console
-        console.warn("verso: layout persist failed", err);
+        console.warn("paged: layout persist failed", err);
       }
     }, DEBOUNCE_MS);
   });
@@ -71,7 +71,7 @@ export function setupLayoutPersistence(
 /**
  * Restore a previously-persisted layout, falling back to
  * `defaultLayout()` on missing / malformed data. Schema changes
- * between Verso versions invalidate stored snapshots; the
+ * between Paged versions invalidate stored snapshots; the
  * defensive fallback keeps the shell mountable when that
  * happens.
  */
@@ -89,7 +89,7 @@ export function restoreLayoutOrDefault(
     substrate.restore(snapshot);
   } catch (err) {
     // eslint-disable-next-line no-console
-    console.warn("verso: failed to restore layout, using default", err);
+    console.warn("paged: failed to restore layout, using default", err);
     clearStored();
     defaultLayout();
   }
@@ -137,7 +137,7 @@ function writePerspectives(value: Record<string, LayoutSnapshot>): void {
     emitPerspectivesChanged();
   } catch (err) {
     // eslint-disable-next-line no-console
-    console.warn("verso: perspectives persist failed", err);
+    console.warn("paged: perspectives persist failed", err);
   }
 }
 
@@ -187,7 +187,7 @@ export function importPerspective(name: string, json: string): void {
   };
   if (!parsed || !("snapshot" in parsed) || parsed.snapshot === undefined) {
     throw new Error(
-      "verso: importPerspective expects a JSON object with a `snapshot` field",
+      "paged: importPerspective expects a JSON object with a `snapshot` field",
     );
   }
   savePerspective(name, parsed.snapshot);

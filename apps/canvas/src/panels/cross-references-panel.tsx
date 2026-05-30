@@ -1,7 +1,7 @@
 // SDK Phase 5 (v1 sweep) — Cross References panel.
 
-import { useCollection } from "@verso/shell";
-import type { CrossReferenceSummary } from "@verso/client";
+import { useCollection } from "@paged-media/shell";
+import type { CrossReferenceSummary } from "@paged-media/client";
 
 export function CrossReferencesPanel() {
   const items = useCollection<CrossReferenceSummary>("crossReferences");

@@ -15,7 +15,7 @@ import { useRegistries } from "../state/registries-context";
 /**
  * Module-level event emitter for the palette's open/toggle state.
  * Listeners are the mounted palette components; emitters are
- * registered commands (`verso.palette.toggle`, `…open`, `…close`)
+ * registered commands (`paged.palette.toggle`, `…open`, `…close`)
  * + the keybinding registry that routes Cmd+K through them.
  *
  * Module scope so external command handlers can fire the toggle
@@ -37,7 +37,7 @@ export function notifyPalette(action: PaletteAction): void {
  *
  * The Cmd+K shortcut itself is registered through the
  * KeybindingRegistry (in `built-in-commands.ts`) and dispatches to
- * the `verso.palette.toggle` command, which calls
+ * the `paged.palette.toggle` command, which calls
  * `notifyPalette("toggle")` to flip the local React state.
  */
 export function CommandPalette() {

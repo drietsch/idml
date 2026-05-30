@@ -1,15 +1,15 @@
 // SDK Phase 5 — Paragraph Styles panel acceptance.
 //
 // The panel is now a declarative composition over
-// `VERSO_INPUT_COLLECTION_SELECT` + a content-scope binding to
+// `PAGED_INPUT_COLLECTION_SELECT` + a content-scope binding to
 // `appliedParagraphStyle`. Per
-// `docs/verso/panel-catalog-and-sdk-extension.md` §5.3 + §5.5.
+// `docs/paged/panel-catalog-and-sdk-extension.md` §5.3 + §5.5.
 //
 // AC-PSTYLE-3 is the end-to-end proof that the D1 + D7 wiring
 // (Task B / Task D of the panel-catalog plan) works: clicking a
 // style commits an `Operation::SetProperty {
 // AppliedParagraphStyle, Value::Text(selfId) }`, and a
-// `verso.inspect("storyRange:...")` round-trip confirms the
+// `paged.inspect("storyRange:...")` round-trip confirms the
 // applied style ends up on every paragraph in the range.
 
 import { test, expect } from "@playwright/test";
@@ -107,7 +107,7 @@ test.describe("Phase 5 — Paragraph Styles panel", () => {
 
       // Pick the first story + a non-empty range.
       const stories = await dbg.client
-        .executeScript("verso.stories()")
+        .executeScript("paged.stories()")
         .then((r) => JSON.parse(r.output[0] ?? "[]"));
       if (!stories.length) throw new Error("fixture has no stories");
       const story = stories[0] as {
@@ -135,7 +135,7 @@ test.describe("Phase 5 — Paragraph Styles panel", () => {
       // (the IDML container always emits at least the default
       // "[Basic Paragraph]").
       const styles = await dbg.client
-        .executeScript("verso.paragraphStyles()")
+        .executeScript("paged.paragraphStyles()")
         .then((r) => JSON.parse(r.output[0] ?? "[]"));
       if (!styles.length) throw new Error("fixture has no paragraph styles");
       const target = (styles as Array<{ selfId: string }>)[0];
@@ -147,16 +147,16 @@ test.describe("Phase 5 — Paragraph Styles panel", () => {
       // the string payload (the bug Track A's apply-path-aware
       // js_value_to_wire fixed).
       const setResult = await dbg.client.executeScript(
-        `verso.set("storyRange:${range.storyId}@${range.start}..${range.end}",
+        `paged.set("storyRange:${range.storyId}@${range.start}..${range.end}",
                    "appliedParagraphStyle",
                    ${JSON.stringify(target.selfId)});`,
       );
       if (setResult.error) {
-        throw new Error(`verso.set errored: ${setResult.error}`);
+        throw new Error(`paged.set errored: ${setResult.error}`);
       }
       if (setResult.output[0]?.trim() !== "true") {
         throw new Error(
-          `verso.set returned ${setResult.output[0]}; expected "true"`,
+          `paged.set returned ${setResult.output[0]}; expected "true"`,
         );
       }
       await new Promise((r) => setTimeout(r, 50));
@@ -168,7 +168,7 @@ test.describe("Phase 5 — Paragraph Styles panel", () => {
       // proves the wire end-to-end.
       const inspectJson = await dbg.client
         .executeScript(
-          `verso.inspect("storyRange:${range.storyId}@${range.start}..${range.end}");`,
+          `paged.inspect("storyRange:${range.storyId}@${range.start}..${range.end}");`,
         )
         .then((r) => r.output[0] ?? "");
       const inspect = JSON.parse(inspectJson) as {

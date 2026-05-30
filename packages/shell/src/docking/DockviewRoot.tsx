@@ -12,7 +12,7 @@ import {
 import "dockview-react/dist/styles/dockview.css";
 
 import { useRegistries } from "../state/registries-context";
-import { useVerso } from "../state/verso-editor";
+import { usePaged } from "../state/paged-editor";
 import {
   restoreLayoutOrDefault,
   setupLayoutPersistence,
@@ -28,18 +28,18 @@ import { useSetDockingSubstrate } from "./substrate-context";
  * at render time. Avoids the components-map-capture issue where
  * dockview snapshots the prop at mount and won't pick up later
  * additions. */
-const PANEL_COMPONENT_NAME = "verso-panel";
+const PANEL_COMPONENT_NAME = "paged-panel";
 
 /**
  * Single panel renderer registered with dockview. Looks up the panel
  * id from `params.panelId`, pulls the contribution from the panel
- * registry, and renders its `component` with `{ verso, api }`.
+ * registry, and renders its `component` with `{ paged, api }`.
  *
  * Defined at module scope so the components map passed to
  * `DockviewReact` is referentially stable across renders.
  */
 const PanelRouter: FunctionComponent<IDockviewPanelProps> = (props) => {
-  const verso = useVerso();
+  const paged = usePaged();
   const { panels } = useRegistries();
   const panelId = (props.params as { panelId?: string } | undefined)?.panelId;
   if (!panelId) {
@@ -54,7 +54,7 @@ const PanelRouter: FunctionComponent<IDockviewPanelProps> = (props) => {
     );
   }
   const Component = contribution.component;
-  return <Component verso={verso} api={{ id: panelId }} />;
+  return <Component paged={paged} api={{ id: panelId }} />;
 };
 
 // Stable components map. dockview captures the prop at mount and
@@ -65,9 +65,9 @@ const DOCKVIEW_COMPONENTS = { [PANEL_COMPONENT_NAME]: PanelRouter };
 /**
  * Mounts dockview, builds the substrate on ready, and instantiates
  * the panel bridge. Must be wrapped inside the editor providers
- * (CanvasClientProvider, …, VersoEditorProvider, and notably
- * `DockingSubstrateProvider` — VersoShell mounts the substrate
- * provider above VersoEditorProvider so the editor handle exposes
+ * (CanvasClientProvider, …, PagedEditorProvider, and notably
+ * `DockingSubstrateProvider` — PagedShell mounts the substrate
+ * provider above PagedEditorProvider so the editor handle exposes
  * the live substrate to command handlers).
  */
 export function DockviewRoot({ className }: { className?: string }) {

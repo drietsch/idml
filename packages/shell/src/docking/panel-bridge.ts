@@ -68,7 +68,7 @@ export class PanelBridge {
       // The canvas is the only built-in panel with chromeless tabs.
       // Bundle authors who want this opt in via a future flag on
       // PanelContribution; not exposed today.
-      hideTabHeader: contribution.id === "verso.canvas",
+      hideTabHeader: contribution.id === "paged.canvas",
     });
     this.handles.set(contribution.id, handle);
   }

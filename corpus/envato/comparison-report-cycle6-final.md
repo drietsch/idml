@@ -2,7 +2,7 @@
 
 Snapshot at cycle-6 end (`1ea37a0` — Track 4 deferral findings).
 Baseline reference is cycle-5 final (`5cd2025`). Plan companion:
-[`docs/verso/cycle-6-plan.md`](../../docs/verso/cycle-6-plan.md).
+[`docs/paged/cycle-6-plan.md`](../../docs/paged/cycle-6-plan.md).
 
 ## Headline
 

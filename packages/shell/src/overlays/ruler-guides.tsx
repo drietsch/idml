@@ -63,7 +63,7 @@ function RulerGuidesRender(props: OverlayProps) {
 }
 
 export const rulerGuidesContribution: OverlayContribution = {
-  id: "verso.ruler-guides",
+  id: "paged.ruler-guides",
   render: RulerGuidesRender,
   // Below selection chrome / handles (z 200+) and snap lines (z 400+),
   // above the page decorations (z 50) — a quiet line on the page

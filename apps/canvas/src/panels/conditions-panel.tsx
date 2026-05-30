@@ -5,8 +5,8 @@
 // §6 Tier 1. Per-condition visibility toggle lands when
 // `Operation::SetConditionVisible` ships.
 
-import { useCollection } from "@verso/shell";
-import type { ConditionSummary } from "@verso/client";
+import { useCollection } from "@paged-media/shell";
+import type { ConditionSummary } from "@paged-media/client";
 
 export function ConditionsPanel() {
   const conditions = useCollection<ConditionSummary>("conditions");

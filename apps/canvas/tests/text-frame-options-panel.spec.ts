@@ -46,7 +46,7 @@ test.describe("Phase 5 — Text Frame Options panel", () => {
 
       // Walk the tree for the first TextFrame.
       const treeJson = await dbg.client
-        .executeScript("verso.tree()")
+        .executeScript("paged.tree()")
         .then((r) => r.output[0] ?? "[]");
       type Node = {
         id?: { kind: string; id: string } | null;
@@ -76,7 +76,7 @@ test.describe("Phase 5 — Text Frame Options panel", () => {
       await new Promise((r) => setTimeout(r, 50));
 
       const inspectJson = await dbg.client
-        .executeScript(`verso.inspect(${JSON.stringify(addr)});`)
+        .executeScript(`paged.inspect(${JSON.stringify(addr)});`)
         .then((r) => r.output[0] ?? "");
       const inspect = JSON.parse(inspectJson) as {
         entries: Array<{

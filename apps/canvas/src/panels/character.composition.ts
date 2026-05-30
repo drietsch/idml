@@ -9,21 +9,21 @@
 // Per the plan's binding ceiling (§11.5): literals + selectionProperty
 // refs only — no expressions, no conditionals, no formatters.
 
-import type { CompositionNode } from "@verso/catalog";
+import type { CompositionNode } from "@paged-media/catalog";
 import {
-  VERSO_INPUT_COLOR_SWATCH,
-  VERSO_INPUT_LENGTH,
-  VERSO_INPUT_NUMERIC_SCRUB,
-  VERSO_LAYOUT_SECTION,
-} from "@verso/shell";
+  PAGED_INPUT_COLOR_SWATCH,
+  PAGED_INPUT_LENGTH,
+  PAGED_INPUT_NUMERIC_SCRUB,
+  PAGED_LAYOUT_SECTION,
+} from "@paged-media/shell";
 
 export const characterComposition: CompositionNode = {
-  catalogId: VERSO_LAYOUT_SECTION,
+  catalogId: PAGED_LAYOUT_SECTION,
   props: { title: "Character" },
   bindings: {},
   children: [
     {
-      catalogId: VERSO_INPUT_LENGTH,
+      catalogId: PAGED_INPUT_LENGTH,
       props: { label: "Font size" },
       bindings: {
         value: {
@@ -34,7 +34,7 @@ export const characterComposition: CompositionNode = {
       },
     },
     {
-      catalogId: VERSO_INPUT_LENGTH,
+      catalogId: PAGED_INPUT_LENGTH,
       props: { label: "Leading" },
       bindings: {
         value: {
@@ -45,7 +45,7 @@ export const characterComposition: CompositionNode = {
       },
     },
     {
-      catalogId: VERSO_INPUT_NUMERIC_SCRUB,
+      catalogId: PAGED_INPUT_NUMERIC_SCRUB,
       props: { label: "Tracking" },
       bindings: {
         value: {
@@ -56,7 +56,7 @@ export const characterComposition: CompositionNode = {
       },
     },
     {
-      catalogId: VERSO_INPUT_COLOR_SWATCH,
+      catalogId: PAGED_INPUT_COLOR_SWATCH,
       props: { label: "Fill" },
       bindings: {
         value: {

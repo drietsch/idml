@@ -35,7 +35,7 @@ test.describe("Phase 3 — Character panel (declarative composition)", () => {
     // the right-side group alongside Inspector / Layers.
     await expect(page.locator('[data-character-panel="ready"]')).toBeVisible();
     // The section title comes from the composition's
-    // `verso.layout.section` leaf with props.title = "Character".
+    // `paged.layout.section` leaf with props.title = "Character".
     await expect(
       page.locator('[data-character-panel="ready"] [data-section="Character"]'),
     ).toBeVisible();
@@ -59,7 +59,7 @@ test.describe("Phase 3 — Character panel (declarative composition)", () => {
   test("AC-CHAR-3 — content selection over a real story populates Character fields", async ({
     page,
   }) => {
-    // Use `verso.stories()` to find a valid story id without
+    // Use `paged.stories()` to find a valid story id without
     // hardcoding fixture details. Pick the first story with
     // non-zero characters, then set ContentSelection to [0, min(3, len))
     // — a homogeneous range where every CharacterRun shares font
@@ -81,7 +81,7 @@ test.describe("Phase 3 — Character panel (declarative composition)", () => {
         }
       ).__canvas;
       const result = await c.client.executeScript(
-        `JSON.stringify(JSON.parse(verso.stories())[0] || null)`,
+        `JSON.stringify(JSON.parse(paged.stories())[0] || null)`,
       );
       if (result.error) return null;
       // The script's last-expression value lands in result.output.
@@ -122,7 +122,7 @@ test.describe("Phase 3 — Character panel (declarative composition)", () => {
     // verifies the wire is in place. A richer end-to-end test that
     // populates Character fields needs a public surface listing
     // story ids; that's Phase 3.x scope (the natural addition is a
-    // `verso.stories()` script-side function returning self_id +
+    // `paged.stories()` script-side function returning self_id +
     // first-run offsets so a test can pick a non-trivial range).
     const ok = await page.evaluate(() => {
       const c = (

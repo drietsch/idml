@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
-  VersoShell,
+  PagedShell,
   caretContribution,
   contentGrabberContribution,
   hitMarkerContribution,
@@ -20,10 +20,10 @@ import {
   useRegistries,
   type OverlayContribution,
   type PanelContribution,
-} from "@verso/shell";
-import "@verso/shell/styles/globals.css";
+} from "@paged-media/shell";
+import "@paged-media/shell/styles/globals.css";
 
-import { CanvasClient } from "@verso/client";
+import { CanvasClient } from "@paged-media/client";
 import { APP_KEYBINDINGS, APP_MENU_ITEMS, buildAppCommands } from "./app-commands";
 import { CanvasPanel } from "./panels/canvas-panel";
 import { CharacterPanel } from "./panels/character-panel";
@@ -98,7 +98,7 @@ const BUILT_IN_OVERLAYS: OverlayContribution[] = [
 // loader lands; for now these are the entire panel set.
 const BUILT_IN_PANELS: PanelContribution[] = [
   {
-    id: "verso.canvas",
+    id: "paged.canvas",
     title: "Canvas",
     component: CanvasPanel,
     defaultDock: "center",
@@ -107,7 +107,7 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     movable: false,
   },
   {
-    id: "verso.pages",
+    id: "paged.pages",
     title: "Pages",
     component: NavigatorPanel,
     defaultDock: "left",
@@ -118,7 +118,7 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     // wrapping useSelection's activeTool / setActiveTool pair.
     // Writes application state (`writes: ["selection"]` per the
     // §10 audit register), not document state.
-    id: "verso.tools",
+    id: "paged.tools",
     title: "Tools",
     component: ToolsPanel,
     defaultDock: "left",
@@ -129,7 +129,7 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     // leaf consuming useCollection<LinkSummary>("links"). Per-row
     // relocate / update / break actions land with their
     // Operations.
-    id: "verso.links",
+    id: "paged.links",
     title: "Links",
     component: LinksPanel,
     defaultDock: "left",
@@ -140,56 +140,56 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     // leaf consuming useCollection<ConditionSummary>("conditions").
     // Per-condition visibility toggle lands with
     // `Operation::SetConditionVisible`.
-    id: "verso.conditions",
+    id: "paged.conditions",
     title: "Conditions",
     component: ConditionsPanel,
     defaultDock: "left",
     defaultGroup: "structure",
   },
   {
-    id: "verso.condition-sets",
+    id: "paged.condition-sets",
     title: "Condition Sets",
     component: ConditionSetsPanel,
     defaultDock: "left",
     defaultGroup: "structure",
   },
   {
-    id: "verso.color-groups",
+    id: "paged.color-groups",
     title: "Color Groups",
     component: ColorGroupsPanel,
     defaultDock: "right",
     defaultGroup: "styles",
   },
   {
-    id: "verso.articles",
+    id: "paged.articles",
     title: "Articles",
     component: ArticlesPanel,
     defaultDock: "left",
     defaultGroup: "structure",
   },
   {
-    id: "verso.hyperlinks",
+    id: "paged.hyperlinks",
     title: "Hyperlinks",
     component: HyperlinksPanel,
     defaultDock: "left",
     defaultGroup: "structure",
   },
   {
-    id: "verso.bookmarks",
+    id: "paged.bookmarks",
     title: "Bookmarks",
     component: BookmarksPanel,
     defaultDock: "left",
     defaultGroup: "structure",
   },
   {
-    id: "verso.cross-references",
+    id: "paged.cross-references",
     title: "Cross References",
     component: CrossReferencesPanel,
     defaultDock: "left",
     defaultGroup: "structure",
   },
   {
-    id: "verso.index",
+    id: "paged.index",
     title: "Index",
     component: IndexPanel,
     defaultDock: "left",
@@ -199,42 +199,42 @@ const BUILT_IN_PANELS: PanelContribution[] = [
   // panels. Each is a read-only list backed by the matching
   // documentCollection accessor.
   {
-    id: "verso.pages-list",
+    id: "paged.pages-list",
     title: "Pages (list)",
     component: PagesListPanel,
     defaultDock: "left",
     defaultGroup: "structure",
   },
   {
-    id: "verso.spreads",
+    id: "paged.spreads",
     title: "Spreads",
     component: SpreadsPanel,
     defaultDock: "left",
     defaultGroup: "structure",
   },
   {
-    id: "verso.master-pages",
+    id: "paged.master-pages",
     title: "Master Pages",
     component: MasterPagesPanel,
     defaultDock: "left",
     defaultGroup: "structure",
   },
   {
-    id: "verso.cell-styles",
+    id: "paged.cell-styles",
     title: "Cell Styles",
     component: CellStylesPanel,
     defaultDock: "right",
     defaultGroup: "styles",
   },
   {
-    id: "verso.table-styles",
+    id: "paged.table-styles",
     title: "Table Styles",
     component: TableStylesPanel,
     defaultDock: "right",
     defaultGroup: "styles",
   },
   {
-    id: "verso.fonts",
+    id: "paged.fonts",
     title: "Fonts",
     component: FontsPanel,
     defaultDock: "left",
@@ -245,7 +245,7 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     // selection + each frame's bounds, dispatches N SetProperty
     // mutations to align. v1 limitation: each frame is its own
     // undo entry (wire-level Batch lands as a follow-up).
-    id: "verso.align",
+    id: "paged.align",
     title: "Align",
     component: AlignPanel,
     defaultDock: "right",
@@ -255,28 +255,28 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     // SDK Phase 5 (v1 sweep) — Pathfinder. v1 ships Union via
     // BBox math; Subtract / Intersect / Exclude buttons exist
     // but are disabled (need Bezier CSG, v2).
-    id: "verso.pathfinder",
+    id: "paged.pathfinder",
     title: "Pathfinder",
     component: PathfinderPanel,
     defaultDock: "right",
     defaultGroup: "properties",
   },
   {
-    id: "verso.outline",
+    id: "paged.outline",
     title: "Outline",
     component: OutlinePanel,
     defaultDock: "left",
     defaultGroup: "structure",
   },
   {
-    id: "verso.tree",
+    id: "paged.tree",
     title: "Tree",
     component: TreePanel,
     defaultDock: "left",
     defaultGroup: "structure",
   },
   {
-    id: "verso.inspector",
+    id: "paged.inspector",
     title: "Inspector",
     component: InspectorPanel,
     defaultDock: "right",
@@ -284,11 +284,11 @@ const BUILT_IN_PANELS: PanelContribution[] = [
   },
   {
     // SDK Phase 3 — Character panel rendered as a declarative
-    // composition over `@verso/catalog`. Bindings target content-
+    // composition over `@paged-media/catalog`. Bindings target content-
     // scope (the current text selection mapped to an
     // ElementId.storyRange); the apply arm at
     // (NodeId::StoryRange, Character*) commits each edit.
-    id: "verso.character",
+    id: "paged.character",
     title: "Character",
     component: CharacterPanel,
     defaultDock: "right",
@@ -297,7 +297,7 @@ const BUILT_IN_PANELS: PanelContribution[] = [
   {
     // SDK Phase 3 — Paragraph panel. Content-scope bindings;
     // apply layer rounds the range to whole paragraphs.
-    id: "verso.paragraph",
+    id: "paged.paragraph",
     title: "Paragraph",
     component: ParagraphPanel,
     defaultDock: "right",
@@ -308,7 +308,7 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     // candidate). Reads documentCollection:paragraphStyles;
     // applies via appliedParagraphStyle write. Per the
     // panel-catalog doc §5.3 + §5.5.
-    id: "verso.paragraph-styles",
+    id: "paged.paragraph-styles",
     title: "Paragraph Styles",
     component: ParagraphStylesPanel,
     defaultDock: "right",
@@ -316,11 +316,11 @@ const BUILT_IN_PANELS: PanelContribution[] = [
   },
   {
     // SDK Phase 5 — Character Styles. Direct twin of
-    // Paragraph Styles using the same VERSO_INPUT_COLLECTION_SELECT
+    // Paragraph Styles using the same PAGED_INPUT_COLLECTION_SELECT
     // primitive with collectionName: "characterStyles" + a
     // content-scope binding to appliedCharacterStyle. Validates
     // the §9 ≥2-panels rule for the new primitive.
-    id: "verso.character-styles",
+    id: "paged.character-styles",
     title: "Character Styles",
     component: CharacterStylesPanel,
     defaultDock: "right",
@@ -331,7 +331,7 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     // binding to appliedObjectStyle (uses the apply arm shipped
     // with Track A's Task G). collectionName: "objectStyles"
     // routes through the new model accessor.
-    id: "verso.object-styles",
+    id: "paged.object-styles",
     title: "Object Styles",
     component: ObjectStylesPanel,
     defaultDock: "right",
@@ -340,11 +340,11 @@ const BUILT_IN_PANELS: PanelContribution[] = [
   {
     // SDK Phase 5 (named sweep) — Swatches. Validates the
     // `valueType: "colorRef"` extension to
-    // VERSO_INPUT_COLLECTION_SELECT — same primitive that drives
+    // PAGED_INPUT_COLLECTION_SELECT — same primitive that drives
     // Paragraph / Character / Object Styles, now writing a
     // Value::ColorRef payload. Element-scope binding to
     // frameFillColor.
-    id: "verso.swatches",
+    id: "paged.swatches",
     title: "Swatches",
     component: SwatchesPanel,
     defaultDock: "right",
@@ -355,7 +355,7 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     // + fill tint scrub. Complements Swatches (the palette
     // browser) per `panel-catalog-and-sdk-extension.md` §6
     // Tier 2b. CMYK/RGB sliders are v2.
-    id: "verso.color",
+    id: "paged.color",
     title: "Color",
     component: ColorPanel,
     defaultDock: "right",
@@ -367,7 +367,7 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     // and swatches commit through the same FrameFillColor apply
     // arm (Value::ColorRef payload carrying either a Swatch or
     // Gradient self_id).
-    id: "verso.gradients",
+    id: "paged.gradients",
     title: "Gradients",
     component: GradientsPanel,
     defaultDock: "right",
@@ -377,7 +377,7 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     // SDK Phase 3 — Stroke panel as a declarative composition.
     // Element-scope bindings over existing FrameStrokeWeight +
     // FrameStrokeColor apply arms.
-    id: "verso.stroke",
+    id: "paged.stroke",
     title: "Stroke",
     component: StrokePanel,
     defaultDock: "right",
@@ -386,7 +386,7 @@ const BUILT_IN_PANELS: PanelContribution[] = [
   {
     // SDK Phase 3 — Object/Transform panel. Element-scope bindings
     // over FrameBounds + FrameOpacity.
-    id: "verso.object-transform",
+    id: "paged.object-transform",
     title: "Object",
     component: ObjectTransformPanel,
     defaultDock: "right",
@@ -397,7 +397,7 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     // binding to frameInsetSpacing (the [top, left, bottom, right]
     // in pt). Vertical-justify + columns + auto-sizing rows join
     // as their apply arms ship.
-    id: "verso.text-frame-options",
+    id: "paged.text-frame-options",
     title: "Text Frame",
     component: TextFrameOptionsPanel,
     defaultDock: "right",
@@ -408,7 +408,7 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     // to frameTextWrapMode (toggle-group) + frameTextWrapOffsets
     // (bounds). Both share the same Option<TextWrap> backing
     // field — the apply layer preserves the unset half.
-    id: "verso.text-wrap",
+    id: "paged.text-wrap",
     title: "Text Wrap",
     component: TextWrapPanel,
     defaultDock: "right",
@@ -419,7 +419,7 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     // Two rows on the shared Option<FrameFittingOption> field
     // (type toggle-group + crops bounds). Apply arms preserve
     // the unset half.
-    id: "verso.frame-fitting",
+    id: "paged.frame-fitting",
     title: "Frame Fitting",
     component: FrameFittingPanel,
     defaultDock: "right",
@@ -430,14 +430,14 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     // enabled toggle only; the apply layer materialises a default
     // DropShadowSetting on true. Per-field editors (color,
     // offset, blur) land when their PropertyPaths ship.
-    id: "verso.effects",
+    id: "paged.effects",
     title: "Effects",
     component: EffectsPanel,
     defaultDock: "right",
     defaultGroup: "properties",
   },
   {
-    id: "verso.layers",
+    id: "paged.layers",
     title: "Layers",
     component: LayersPanel,
     defaultDock: "right",
@@ -447,7 +447,7 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     // SDK Phase 5 (v1 sweep) — read-only document info. Expert
     // leaf wrapping `useDocumentMeta()`. Per the
     // `panel-catalog-and-sdk-extension.md` §6 Tier 5 + §5.6.
-    id: "verso.info",
+    id: "paged.info",
     title: "Info",
     component: InfoPanel,
     defaultDock: "right",
@@ -457,7 +457,7 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     // SDK Phase 5 (v1 sweep) — Attributes editor. v1 surface
     // is the Nonprinting toggle. Per `panel-catalog-and-sdk-
     // extension.md` §6 Tier 5.
-    id: "verso.attributes",
+    id: "paged.attributes",
     title: "Attributes",
     component: AttributesPanel,
     defaultDock: "right",
@@ -469,7 +469,7 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     // "Properties" idiom. Composes Object Transform + Stroke
     // (element scope) and Character + Paragraph (content scope)
     // conditionally on selection state.
-    id: "verso.properties",
+    id: "paged.properties",
     title: "Properties",
     component: PropertiesPanel,
     defaultDock: "right",
@@ -480,21 +480,21 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     // variant of Properties (same compositions, scrollable row
     // layout). Per `panel-catalog-and-sdk-extension.md` §6
     // Tier 6.
-    id: "verso.control",
+    id: "paged.control",
     title: "Control",
     component: ControlPanel,
     defaultDock: "bottom",
     defaultGroup: "chrome",
   },
   {
-    id: "verso.repl",
+    id: "paged.repl",
     title: "REPL",
     component: ReplPanel,
     defaultDock: "bottom",
     defaultGroup: "console",
   },
   {
-    id: "verso.script-editor",
+    id: "paged.script-editor",
     title: "Script",
     component: ScriptEditorPanel,
     defaultDock: "bottom",
@@ -506,7 +506,7 @@ const BUILT_IN_PANELS: PanelContribution[] = [
  * Canvas-app integration: legacy keyboard + camera + text-editing
  * hooks that read from the shell contexts but key off canvas
  * specifics (page rect math, IDML mutation API). Renders nothing —
- * mounted inside VersoShell as a side-effect-only child.
+ * mounted inside PagedShell as a side-effect-only child.
  */
 function CanvasAppIntegration() {
   const client = useCanvasClient();
@@ -593,13 +593,13 @@ function CanvasAppIntegration() {
 }
 
 /**
- * Root: owns the CanvasClient lifecycle and hands it to VersoShell.
+ * Root: owns the CanvasClient lifecycle and hands it to PagedShell.
  */
 function CanvasAppRoot() {
   const [client, setClient] = useState<CanvasClient | null>(null);
 
   useEffect(() => {
-    // SDK Phase 1 — `@verso/client` is framework-agnostic, so the
+    // SDK Phase 1 — `@paged-media/client` is framework-agnostic, so the
     // worker URL is constructed in the app's module graph (where
     // `import.meta.url` resolves correctly + Vite's static worker
     // chunking can pick it up).
@@ -628,14 +628,14 @@ function CanvasAppRoot() {
   }
 
   return (
-    <VersoShell
+    <PagedShell
       client={client}
       panels={BUILT_IN_PANELS}
       overlays={BUILT_IN_OVERLAYS}
       headerExtras={<ZoomField />}
     >
       <CanvasAppIntegration />
-    </VersoShell>
+    </PagedShell>
   );
 }
 

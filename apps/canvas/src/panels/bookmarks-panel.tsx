@@ -1,7 +1,7 @@
 // SDK Phase 5 (v1 sweep) — Bookmarks panel.
 
-import { useCollection } from "@verso/shell";
-import type { BookmarkSummary } from "@verso/client";
+import { useCollection } from "@paged-media/shell";
+import type { BookmarkSummary } from "@paged-media/client";
 
 export function BookmarksPanel() {
   const items = useCollection<BookmarkSummary>("bookmarks");

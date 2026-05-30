@@ -56,7 +56,7 @@ test.describe("Phase 5 — Effects panel", () => {
       const dbg = (window as unknown as { __canvas?: DebugCanvas }).__canvas;
       if (!dbg?.client) throw new Error("__canvas client not available");
       const treeJson = await dbg.client
-        .executeScript("verso.tree()")
+        .executeScript("paged.tree()")
         .then((r) => r.output[0] ?? "[]");
       type Node = {
         id?: { kind: string; id: string } | null;
@@ -87,7 +87,7 @@ test.describe("Phase 5 — Effects panel", () => {
       await new Promise((r) => setTimeout(r, 30));
 
       const inspectJson = await dbg.client
-        .executeScript(`verso.inspect(${JSON.stringify(addr)});`)
+        .executeScript(`paged.inspect(${JSON.stringify(addr)});`)
         .then((r) => r.output[0] ?? "");
       const inspect = JSON.parse(inspectJson) as {
         entries: Array<{

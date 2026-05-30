@@ -1,7 +1,7 @@
 // SDK Phase 5 — Character Styles panel acceptance.
 //
 // Direct twin of `paragraph-styles-panel.spec.ts`. Validates the
-// §9 "≥2 panels" rule for VERSO_INPUT_COLLECTION_SELECT — the
+// §9 "≥2 panels" rule for PAGED_INPUT_COLLECTION_SELECT — the
 // same primitive driving Paragraph Styles also drives this panel,
 // parameterised by `collectionName` + the bound property path.
 
@@ -63,7 +63,7 @@ test.describe("Phase 5 — Character Styles panel", () => {
       }
 
       const stories = await dbg.client
-        .executeScript("verso.stories()")
+        .executeScript("paged.stories()")
         .then((r) => JSON.parse(r.output[0] ?? "[]"));
       if (!stories.length) throw new Error("fixture has no stories");
       const story = stories[0] as {
@@ -79,7 +79,7 @@ test.describe("Phase 5 — Character Styles panel", () => {
       await new Promise((r) => setTimeout(r, 50));
 
       const stylesJson = await dbg.client
-        .executeScript("verso.characterStyles()")
+        .executeScript("paged.characterStyles()")
         .then((r) => r.output[0] ?? "[]");
       const styles = JSON.parse(stylesJson);
       if (!styles.length) {
@@ -97,26 +97,26 @@ test.describe("Phase 5 — Character Styles panel", () => {
       }
 
       const setResult = await dbg.client.executeScript(
-        `verso.set("storyRange:${range.storyId}@${range.start}..${range.end}",
+        `paged.set("storyRange:${range.storyId}@${range.start}..${range.end}",
                    "appliedCharacterStyle",
                    ${JSON.stringify(target.selfId)});`,
       );
       if (setResult.error) {
-        throw new Error(`verso.set errored: ${setResult.error}`);
+        throw new Error(`paged.set errored: ${setResult.error}`);
       }
-      // verso.set returns the boolean apply-success indicator as the
+      // paged.set returns the boolean apply-success indicator as the
       // script's terminal expression.
       const setOk = setResult.output[0]?.trim();
       if (setOk !== "true") {
         throw new Error(
-          `verso.set returned ${setOk}; target.selfId=${target.selfId}`,
+          `paged.set returned ${setOk}; target.selfId=${target.selfId}`,
         );
       }
       await new Promise((r) => setTimeout(r, 50));
 
       const inspectJson = await dbg.client
         .executeScript(
-          `verso.inspect("storyRange:${range.storyId}@${range.start}..${range.end}");`,
+          `paged.inspect("storyRange:${range.storyId}@${range.start}..${range.end}");`,
         )
         .then((r) => r.output[0] ?? "");
       const inspect = JSON.parse(inspectJson) as {

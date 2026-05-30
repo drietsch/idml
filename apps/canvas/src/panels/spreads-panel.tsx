@@ -4,8 +4,8 @@
 // `panel-catalog-and-sdk-extension.md` §5.1 + §6 Tier 1.
 // `documentCollection:spreads` accessor walks `scene.spreads`.
 
-import { useCollection } from "@verso/shell";
-import type { SpreadSummary } from "@verso/client";
+import { useCollection } from "@paged-media/shell";
+import type { SpreadSummary } from "@paged-media/client";
 
 export function SpreadsPanel() {
   const items = useCollection<SpreadSummary>("spreads");
