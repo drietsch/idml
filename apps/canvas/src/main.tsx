@@ -36,6 +36,7 @@ import { ObjectTransformPanel } from "./panels/object-transform-panel";
 import { SwatchesPanel } from "./panels/swatches-panel";
 import { TextFrameOptionsPanel } from "./panels/text-frame-options-panel";
 import { TextWrapPanel } from "./panels/text-wrap-panel";
+import { ToolsPanel } from "./panels/tools-panel";
 import { ParagraphPanel } from "./panels/paragraph-panel";
 import { ParagraphStylesPanel } from "./panels/paragraph-styles-panel";
 import { StrokePanel } from "./panels/stroke-panel";
@@ -87,6 +88,17 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     id: "verso.pages",
     title: "Pages",
     component: NavigatorPanel,
+    defaultDock: "left",
+    defaultGroup: "structure",
+  },
+  {
+    // SDK Phase 5 (named sweep) — Tools palette. Expert leaf
+    // wrapping useSelection's activeTool / setActiveTool pair.
+    // Writes application state (`writes: ["selection"]` per the
+    // §10 audit register), not document state.
+    id: "verso.tools",
+    title: "Tools",
+    component: ToolsPanel,
     defaultDock: "left",
     defaultGroup: "structure",
   },
