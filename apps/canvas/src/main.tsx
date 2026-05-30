@@ -27,10 +27,15 @@ import { CanvasClient } from "@verso/client";
 import { APP_KEYBINDINGS, APP_MENU_ITEMS, buildAppCommands } from "./app-commands";
 import { CanvasPanel } from "./panels/canvas-panel";
 import { CharacterPanel } from "./panels/character-panel";
+import { ArticlesPanel } from "./panels/articles-panel";
+import { BookmarksPanel } from "./panels/bookmarks-panel";
 import { CharacterStylesPanel } from "./panels/character-styles-panel";
 import { ColorGroupsPanel } from "./panels/color-groups-panel";
 import { ConditionSetsPanel } from "./panels/condition-sets-panel";
 import { ConditionsPanel } from "./panels/conditions-panel";
+import { CrossReferencesPanel } from "./panels/cross-references-panel";
+import { HyperlinksPanel } from "./panels/hyperlinks-panel";
+import { IndexPanel } from "./panels/index-panel";
 import { InfoPanel } from "./panels/info-panel";
 import { LinksPanel } from "./panels/links-panel";
 import { EffectsPanel } from "./panels/effects-panel";
@@ -154,6 +159,41 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     component: ColorGroupsPanel,
     defaultDock: "right",
     defaultGroup: "styles",
+  },
+  {
+    id: "verso.articles",
+    title: "Articles",
+    component: ArticlesPanel,
+    defaultDock: "left",
+    defaultGroup: "structure",
+  },
+  {
+    id: "verso.hyperlinks",
+    title: "Hyperlinks",
+    component: HyperlinksPanel,
+    defaultDock: "left",
+    defaultGroup: "structure",
+  },
+  {
+    id: "verso.bookmarks",
+    title: "Bookmarks",
+    component: BookmarksPanel,
+    defaultDock: "left",
+    defaultGroup: "structure",
+  },
+  {
+    id: "verso.cross-references",
+    title: "Cross References",
+    component: CrossReferencesPanel,
+    defaultDock: "left",
+    defaultGroup: "structure",
+  },
+  {
+    id: "verso.index",
+    title: "Index",
+    component: IndexPanel,
+    defaultDock: "left",
+    defaultGroup: "structure",
   },
   // ── SDK Phase 5 (v1 sweep) — Wave 1 structural-collection
   // panels. Each is a read-only list backed by the matching

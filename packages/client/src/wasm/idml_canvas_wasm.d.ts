@@ -619,6 +619,26 @@ export interface DocumentMeta {
 }
 
 /**
+ * SDK Phase 5 (v1 sweep) — one `<Article>` summary. Backs
+ * `documentCollection:articles`.
+ */
+export interface ArticleSummary {
+    selfId: string;
+    name: string;
+    members: string[];
+}
+
+/**
+ * SDK Phase 5 (v1 sweep) — one `<Bookmark>` summary. Backs
+ * `documentCollection:bookmarks`.
+ */
+export interface BookmarkSummary {
+    selfId: string;
+    name: string;
+    destination: string;
+}
+
+/**
  * SDK Phase 5 (v1 sweep) — one `<ColorGroup>` definition. Backs
  * `documentCollection:colorGroups` per §5.1. A user-defined
  * grouping of `Color` self_ids the document organises its
@@ -667,6 +687,38 @@ export interface ConditionSetSummary {
      * Member Condition self_ids the set wraps.
      */
     conditions: string[];
+}
+
+/**
+ * SDK Phase 5 (v1 sweep) — one `<CrossReferenceSource>` summary.
+ * Backs `documentCollection:crossReferences`.
+ */
+export interface CrossReferenceSummary {
+    selfId: string;
+    name: string;
+    format: string;
+    destination: string;
+}
+
+/**
+ * SDK Phase 5 (v1 sweep) — one `<Hyperlink>` summary. Backs
+ * `documentCollection:hyperlinks`.
+ */
+export interface HyperlinkSummary {
+    selfId: string;
+    name: string;
+    source: string;
+    destination: string;
+}
+
+/**
+ * SDK Phase 5 (v1 sweep) — one `<Topic>` summary. Backs
+ * `documentCollection:indexTopics`.
+ */
+export interface IndexTopicSummary {
+    selfId: string;
+    name: string;
+    sortOrder: string;
 }
 
 /**
