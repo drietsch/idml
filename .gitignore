@@ -43,3 +43,12 @@ corpus/envato/reports/
 .DS_Store
 .vscode/
 .idea/
+
+# Claude Code runtime state (agent worktrees, scheduled-task lock).
+# Each worktree under .claude/worktrees/ is its own git repo; never
+# commit them.
+.claude/
+
+# Playwright artefact dir (traces, screenshots, error-context.md).
+# Regenerated on every test run; never commit.
+test-results/
