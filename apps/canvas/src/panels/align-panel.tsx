@@ -78,7 +78,15 @@ export function AlignPanel() {
       if (right > maxRight) maxRight = right;
     }
 
-    // 3. Compute per-frame target bounds.
+    // 3. Compute per-frame target bounds; collect into one batch.
+    const children: Array<{
+      op: "setElementProperty";
+      args: {
+        elementId: ElementId;
+        path: "frameBounds";
+        value: { type: "bounds"; value: [number, number, number, number] };
+      };
+    }> = [];
     for (const { id, bounds } of entries) {
       const [top, left, bottom, right] = bounds;
       const w = right - left;
@@ -107,22 +115,32 @@ export function AlignPanel() {
       }
       const nBottom = nTop + h;
       const nRight = nLeft + w;
-      // No-op if unchanged — avoid pushing extra undo entries.
+      // No-op if unchanged — keep the batch lean.
       if (
         Math.abs(nTop - top) < 1e-3 &&
         Math.abs(nLeft - left) < 1e-3
       ) {
         continue;
       }
-      await client.mutate({
+      children.push({
         op: "setElementProperty",
         args: {
           elementId: id,
           path: "frameBounds",
-          value: { type: "bounds", value: [nTop, nLeft, nBottom, nRight] },
+          value: {
+            type: "bounds",
+            value: [nTop, nLeft, nBottom, nRight],
+          },
         },
       });
     }
+    if (children.length === 0) return;
+    // 4. Dispatch as a single Mutation::Batch — one undo entry
+    //    coalesces the whole multi-target rewrite.
+    await client.mutate({
+      op: "batch",
+      args: { ops: children },
+    });
   }
 
   return (

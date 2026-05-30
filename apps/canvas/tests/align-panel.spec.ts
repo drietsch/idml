@@ -115,4 +115,110 @@ test.describe("Phase 5 — Align panel", () => {
     expect(aftermath.length).toBe(2);
     expect(Math.abs(aftermath[0] - aftermath[1])).toBeLessThan(0.01);
   });
+
+  test("AC-ALIGN-3 — multi-target align is one undo entry (Mutation::Batch)", async ({
+    page,
+  }) => {
+    const result = await page.evaluate(async () => {
+      type DebugCanvas = {
+        client?: {
+          executeScript(src: string): Promise<{
+            output: string[];
+            error: string | null;
+          }>;
+          elementProperties(id: unknown): Promise<{
+            entries: Array<{
+              path: string;
+              value: { type: string; value: number[] } | null;
+            }>;
+          } | null>;
+          undo(): Promise<unknown>;
+        };
+        setElementSelection?(ids: unknown[], mode: string): void;
+      };
+      const dbg = (window as unknown as { __canvas?: DebugCanvas }).__canvas;
+      if (!dbg?.client) throw new Error("no client");
+      const treeJson = await dbg.client
+        .executeScript("verso.tree()")
+        .then((r) => r.output[0] ?? "[]");
+      type Node = {
+        id?: { kind: string; id: string } | null;
+        children?: Node[];
+      };
+      const ids: Array<{ kind: string; id: string }> = [];
+      const walk = (nodes: Node[] | undefined) => {
+        if (!nodes) return;
+        for (const n of nodes) {
+          if (n.id && n.id.kind === "textFrame") ids.push(n.id);
+          walk(n.children);
+        }
+      };
+      walk(JSON.parse(treeJson) as Node[]);
+      if (ids.length < 2) throw new Error("< 2 TextFrames");
+      const pair = ids.slice(0, 2);
+
+      // Snapshot the originals.
+      const beforeLefts: number[] = [];
+      for (const id of pair) {
+        const props = await dbg.client.elementProperties(id);
+        const v = props?.entries.find((e) => e.path === "frameBounds")
+          ?.value?.value;
+        if (v) beforeLefts.push(v[1]);
+      }
+      dbg.setElementSelection?.(pair, "replace");
+      await new Promise((r) => setTimeout(r, 50));
+      return { pair: JSON.stringify(pair), beforeLefts };
+    });
+
+    // Click Align Left, then ONE undo. Both frames should be back
+    // to their original lefts — proves the multi-frame rewrite
+    // landed as a single undo entry (the wire-level
+    // Mutation::Batch).
+    await page
+      .locator('[data-align-panel="ready"] [data-align-kind="left"]')
+      .click();
+    await page.waitForTimeout(150);
+
+    await page.evaluate(async () => {
+      type DebugCanvas = {
+        client?: {
+          undo(): Promise<unknown>;
+        };
+      };
+      const dbg = (window as unknown as { __canvas?: DebugCanvas }).__canvas;
+      if (!dbg?.client) throw new Error("no client");
+      await dbg.client.undo();
+    });
+    await page.waitForTimeout(150);
+
+    const afterUndo = await page.evaluate(async (pairJson) => {
+      type DebugCanvas = {
+        client?: {
+          elementProperties(id: unknown): Promise<{
+            entries: Array<{
+              path: string;
+              value: { type: string; value: number[] } | null;
+            }>;
+          } | null>;
+        };
+      };
+      const dbg = (window as unknown as { __canvas?: DebugCanvas }).__canvas;
+      if (!dbg?.client) throw new Error("no client");
+      const pair = JSON.parse(pairJson) as Array<{ kind: string; id: string }>;
+      const lefts: number[] = [];
+      for (const id of pair) {
+        const props = await dbg.client.elementProperties(id);
+        const v = props?.entries.find((e) => e.path === "frameBounds")
+          ?.value?.value;
+        if (v) lefts.push(v[1]);
+      }
+      return lefts;
+    }, result.pair);
+
+    expect(afterUndo.length).toBe(2);
+    // Both frames back to their original left edges (within
+    // float tolerance).
+    expect(Math.abs(afterUndo[0] - result.beforeLefts[0])).toBeLessThan(0.01);
+    expect(Math.abs(afterUndo[1] - result.beforeLefts[1])).toBeLessThan(0.01);
+  });
 });
