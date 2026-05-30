@@ -37,6 +37,7 @@ import { GradientsPanel } from "./panels/gradients-panel";
 import { ObjectStylesPanel } from "./panels/object-styles-panel";
 import { ObjectTransformPanel } from "./panels/object-transform-panel";
 import { AlignPanel } from "./panels/align-panel";
+import { AttributesPanel } from "./panels/attributes-panel";
 import { PathfinderPanel } from "./panels/pathfinder-panel";
 import { CellStylesPanel } from "./panels/cell-styles-panel";
 import { ColorPanel } from "./panels/color-panel";
@@ -391,6 +392,16 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     id: "verso.info",
     title: "Info",
     component: InfoPanel,
+    defaultDock: "right",
+    defaultGroup: "inspector",
+  },
+  {
+    // SDK Phase 5 (v1 sweep) — Attributes editor. v1 surface
+    // is the Nonprinting toggle. Per `panel-catalog-and-sdk-
+    // extension.md` §6 Tier 5.
+    id: "verso.attributes",
+    title: "Attributes",
+    component: AttributesPanel,
     defaultDock: "right",
     defaultGroup: "inspector",
   },
