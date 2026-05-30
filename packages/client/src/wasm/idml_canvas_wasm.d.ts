@@ -619,6 +619,27 @@ export interface DocumentMeta {
 }
 
 /**
+ * SDK Phase 5 (v1 sweep) — one `<Condition>` definition. Backs
+ * `documentCollection:conditions` per `panel-catalog-and-sdk-
+ * extension.md` §5.1. The Conditions panel renders this for
+ * inspection; per-condition visibility toggling requires a new
+ * `Operation::SetConditionVisible` that v1 doesn\'t ship yet.
+ */
+export interface ConditionSummary {
+    selfId: string;
+    name: string;
+    /**
+     * Default `true` when the IDML doesn\'t specify (`Visible`
+     * attribute is optional).
+     */
+    visible: boolean;
+    /**
+     * `\"Underline\"` / `\"Highlight\"` / `\"None\"` (or empty).
+     */
+    indicatorMethod: string;
+}
+
+/**
  * SDK Phase 5 (v1 sweep) — one object style\'s summary. Backs
  * `documentCollection:objectStyles` per `panel-catalog-and-sdk-
  * extension.md` §5.1; consumed by the Object Styles panel via

@@ -52,6 +52,7 @@ export type {
   ElementProperties,
   LayerSummary,
   LayoutCacheStats,
+  ConditionSummary,
   LinkSummary,
   ParagraphStyleSummary,
   PropertyEntry,

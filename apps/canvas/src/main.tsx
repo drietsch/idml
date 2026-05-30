@@ -28,6 +28,7 @@ import { APP_KEYBINDINGS, APP_MENU_ITEMS, buildAppCommands } from "./app-command
 import { CanvasPanel } from "./panels/canvas-panel";
 import { CharacterPanel } from "./panels/character-panel";
 import { CharacterStylesPanel } from "./panels/character-styles-panel";
+import { ConditionsPanel } from "./panels/conditions-panel";
 import { InfoPanel } from "./panels/info-panel";
 import { LinksPanel } from "./panels/links-panel";
 import { EffectsPanel } from "./panels/effects-panel";
@@ -112,6 +113,17 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     id: "verso.links",
     title: "Links",
     component: LinksPanel,
+    defaultDock: "left",
+    defaultGroup: "structure",
+  },
+  {
+    // SDK Phase 5 (v1 sweep) — Conditions list. Read-only expert
+    // leaf consuming useCollection<ConditionSummary>("conditions").
+    // Per-condition visibility toggle lands with
+    // `Operation::SetConditionVisible`.
+    id: "verso.conditions",
+    title: "Conditions",
+    component: ConditionsPanel,
     defaultDock: "left",
     defaultGroup: "structure",
   },
