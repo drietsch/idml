@@ -28,9 +28,16 @@ test.describe("Phase 5 — Effects panel", () => {
     await expect(
       page.locator('[data-effects-panel="ready"]'),
     ).toBeVisible();
+    // Multiple em-dash placeholders now (toggle + 6 per-field
+    // editors all render em-dash without a selection). Strict-
+    // mode requires `.first()` here; the count check below pins
+    // that all 7 are present (1 toggle + 6 fields).
+    await expect(
+      page.locator('[data-effects-panel="ready"] [data-mixed]').first(),
+    ).toBeVisible();
     await expect(
       page.locator('[data-effects-panel="ready"] [data-mixed]'),
-    ).toBeVisible();
+    ).toHaveCount(7);
   });
 
   test("AC-EFFECTS-2 — drop-shadow toggle round-trips via the apply layer", async ({
