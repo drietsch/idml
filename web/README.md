@@ -4,12 +4,12 @@ Side-by-side viewer for the IDML renderer:
 
 - **left pane**: the InDesign-exported PDF (rasterised at build time
   via `pdftoppm`).
-- **right pane**: our renderer's PNG output (from `idml-inspect`,
+- **right pane**: our renderer's PNG output (from `paged-inspect`,
   same dpi).
 - **header**: sample picker, page nav, zoom reset, heatmap overlay
   toggle, per-page ΔE / p99 / SSIM metrics from `report.json`.
 - **upload mode**: drop an `.idml` onto the right pane and the
-  browser renders it via the WASM build of `idml-wasm`.
+  browser renders it via the WASM build of `paged-sdk`.
 
 The viewer is a Vite + React + TypeScript app under `web/`.
 
@@ -51,7 +51,7 @@ Two terminals:
 bash web/build-wasm.sh
 
 # 2. Run any sample through the diff harness so the manifest +
-#    cand/ref/heat PNGs land in /tmp/idml-diff and
+#    cand/ref/heat PNGs land in /tmp/paged-diff and
 #    corpus/samples/manifest.json picks up the entry.
 bash corpus/samples/diff.sh Sample-3
 
@@ -68,7 +68,7 @@ fixtures without symlinks:
 | URL prefix    | Maps to                |
 | ------------- | ---------------------- |
 | `/samples/*`  | `../corpus/samples/*`  |
-| `/diff/*`     | `/tmp/idml-diff/*`     |
+| `/diff/*`     | `/tmp/paged-diff/*`     |
 
 ## How to use
 
@@ -81,7 +81,7 @@ fixtures without symlinks:
 - **Heatmap**: tick the box to overlay `heat-NNN.png` over the
   candidate pane at 60% opacity. Only available in corpus mode.
 - **Upload mode**: drag an `.idml` onto the right pane. The
-  browser renders every page through `idml-wasm`. Heatmap + ΔE
+  browser renders every page through `paged-sdk`. Heatmap + ΔE
   metrics disable (no reference for ad-hoc uploads). Click
   "back to corpus" to return.
 
@@ -132,11 +132,11 @@ shows samples that have been run through `diff.sh`. Run
 `bash corpus/samples/diff.sh <name>` first; the script appends to
 `corpus/samples/manifest.json` automatically.
 
-**`/diff/...` returns 404** — `diff.sh` writes to `/tmp/idml-diff`
+**`/diff/...` returns 404** — `diff.sh` writes to `/tmp/paged-diff`
 by default. Make sure you ran the same sample on the same machine
-and that `/tmp/idml-diff/cand-NNN.png` actually exists.
+and that `/tmp/paged-diff/cand-NNN.png` actually exists.
 
 **Upload mode shows a blank candidate pane** — open devtools, look
 at the console. The most common cause is that
-`web/src/wasm/idml_wasm_bg.wasm` is missing (run `bash build-wasm.sh`
+`web/src/wasm/paged_sdk_bg.wasm` is missing (run `bash build-wasm.sh`
 first) or that the version pinning above failed silently.

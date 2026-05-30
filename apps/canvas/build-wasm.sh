@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# apps/canvas/build-wasm.sh — build idml-canvas-wasm for browser use.
+# apps/canvas/build-wasm.sh — build paged-canvas-wasm for browser use.
 #
 # Outputs (in `packages/client/src/wasm/` — the `@paged-media/client`
 # package owns the wasm boundary, so the SDK consumer can be moved
 # without dragging wasm-bindgen paths along):
-#   idml_canvas_wasm.js        ES-module loader
-#   idml_canvas_wasm_bg.wasm   binary
-#   idml_canvas_wasm.d.ts      type definitions (tracked)
+#   paged_canvas_wasm.js        ES-module loader
+#   paged_canvas_wasm_bg.wasm   binary
+#   paged_canvas_wasm.d.ts      type definitions (tracked)
 #
 # Requirements (one-time):
 #   rustup target add wasm32-unknown-unknown
@@ -60,21 +60,21 @@ case "$PROFILE" in
 esac
 
 echo "==> profile: $PROFILE  RUSTFLAGS=\"$RUSTFLAGS_VAL\""
-echo "==> cargo build --release --target wasm32-unknown-unknown -p idml-canvas-wasm --features gpu"
+echo "==> cargo build --release --target wasm32-unknown-unknown -p paged-canvas-wasm --features gpu"
 RUSTFLAGS="$RUSTFLAGS_VAL" \
-  cargo build --release --target wasm32-unknown-unknown -p idml-canvas-wasm --features gpu
+  cargo build --release --target wasm32-unknown-unknown -p paged-canvas-wasm --features gpu
 
-echo "==> wasm-bindgen --target web (idml_canvas_wasm)"
-wasm-bindgen "$TARGET_DIR/idml_canvas_wasm.wasm" --target web --out-dir "$OUT_DIR"
+echo "==> wasm-bindgen --target web (paged_canvas_wasm)"
+wasm-bindgen "$TARGET_DIR/paged_canvas_wasm.wasm" --target web --out-dir "$OUT_DIR"
 
 if command -v wasm-opt >/dev/null; then
-  echo "==> wasm-opt $WASM_OPT_LEVEL (idml_canvas_wasm)"
+  echo "==> wasm-opt $WASM_OPT_LEVEL (paged_canvas_wasm)"
   WASM_OPT_FLAGS=("$WASM_OPT_LEVEL")
   if [ "$PROFILE" = "fast" ]; then
     WASM_OPT_FLAGS+=("--enable-simd")
   fi
-  wasm-opt "${WASM_OPT_FLAGS[@]}" "$OUT_DIR/idml_canvas_wasm_bg.wasm" -o "$OUT_DIR/idml_canvas_wasm_bg.wasm.opt"
-  mv "$OUT_DIR/idml_canvas_wasm_bg.wasm.opt" "$OUT_DIR/idml_canvas_wasm_bg.wasm"
+  wasm-opt "${WASM_OPT_FLAGS[@]}" "$OUT_DIR/paged_canvas_wasm_bg.wasm" -o "$OUT_DIR/paged_canvas_wasm_bg.wasm.opt"
+  mv "$OUT_DIR/paged_canvas_wasm_bg.wasm.opt" "$OUT_DIR/paged_canvas_wasm_bg.wasm"
 else
   echo "note: wasm-opt not found; skipping size/speed pass (install binaryen)"
 fi

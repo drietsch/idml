@@ -13,8 +13,8 @@ export interface SampleEntry {
   report: string;
 }
 
-// One row per page of the per-page report emitted by `idml-diff` /
-// `idml-fidelity`. The diff harness collects these into a JSON array.
+// One row per page of the per-page report emitted by `paged-diff` /
+// `paged-fidelity`. The diff harness collects these into a JSON array.
 export interface PageReport {
   page: number;
   mean_de: number;
@@ -23,7 +23,7 @@ export interface PageReport {
   passes: boolean;
 }
 
-// Shape of `render_report(...)` from idml-wasm.
+// Shape of `render_report(...)` from paged-sdk.
 export interface RenderReport {
   pages: { index: number; width_pt: number; height_pt: number }[];
   stats: {

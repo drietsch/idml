@@ -5,7 +5,7 @@
 // snapshot rasterises the IDML's page (which keeps fractional pt
 // like 595.276 × 841.89). At 144 DPI a 0.5pt difference becomes 1
 // pixel, so the two PNGs come out the same width but one pixel off
-// in height. `idml-diff` insists on identical dimensions, so we pad
+// in height. `paged-diff` insists on identical dimensions, so we pad
 // the smaller image to the bounding box with white before passing
 // the pair through.
 //

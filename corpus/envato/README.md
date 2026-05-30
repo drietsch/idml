@@ -77,7 +77,7 @@ via `osascript`. If you're in a CI container without InDesign, set
 ```
 
 `stage`:
-- `smoke` — render the IDML through `idml-inspect`, diff page-by-page
+- `smoke` — render the IDML through `paged-inspect`, diff page-by-page
   against the InDesign-exported PDF, but never fail the run on
   metrics. Smoke crashes are recorded in `reports/summary.json` and
   only fail the run if `IDML_ENVATO_STRICT_SMOKE=1`.
@@ -98,7 +98,7 @@ differently:
 
 - `fonts.sh` — sourced by `test.sh`. Sets `DEFAULT_FONT` (a path) and
   `FONT_FLAGS` (an array of `--font-family "X=path"` arguments for
-  `idml-inspect`).
+  `paged-inspect`).
 - `fonts.jsx` — `#include`'d by `export-pdf.jsx`. Defines a `SUBS`
   JavaScript object mapping declared family names to InDesign
   postscript names. Required so the InDesign-exported reference PDF

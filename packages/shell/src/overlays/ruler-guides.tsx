@@ -2,7 +2,7 @@
 //
 // Draws every `<Guide>` declared in the loaded IDML as a thin cyan
 // line at its page-local location. The snap pass treats them as
-// targets (see `idml-canvas::snap`), so this overlay is mostly
+// targets (see `paged-canvas::snap`), so this overlay is mostly
 // informational — the visible line tells the user where the
 // invisible snap target sits.
 //

@@ -3,7 +3,7 @@
 //             { type: 'module' })`.
 //
 // Responsibilities:
-//   - Load the `idml-canvas-wasm` bundle.
+//   - Load the `paged-canvas-wasm` bundle.
 //   - Accept the camera SAB and the OffscreenCanvas via side-channel
 //     messages (transferables, outside the typed JSON envelope).
 //   - Run the worker-side render loop (see `./render.ts`).
@@ -98,7 +98,7 @@ let pendingAttach:
 
 /**
  * SAB-contract reconciliation. Rust owns the canonical byte size +
- * offsets + modifier bit masks (see `crates/idml-canvas/src/camera.rs`
+ * offsets + modifier bit masks (see `crates/paged-canvas/src/camera.rs`
  * + `gesture.rs`). The TS-side mirrors live in `@paged-media/client`'s
  * `sab/camera.ts` + `sab/gesture.ts` modules — same values declared
  * inline so they can be used at module-load time (the SAB is
@@ -178,7 +178,7 @@ async function init() {
   // without going through any package barrel — the wasm loader
   // pulls itself in lazily and we don't want anything pre-evaluated.
   const mod = (await import(
-    "../../../../packages/client/src/wasm/idml_canvas_wasm.js"
+    "../../../../packages/client/src/wasm/paged_canvas_wasm.js"
   )) as unknown as CanvasWasmModule;
   await mod.default();
   worker = new mod.CanvasWorker();

@@ -8,7 +8,7 @@
 export { CanvasClient, type CanvasClientOptions } from "./client";
 
 // Wire-format types — re-exports of the tsify-generated types from
-// `crates/idml-canvas/src/channel.rs`. See `./protocol.ts`.
+// `crates/paged-canvas/src/channel.rs`. See `./protocol.ts`.
 export * from "./protocol";
 
 // SAB primitives.

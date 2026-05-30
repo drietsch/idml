@@ -26,7 +26,7 @@ companion: [`docs/paged/cycle-7-plan.md`](../../docs/paged/cycle-7-plan.md).
 
 ### Track 1 — text-letterspacing fixture + self-diff (57e6d71)
 
-`crates/idml-gen/src/samples/text_letterspacing.rs`: a two-page
+`crates/paged-gen/src/samples/text_letterspacing.rs`: a two-page
 A4 fixture, narrow 200pt column, identical real-English body
 text. Page 0 default LS; page 1 carries
 `MinLetterSpacing=-5 / DesiredLetterSpacing=0 / MaxLetterSpacing=25`
@@ -37,7 +37,7 @@ matching newspaper's typical body style.
 `text-letterspacing.breaks.jsonl` snapshot. Fails on any
 wrap-decision shift (byte-range or baseline_y delta > 1e-3pt).
 
-The `idml-gen::Paragraph` struct gained three optional fields
+The `paged-gen::Paragraph` struct gained three optional fields
 (`minimum_letter_spacing` / `desired_letter_spacing` /
 `maximum_letter_spacing`) so future samples can exercise the
 Q-20 path directly. 22 existing call sites updated to None.

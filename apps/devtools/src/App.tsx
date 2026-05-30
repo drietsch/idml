@@ -52,7 +52,7 @@ export function App() {
         client.apply(mutation);
         // Trigger re-fetch of descriptors + re-render of PNG. This is
         // the "live, not snapshot" stand-in for M0; a real subscription
-        // path lands once idml-mutate's Notifier surfaces through the
+        // path lands once paged-mutate's Notifier surfaces through the
         // bridge.
         setRenderEpoch((e) => e + 1);
       } catch (err) {

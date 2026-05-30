@@ -1,5 +1,5 @@
 {
-  "name": "idml-canvas",
+  "name": "paged-canvas",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -12,7 +12,7 @@
     "test:fidelity": "playwright test --config=playwright.config.ts",
     "test:fidelity:capture": "FIDELITY_MODE=capture playwright test --config=playwright.config.ts",
     "test:fidelity:ui": "playwright test --config=playwright.config.ts --ui",
-    "test:fidelity:dashboard": "open ${FIDELITY_OUT:-/tmp/idml-canvas-fidelity}/dashboard.html",
+    "test:fidelity:dashboard": "open ${FIDELITY_OUT:-/tmp/paged-canvas-fidelity}/dashboard.html",
     "test:fidelity:report": "playwright show-report",
     "fonts:list": "tsx scripts/fonts-resolve.ts --list",
     "fonts:resolve": "tsx scripts/fonts-resolve.ts"

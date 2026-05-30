@@ -4,10 +4,10 @@
 # Render a third-party IDML through our pipeline and ΔE-diff every
 # page against the InDesign-exported reference PDF. Outputs:
 #
-#   /tmp/idml-diff/cand-NNN.png    candidate (our render)
-#   /tmp/idml-diff/ref-NNN.png     reference (rasterised PDF)
-#   /tmp/idml-diff/heat-NNN.png    per-page heatmap (only on misses)
-#   /tmp/idml-diff/report.json     machine-readable per-page summary
+#   /tmp/paged-diff/cand-NNN.png    candidate (our render)
+#   /tmp/paged-diff/ref-NNN.png     reference (rasterised PDF)
+#   /tmp/paged-diff/heat-NNN.png    per-page heatmap (only on misses)
+#   /tmp/paged-diff/report.json     machine-readable per-page summary
 #
 # Usage: ./corpus/samples/diff.sh [<idml-name>]
 # Defaults to "sample" → corpus/samples/sample.{idml,pdf}.
@@ -20,7 +20,7 @@ SAMPLE_DIR="$ROOT/corpus/samples"
 GENERATED_DIR="$ROOT/corpus/generated"
 # Resolve the IDML/PDF pair against either the curated samples
 # directory or the generated mega-files directory. Generated samples
-# (emitted by `cargo run -p idml-gen -- emit`) take precedence so a
+# (emitted by `cargo run -p paged-gen -- emit`) take precedence so a
 # generator-produced fixture can shadow a hand-curated one with the
 # same name during development.
 if [ -f "$GENERATED_DIR/$NAME.idml" ]; then
@@ -28,13 +28,13 @@ if [ -f "$GENERATED_DIR/$NAME.idml" ]; then
 fi
 IDML="$SAMPLE_DIR/$NAME.idml"
 PDF="$SAMPLE_DIR/$NAME.pdf"
-OUT="${IDML_DIFF_OUT:-/tmp/idml-diff}"
+OUT="${IDML_DIFF_OUT:-/tmp/paged-diff}"
 DPI="${IDML_DIFF_DPI:-144}"
 FONTS="$ROOT/corpus/fonts"
 
 [ -f "$IDML" ] || { echo "missing $IDML"; exit 1; }
 # A reference PDF is optional — generated samples emitted by
-# `cargo run -p idml-gen` have no InDesign-exported reference yet, so
+# `cargo run -p paged-gen` have no InDesign-exported reference yet, so
 # we still render the IDML and skip the per-page ΔE diff downstream.
 HAVE_PDF=1
 if [ ! -f "$PDF" ]; then
@@ -47,7 +47,7 @@ fi
 
 rm -rf "$OUT" && mkdir -p "$OUT"
 
-echo "==> render IDML through idml-inspect → $OUT"
+echo "==> render IDML through paged-inspect → $OUT"
 # Per-sample optional Links/ folder (e.g. corpus/samples/<name>-Links/)
 # resolved into the renderer; harmless if it doesn't exist.
 LINKS_FLAG=""
@@ -84,7 +84,7 @@ if [ "$SAMPLE_DIR" = "$GENERATED_DIR" ]; then
     PLACEHOLDER_FLAG="--no-missing-image-placeholder"
 fi
 
-(cd "$ROOT" && cargo run -q --release -p idml-renderer --bin idml-inspect -- \
+(cd "$ROOT" && cargo run -q --release -p paged-renderer --bin paged-inspect -- \
     "$IDML" \
     --render "$OUT/cand.png" \
     --default-font "$DEFAULT_FONT" \
@@ -95,8 +95,8 @@ fi
 
 if [ "$HAVE_PDF" -eq 1 ]; then
     # Match pdftoppm's CMYK profile to whatever our renderer uses
-    # (FOGRA39 by default — see crates/idml-renderer/src/bin/inspect.rs's
-    # resolve_cmyk_profile_by_name + crates/idml-color/src/lib.rs).
+    # (FOGRA39 by default — see crates/paged-renderer/src/bin/inspect.rs's
+    # resolve_cmyk_profile_by_name + crates/paged-color/src/lib.rs).
     # Without this, pdftoppm's poppler-baked default is U.S. Web
     # Coated SWOP, which produces ~(35,31,32) sRGB for K=100; our
     # renderer with Adobe FOGRA39 produces ~(29,29,27); the
@@ -111,7 +111,7 @@ if [ "$HAVE_PDF" -eq 1 ]; then
     echo "==> rasterise $PDF via pdftoppm at $DPI dpi"
     pdftoppm "${PDFTOPPM_CMYK_FLAGS[@]}" -r "$DPI" -png "$PDF" "$OUT/ref" >/dev/null
     # pdftoppm uses the smallest sufficient zero-padding (2 digits for
-    # 48 pages). idml-inspect always pads to 3. Normalise both to 3 so
+    # 48 pages). paged-inspect always pads to 3. Normalise both to 3 so
     # the per-page loop below can pair them by integer page number.
     for f in "$OUT"/ref-*.png; do
         base=${f##*/}
@@ -132,8 +132,8 @@ shopt -s nullglob
 
 if [ "$HAVE_PDF" -eq 1 ]; then
     echo "==> per-page ΔE diff"
-    DIFF="$ROOT/target/release/idml-diff"
-    [ -x "$DIFF" ] || (cd "$ROOT" && cargo build -q --release -p idml-fidelity --bin idml-diff)
+    DIFF="$ROOT/target/release/paged-diff"
+    [ -x "$DIFF" ] || (cd "$ROOT" && cargo build -q --release -p paged-fidelity --bin paged-diff)
 
     echo "[" > "$REPORT"
     first=1

@@ -4,11 +4,11 @@
 //   1. Open the canvas app, drop the pack's template.idml.
 //   2. Snapshot every page at PDF-matching width.
 //   3. pdftoppm-rasterise the pack's reference.pdf at the same DPI.
-//   4. idml-diff each (cand, ref) pair → mean ΔE / p99 ΔE / SSIM.
+//   4. paged-diff each (cand, ref) pair → mean ΔE / p99 ΔE / SSIM.
 //   5. Compare against per-pack thresholds (gated) or just log
 //      (smoke / capture mode).
 //
-// Output lives under FIDELITY_OUT (default /tmp/idml-canvas-fidelity).
+// Output lives under FIDELITY_OUT (default /tmp/paged-canvas-fidelity).
 
 import { test, expect } from "@playwright/test";
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";

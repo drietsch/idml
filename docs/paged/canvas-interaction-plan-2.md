@@ -50,7 +50,7 @@ this document.
 - **A** — Element selection + oriented hit-test + marquee + layer
   visibility/locked gating + group descent (hit-test returns leaf +
   `group_chain`).
-- **B** — Gesture spine (`begin/update/commit/cancel`), `idml-mutate`
+- **B** — Gesture spine (`begin/update/commit/cancel`), `paged-mutate`
   bridge, unified `LoggedMutation` undo log, translate via
   `SetProperty{FrameBounds}`.
 - **C** — 8 resize handles, opposite-edge / center-anchor / aspect-
@@ -87,7 +87,7 @@ every track below:
   active group context, marquee rect, in-flight gesture overlay all
   live in app state. Document state changes only via Operations.
 - **One Cmd-Z timeline.** Tracks I/J/K/L/M all log through
-  `idml_mutate::apply` and end up on the unified `LoggedMutation`
+  `paged_mutate::apply` and end up on the unified `LoggedMutation`
   log. No track introduces a parallel mutation path.
 - **Coordinate spaces.** Hit-testing, gesture deltas, and overlay
   handles operate in spread / document pt; viewport conversion is at
@@ -125,7 +125,7 @@ H.5). Mirrors InDesign's Direct Selection / Pen Tool affordance.
   in page-local pt (transformed through `item_transform`) plus the
   flat anchor `index` and per-subpath membership for the overlay's
   rendering (so it can draw the subpath outlines separately).
-- The `Polygon`'s `anchors` already lives in idml-parse; the
+- The `Polygon`'s `anchors` already lives in paged-parse; the
   model-side `path_point_geometry(id)` walks `polygon.anchors`,
   composes with the spread origin + page lookup, returns the
   flat list.
@@ -194,9 +194,9 @@ selected Polygon:
 
 | File | Change |
 |---|---|
-| `crates/idml-canvas/src/channel.rs` | New `RequestPathPoints` + `PathPoints` envelopes; `PathPointGeometry` shape carrying page-local positions + per-subpath spans. |
-| `crates/idml-canvas/src/model.rs` | `path_point_geometry(id) → Vec<PathPointGeometry>`. Walks `Polygon.anchors`, composes with `item_transform`, locates host page, returns page-local positions. |
-| `crates/idml-canvas-wasm/src/lib.rs` | Match arm for `RequestPathPoints`. |
+| `crates/paged-canvas/src/channel.rs` | New `RequestPathPoints` + `PathPoints` envelopes; `PathPointGeometry` shape carrying page-local positions + per-subpath spans. |
+| `crates/paged-canvas/src/model.rs` | `path_point_geometry(id) → Vec<PathPointGeometry>`. Walks `Polygon.anchors`, composes with `item_transform`, locates host page, returns page-local positions. |
+| `crates/paged-canvas-wasm/src/lib.rs` | Match arm for `RequestPathPoints`. |
 | `apps/canvas/src/channel/protocol.ts` | `PathPointGeometry` mirror; new `requestPathPoints` request kind + `pathPoints` reply. |
 | `apps/canvas/src/channel/client.ts` | `pathPointGeometry(id)`. |
 | `apps/canvas/src/ui/CanvasApp.tsx` | `activeTool` adds `'pathEdit'`; `pathEditTargetId` state; tool toggle button. |
@@ -221,7 +221,7 @@ anchor; double-click-on-anchor toggles smooth ↔ corner.
 
 ### 4.1 Operations
 
-Three new `idml_mutate` operations, each on Polygon:
+Three new `paged_mutate` operations, each on Polygon:
 
 - `PropertyPath::PathPointInsert` + `Value::PathPointInsert { index, anchor: PathAnchor }`
   — inserts a new PathPoint at `anchor_index = index`. Inverse:
@@ -276,12 +276,12 @@ commits, not drags:
 
 | File | Change |
 |---|---|
-| `crates/idml-mutate/src/operation.rs` | New `PropertyPath` variants + `Value` variants for insert / remove / toggle. |
-| `crates/idml-mutate/src/apply.rs` | Three new apply arms for `(Polygon, PathPointInsert|Remove|CurveType)`. |
-| `crates/idml-mutate/src/invert.rs` | Inverse paths for the three new ops. |
+| `crates/paged-mutate/src/operation.rs` | New `PropertyPath` variants + `Value` variants for insert / remove / toggle. |
+| `crates/paged-mutate/src/apply.rs` | Three new apply arms for `(Polygon, PathPointInsert|Remove|CurveType)`. |
+| `crates/paged-mutate/src/invert.rs` | Inverse paths for the three new ops. |
 | `apps/canvas/src/ui/Overlay.tsx` | Segment hit zones for insert; selected-anchor highlight for delete. |
 | `apps/canvas/src/ui/ViewportCanvas.tsx` | Path-edit-mode pointer routing for segment clicks, anchor double-clicks, Backspace. |
-| `crates/idml-canvas/tests/path_topology.rs` *(new)* | AC-J-1..5 |
+| `crates/paged-canvas/tests/path_topology.rs` *(new)* | AC-J-1..5 |
 | `apps/canvas/tests/path-topology.spec.ts` *(new)* | UI-level smoke. |
 
 ### 4.5 Effort + risk
@@ -354,9 +354,9 @@ release will land.
 
 | File | Change |
 |---|---|
-| `crates/idml-mutate/src/operation.rs` | `NodeSpec::CloneTranslate` gains `destination_spread_id: Option<String>`. |
-| `crates/idml-mutate/src/apply.rs` | `apply_insert_clone_translate` handles the cross-spread case. |
-| `crates/idml-canvas/src/gesture.rs` | Update / commit resolve the destination spread per the current pointer position. |
+| `crates/paged-mutate/src/operation.rs` | `NodeSpec::CloneTranslate` gains `destination_spread_id: Option<String>`. |
+| `crates/paged-mutate/src/apply.rs` | `apply_insert_clone_translate` handles the cross-spread case. |
+| `crates/paged-canvas/src/gesture.rs` | Update / commit resolve the destination spread per the current pointer position. |
 | `apps/canvas/tests/cross-spread-duplicate.spec.ts` *(new)* | AC-K-1..4 via the dev hooks. |
 
 ### 5.5 Effort + risk
@@ -453,11 +453,11 @@ it with a "modal active group" application state:
 
 | File | Change |
 |---|---|
-| `crates/idml-mutate/src/apply.rs` | New apply arms for `(Group, FrameBounds)`, `(Group, FrameTransform)` that mutate the Group + rebase leaves. |
-| `crates/idml-canvas/src/gesture.rs` | `snapshot_for` handles `ElementId::Group(_)`, capturing both the Group transform and every leaf's transform for the rebase. |
+| `crates/paged-mutate/src/apply.rs` | New apply arms for `(Group, FrameBounds)`, `(Group, FrameTransform)` that mutate the Group + rebase leaves. |
+| `crates/paged-canvas/src/gesture.rs` | `snapshot_for` handles `ElementId::Group(_)`, capturing both the Group transform and every leaf's transform for the rebase. |
 | `apps/canvas/src/ui/CanvasApp.tsx` | `activeGroup` state; double-click handler updates it. |
 | `apps/canvas/src/ui/ViewportCanvas.tsx` | Pointer routing scopes hit-tests to `activeGroup`'s leaves when set. |
-| `crates/idml-canvas/tests/group_transform.rs` *(new)* | AC-L-1..5 |
+| `crates/paged-canvas/tests/group_transform.rs` *(new)* | AC-L-1..5 |
 | `apps/canvas/tests/group-transform.spec.ts` *(new)* | UI-level smoke. |
 
 ### 6.6 Effort + risk
@@ -482,7 +482,7 @@ gating.
 
 ### 7.1 New operations
 
-`idml-mutate`:
+`paged-mutate`:
 
 - `PropertyPath::LayerVisible` + `Value::Toggle(bool)` on
   `NodeId::Layer(self_id)`. Apply mutates
@@ -543,11 +543,11 @@ Each op captures its inverse in the standard way.
 
 | File | Change |
 |---|---|
-| `crates/idml-parse/src/designmap.rs` | `Layer` already has the fields; ensure they're `pub` for mutate access. |
-| `crates/idml-mutate/src/operation.rs` | `NodeId::Layer(String)` variant; new property paths + value variants; `MoveLayer` / `InsertLayer` / `RemoveLayer` ops. |
-| `crates/idml-mutate/src/apply.rs` | Apply arms for each new path / op. |
-| `crates/idml-canvas/src/channel.rs` | `RequestLayers` + `Layers` envelopes; `LayersChanged` notification. |
-| `crates/idml-canvas/src/model.rs` | `layers() → Vec<LayerSummary>` accessor; firing `LayersChanged` after layer-affecting mutations. |
+| `crates/paged-parse/src/designmap.rs` | `Layer` already has the fields; ensure they're `pub` for mutate access. |
+| `crates/paged-mutate/src/operation.rs` | `NodeId::Layer(String)` variant; new property paths + value variants; `MoveLayer` / `InsertLayer` / `RemoveLayer` ops. |
+| `crates/paged-mutate/src/apply.rs` | Apply arms for each new path / op. |
+| `crates/paged-canvas/src/channel.rs` | `RequestLayers` + `Layers` envelopes; `LayersChanged` notification. |
+| `crates/paged-canvas/src/model.rs` | `layers() → Vec<LayerSummary>` accessor; firing `LayersChanged` after layer-affecting mutations. |
 | `apps/canvas/src/ui/LayersPanel.tsx` *(new)* | Panel component. |
 | `apps/canvas/src/ui/CanvasApp.tsx` | Wire panel + subscribe to `LayersChanged`. |
 | `apps/canvas/tests/layers-panel.spec.ts` *(new)* | AC-M-1..7. |
@@ -681,7 +681,7 @@ Resolve before the relevant track starts.
 Same pattern as Phases A–H — Rust unit + integration for the apply
 & gesture math, Playwright for the UI-level flows.
 
-- **Rust unit** (`cargo test -p idml-mutate -p idml-canvas`):
+- **Rust unit** (`cargo test -p paged-mutate -p paged-canvas`):
   - Track I: model-side `path_point_geometry(id)` returns
     correct page-local positions for un-rotated + rotated polygons.
   - Track J: insert / remove / curve-type toggle apply paths;

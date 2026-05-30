@@ -2,9 +2,9 @@
 # web/build-wasm.sh — build the wasm crate for browser use.
 #
 # Outputs:
-#   web/src/wasm/idml_wasm.js        viewer loader (ES module, --target web)
-#   web/src/wasm/idml_wasm_bg.wasm   viewer binary
-#   web/src/wasm/idml_wasm.d.ts      viewer types
+#   web/src/wasm/paged_sdk.js        viewer loader (ES module, --target web)
+#   web/src/wasm/paged_sdk_bg.wasm   viewer binary
+#   web/src/wasm/paged_sdk.d.ts      viewer types
 #
 # Requirements:
 #   * rustup target add wasm32-unknown-unknown   (one-time)
@@ -35,8 +35,8 @@ fi
 mkdir -p "$OUT_DIR"
 
 # Build a single wasm crate, run wasm-bindgen, optionally wasm-opt.
-# $1 = cargo package name (e.g. idml-wasm)
-# $2 = artifact stem (e.g. idml_wasm)
+# $1 = cargo package name (e.g. paged-sdk)
+# $2 = artifact stem (e.g. paged_sdk)
 build_crate() {
     local pkg="$1"
     local stem="$2"
@@ -55,7 +55,7 @@ build_crate() {
 }
 
 # Build the read-only viewer surface.
-build_crate idml-wasm idml_wasm
+build_crate paged-sdk paged_sdk
 
 if ! command -v wasm-opt >/dev/null; then
     echo "note: wasm-opt not found; skipping size pass (install binaryen for ~30% smaller bundles)"

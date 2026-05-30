@@ -46,7 +46,7 @@ alternative is a **self-diff** that compares the current
 candidate's BreakRecords against a snapshot pinned in tree. Catches
 composer regressions during refactors without needing InDesign.
 
-### 1a. Add `text-letterspacing.idml` to `idml-gen`
+### 1a. Add `text-letterspacing.idml` to `paged-gen`
 
 A single-page IDML with:
 - One column, ~120pt wide
@@ -57,7 +57,7 @@ A single-page IDML with:
 - A second paragraph at default LS for control
 - Uses Open Sans (vendored in corpus/fonts)
 
-**Files:** new `crates/idml-gen/src/samples/text_letterspacing.rs`
+**Files:** new `crates/paged-gen/src/samples/text_letterspacing.rs`
 + registration in the bin.
 **Effort:** S (2-3 hours).
 
@@ -65,7 +65,7 @@ A single-page IDML with:
 
 `corpus/generated/text-letterspacing.breaks.jsonl` — checked in,
 the candidate-side BreakRecord output at the time of pinning. New
-`corpus/generated/breaks-diff.sh` runs `idml-inspect --emit-breaks`
+`corpus/generated/breaks-diff.sh` runs `paged-inspect --emit-breaks`
 on `text-letterspacing.idml` and diffs against the pinned JSONL.
 
 Diff metric: `line_count_delta` + per-line first-byte / last-byte
@@ -112,7 +112,7 @@ a separate large glyph). The line's `byte_range` then starts *past*
 the drop cap, so when we slice `paragraph_text[byte_range]` the
 drop-cap chars are missing.
 
-**Files:** `crates/idml-renderer/src/pipeline.rs` —
+**Files:** `crates/paged-renderer/src/pipeline.rs` —
 `emit_paragraph_into_chain` and the drop-cap splice site at
 ~line 2670.
 
@@ -123,7 +123,7 @@ prepend the dropped slice's bytes back into `source_text`. Doesn't
 change the breaker's view of where lines start; only affects what
 the BreakRecord reports.
 
-**Files:** `crates/idml-renderer/src/pipeline.rs`.
+**Files:** `crates/paged-renderer/src/pipeline.rs`.
 **Effort:** S (1-2 hours).
 
 ### 2c. Re-baseline `text-advanced`

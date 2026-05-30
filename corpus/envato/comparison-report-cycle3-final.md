@@ -122,7 +122,7 @@ joined at the hip:
   break decisions per line, decide merge vs revert.
 - Half the harness (candidate-side: instrument the composer to
   emit per-line `(page_idx, first_byte, last_byte, baseline_y,
-  width)` records via a new `idml-inspect --emit-breaks`) is
+  width)` records via a new `paged-inspect --emit-breaks`) is
   one-day work.
 - Half the harness (reference-side: reconstruct per-line geometry
   from `pdftotext -layout` output) is the multi-day risk — the

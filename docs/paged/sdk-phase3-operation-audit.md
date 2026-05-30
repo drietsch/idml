@@ -10,7 +10,7 @@ The relevant gap-anticipation note in the plan is §3d: the plan explicitly flag
 
 ## 1. Current `PropertyPath` variants
 
-All in `crates/idml-mutate/src/operation.rs:89-156`. **15 variants total.**
+All in `crates/paged-mutate/src/operation.rs:89-156`. **15 variants total.**
 
 - **`FrameBounds`** — `[top, left, bottom, right]` geometric bounds. (op.rs:91)
 - **`FrameFillColor`** — swatch self_id ref; `None` = no fill. (op.rs:94)
@@ -32,7 +32,7 @@ There is no `Character*` path, no `Paragraph*` path, no `BlendMode`, no `DropSha
 
 ## 2. Current `Value` variants
 
-All in `crates/idml-mutate/src/operation.rs:248-316`. **9 variants total.**
+All in `crates/paged-mutate/src/operation.rs:248-316`. **9 variants total.**
 
 - **`Bounds([f32; 4])`** — frame bounds. (op.rs:249)
 - **`ColorRef(Option<String>)`** — swatch self_id ref. (op.rs:250)
@@ -49,7 +49,7 @@ There is no enum-string variant (no `Value::Enum`), no `Value::FloatArray`, no s
 
 ## 3. Apply-arm coverage
 
-Every `PropertyPath::*` arm traced from `crates/idml-mutate/src/apply.rs`. The inverse is computed via `invert_set_property` (which simply wraps the `previous_value` returned by each apply arm — see `crates/idml-mutate/src/invert.rs:19-25`), so any arm that returns a `previous` value has a correct inverse by construction.
+Every `PropertyPath::*` arm traced from `crates/paged-mutate/src/apply.rs`. The inverse is computed via `invert_set_property` (which simply wraps the `previous_value` returned by each apply arm — see `crates/paged-mutate/src/invert.rs:19-25`), so any arm that returns a `previous` value has a correct inverse by construction.
 
 | PropertyPath | Apply arm? | Inverse? | Notes |
 |---|---|---|---|
@@ -73,7 +73,7 @@ Any unmatched `(NodeId, PropertyPath)` pair falls through to the apply.rs:431 de
 
 ## 4. Element-property snapshot coverage
 
-The read snapshot is `CanvasModel::element_properties` at `crates/idml-canvas/src/model.rs:1122-1225`. It returns one `Vec<PropertyEntry>` per element. Two element-kind branches: `ElementId::TextFrame` (1133-1169) and `ElementId::Rectangle` (1170-1206). All other kinds fall through to `_ => None` (1211).
+The read snapshot is `CanvasModel::element_properties` at `crates/paged-canvas/src/model.rs:1122-1225`. It returns one `Vec<PropertyEntry>` per element. Two element-kind branches: `ElementId::TextFrame` (1133-1169) and `ElementId::Rectangle` (1170-1206). All other kinds fall through to `_ => None` (1211).
 
 | PropertyPath | Surfaced by `element_properties`? | Element kinds | Notes |
 |---|---|---|---|
@@ -100,7 +100,7 @@ Effort key: **S** ≤1 h (add to existing match arm or read snapshot), **M** ~1 
 
 ### Character panel
 
-The Character composition the plan shows already names `characterFontSize`, `characterLeading`, `characterTracking`, `characterFillColor` — none of which exist as `PropertyPath`. Underlying parser fields are on `CharacterRun` in `crates/idml-parse/src/story.rs:626-700` and on `CharacterStyleDef`/`ParagraphStyleDef` in `crates/idml-parse/src/styles.rs:316-622`, so the Rust side has the data; the bridge is `Operation::SetProperty` and the read snapshot.
+The Character composition the plan shows already names `characterFontSize`, `characterLeading`, `characterTracking`, `characterFillColor` — none of which exist as `PropertyPath`. Underlying parser fields are on `CharacterRun` in `crates/paged-parse/src/story.rs:626-700` and on `CharacterStyleDef`/`ParagraphStyleDef` in `crates/paged-parse/src/styles.rs:316-622`, so the Rust side has the data; the bridge is `Operation::SetProperty` and the read snapshot.
 
 | Field | Implied PropertyPath | Status | Value type | Effort | Notes |
 |---|---|---|---|---|---|
@@ -121,7 +121,7 @@ All 12 Character fields are NEW-PATH today. The Value side is mostly served by e
 
 ### Paragraph panel
 
-Sources: `CharacterRun`-adjacent `ParagraphStyleDef` in `crates/idml-parse/src/styles.rs:544-622` plus `ParagraphStyleRange`-level fields on `Story`.
+Sources: `CharacterRun`-adjacent `ParagraphStyleDef` in `crates/paged-parse/src/styles.rs:544-622` plus `ParagraphStyleRange`-level fields on `Story`.
 
 | Field | Implied PropertyPath | Status | Value type | Effort | Notes |
 |---|---|---|---|---|---|
@@ -184,7 +184,7 @@ Of 6 Object/Transform fields, 2-4 are OK (depending on rotation/scale decomposit
 
 ### Pages panel (Phase 3 — actively migrated)
 
-Currently uses `Mutation::InsertPage` / `Mutation::DeletePage` envelopes in `crates/idml-canvas/src/channel.rs:798-804` but the model's translator at `model.rs:903` returns `None` for them, so they fall through and the worker reports `NotImplemented`. There are **no `InsertPage` / `DeletePage` / `MovePage` Operations** in `idml-mutate`.
+Currently uses `Mutation::InsertPage` / `Mutation::DeletePage` envelopes in `crates/paged-canvas/src/channel.rs:798-804` but the model's translator at `model.rs:903` returns `None` for them, so they fall through and the worker reports `NotImplemented`. There are **no `InsertPage` / `DeletePage` / `MovePage` Operations** in `paged-mutate`.
 
 | Field | Implied PropertyPath | Status | Value type | Effort | Notes |
 |---|---|---|---|---|---|

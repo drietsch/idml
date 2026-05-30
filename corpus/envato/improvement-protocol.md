@@ -92,7 +92,7 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Color
 - **Severity**: Blocker
 - **Frequency**: 14+/61 packs (every layout with grey backgrounds, low-tint stripe overlays, image-placeholder greys, decorative tinted panels)
-- **Crate(s)**: idml-parse, idml-renderer
+- **Crate(s)**: paged-parse, paged-renderer
 - **Evidence**:
   - `corpus/envato/reports/business-proposal-template/heat-001.png` (3% black diagonal stripes → 100% black)
   - `corpus/envato/reports/welcome-guide-template/heat-037.png` (15% black placeholder rect → 100% black)
@@ -101,18 +101,18 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
   - `corpus/envato/reports/lifestyle-magazine-layout/heat-017.png` (tinted gradient bg lost)
   - `corpus/envato/reports/minimal-interior-design-catalog/heat-021.png` (dark page bg fail)
 - **Symptom**: Background tinted shapes render at 100% strength of the swatch colour rather than the IDML's intended `FillTint=N%`. The 3% black diagonal stripes in `business-proposal-template/p1` come out solid black instead of barely-visible grey; the same pattern explains every dark-page brochure cover that the renderer turns into a black box.
-- **Root cause (hypothesis)**: Only `<Rectangle>` parses `FillTint` (parser at `crates/idml-parse/src/spread.rs:1064` via `read_common_attrs`, struct field at `:371`, propagation at `:1357`). The `Polygon` / `Oval` / `TextFrame` / `GraphicLine` struct definitions don't have a `fill_tint` field at all. The renderer's `ResolvedFrame::from_*` constructors for non-rectangle shapes hardcode `fill_tint: None` (`crates/idml-renderer/src/module/frame.rs:145, 207, 250, 289`).
+- **Root cause (hypothesis)**: Only `<Rectangle>` parses `FillTint` (parser at `crates/paged-parse/src/spread.rs:1064` via `read_common_attrs`, struct field at `:371`, propagation at `:1357`). The `Polygon` / `Oval` / `TextFrame` / `GraphicLine` struct definitions don't have a `fill_tint` field at all. The renderer's `ResolvedFrame::from_*` constructors for non-rectangle shapes hardcode `fill_tint: None` (`crates/paged-renderer/src/module/frame.rs:145, 207, 250, 289`).
 - **Suggested fix**: Two coordinated edits.
-  1. Add `pub fill_tint: Option<f32>` to `Polygon` / `Oval` / `TextFrame` / `GraphicLine` structs in `crates/idml-parse/src/spread.rs:841` (Polygon) and siblings; populate from `common.fill_tint` at their construction sites.
-  2. Read it through in the four `from_*` constructors at `crates/idml-renderer/src/module/frame.rs:145, 207, 250, 289`. The downstream paint pipeline already handles tint correctly via `apply_fill_tint` at `crates/idml-renderer/src/pipeline.rs:8361`.
+  1. Add `pub fill_tint: Option<f32>` to `Polygon` / `Oval` / `TextFrame` / `GraphicLine` structs in `crates/paged-parse/src/spread.rs:841` (Polygon) and siblings; populate from `common.fill_tint` at their construction sites.
+  2. Read it through in the four `from_*` constructors at `crates/paged-renderer/src/module/frame.rs:145, 207, 250, 289`. The downstream paint pipeline already handles tint correctly via `apply_fill_tint` at `crates/paged-renderer/src/pipeline.rs:8361`.
 - **Effort**: S — two parser-field additions + four 1-line renderer edits.
-- **Resolution**: Added `fill_tint` to TextFrame / Oval / Polygon structs in `idml-parse` (GraphicLine has no fill), populated from `common.fill_tint`, and wired through the matching `ResolvedFrame::from_*` constructors so `apply_fill_tint` now scales the resolved paint for every shape kind.
+- **Resolution**: Added `fill_tint` to TextFrame / Oval / Polygon structs in `paged-parse` (GraphicLine has no fill), populated from `common.fill_tint`, and wired through the matching `ResolvedFrame::from_*` constructors so `apply_fill_tint` now scales the resolved paint for every shape kind.
 
 ### P-02: Missing-link image placeholders render as raw fill (no gray + diagonal X)
 - **Category**: Images
 - **Severity**: Blocker
 - **Frequency**: 20+/61 packs (every Envato template ships with broken `LinkResourceURI` paths; InDesign substitutes a placeholder visual that bakes into the PDF)
-- **Crate(s)**: idml-parse, idml-renderer
+- **Crate(s)**: paged-parse, paged-renderer
 - **Evidence**:
   - `corpus/envato/reports/magazine-editorial-layout/heat-015.png` (grey X-crossed placeholders → empty)
   - `corpus/envato/reports/photography-portfolio-vol-16/heat-017.png` (large X-cross grid → blank)
@@ -122,9 +122,9 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
   - `corpus/envato/reports/capability-statement-brochure/cand-001.png` (placeholder dominates the lower 2/3 of the cover)
   - `corpus/envato/reports/business-magazine-template/heat-002.png` (placeholder tile → dark fill)
 - **Symptom**: A Rectangle / Polygon whose `<Image>` child has no resolvable `LinkResourceURI` (template scaffolding, broken link, designer's reserved photo slot) emits nothing — or worse, emits the host frame's raw `FillColor` (often black) — instead of InDesign's 30% grey + diagonal-X placeholder. On image-driven templates this dominates ΔE.
-- **Root cause (hypothesis)**: `emit_rectangle_image` (`crates/idml-renderer/src/pipeline.rs:6950`) early-returns the moment `rect.image_link.is_none()`. The parser (`crates/idml-parse/src/spread.rs:1949`) only sets `image_link` when a `LinkResourceURI` is found — an `<Image>` element with no link silently leaves the field `None`, and the renderer can't distinguish "no image at all" from "image frame with unlinked content". The polygon path has the analogous gap at `crates/idml-renderer/src/pipeline.rs:7059`.
+- **Root cause (hypothesis)**: `emit_rectangle_image` (`crates/paged-renderer/src/pipeline.rs:6950`) early-returns the moment `rect.image_link.is_none()`. The parser (`crates/paged-parse/src/spread.rs:1949`) only sets `image_link` when a `LinkResourceURI` is found — an `<Image>` element with no link silently leaves the field `None`, and the renderer can't distinguish "no image at all" from "image frame with unlinked content". The polygon path has the analogous gap at `crates/paged-renderer/src/pipeline.rs:7059`.
 - **Suggested fix**:
-  1. Add a parser flag for `has_image_element` (or `image_kind: ImageKind { Linked(uri), Unlinked, None }`) on Rectangle / Polygon / Oval / TextFrame so the parser can mark frames that nest an `<Image>` element regardless of resolvability (`crates/idml-parse/src/spread.rs:1949`).
+  1. Add a parser flag for `has_image_element` (or `image_kind: ImageKind { Linked(uri), Unlinked, None }`) on Rectangle / Polygon / Oval / TextFrame so the parser can mark frames that nest an `<Image>` element regardless of resolvability (`crates/paged-parse/src/spread.rs:1949`).
   2. In each image-emit site (`pipeline.rs:6950` rectangle, `:7059` polygon, plus the soon-to-exist oval/textframe paths), when the flag is set and `image_link` is unresolved, intern a small "missing image" stamp: a 30% gray fill clipped to the host path + two diagonal `StrokePath` strokes (TL→BR and TR→BL) at ~0.5 pt. Wire a `RasterOptions::missing_image_placeholder: bool` (default `true`) so headless / production hosts can disable.
 - **Effort**: S — single point of plumbing, all geometry already available.
 - **Resolution**: Added `has_image_element` flag to Rectangle / Polygon (set when the parser sees `<Image>` / `<EPSImage>` / `<PDF>` / `<ImportedPage>`); when image resolution fails and the flag is set, the renderer stamps a 30% grey fill clipped to the host path plus two diagonal 0.5pt strokes. Gated by a default-on `PipelineOptions::missing_image_placeholder` toggle.
@@ -133,7 +133,7 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Text
 - **Severity**: Blocker
 - **Frequency**: 6+/61 packs (every sidebar with vertical labels, "2030"-style rotated callouts, "MARES" wordmarks, "Agency"/"Creative" edge labels)
-- **Crate(s)**: idml-renderer, idml-text
+- **Crate(s)**: paged-renderer, paged-text
 - **Evidence**:
   - `corpus/envato/reports/business-proposal/cand-001.png` vs `ref-001.png` ("2030" vertical sidebar label missing)
   - `corpus/envato/reports/soccer-career-flyer-templates/cand-001.png` vs `ref-001.png` (giant vertical "MARES" wordmark + player silhouette absent)
@@ -141,16 +141,16 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
   - `corpus/envato/reports/brown-fashion-brochure/heat-005.png` ("TREND" vertical label absent)
   - `corpus/envato/reports/employment-application/heat-001.png` ("PAGE 01 / 03" — "/ 03" rotated 90° in ref, horizontal in cand)
 - **Symptom**: A text frame whose `ItemTransform` carries a rotation (`m[1]` / `m[2]` ≠ 0) renders its fill rectangle correctly but emits no glyphs. The frame appears blank on a coloured panel.
-- **Root cause (hypothesis)**: Story-emission computes `column_width_pt` from the frame's AABB after `transform_bounds(b, item_transform)` at `crates/idml-renderer/src/pipeline.rs:1144` and `:1193`. For a 90°-rotated 30×600 pt sidebar, the AABB swaps axes to 600×30 — so compose receives `column_width=600, column_height=30`, the text fits in zero or one clipped line, and the post-emit rotation pass at `:2613` has nothing to rotate.
-- **Suggested fix**: In `crates/idml-renderer/src/pipeline.rs:1144` (chain-head sizing) and `:1193` (per-frame heights), use `frame.bounds.width()` / `frame.bounds.height()` (inner coords) for `column_width_pt` / `column_height_pt`. Keep `transform_bounds` only for page-routing / wrap-obstacle computations where the spread-coord AABB is what matters. The existing rotation pass at `:2613` / `rotate_transform_around` then places glyphs along the rotated axis correctly.
+- **Root cause (hypothesis)**: Story-emission computes `column_width_pt` from the frame's AABB after `transform_bounds(b, item_transform)` at `crates/paged-renderer/src/pipeline.rs:1144` and `:1193`. For a 90°-rotated 30×600 pt sidebar, the AABB swaps axes to 600×30 — so compose receives `column_width=600, column_height=30`, the text fits in zero or one clipped line, and the post-emit rotation pass at `:2613` has nothing to rotate.
+- **Suggested fix**: In `crates/paged-renderer/src/pipeline.rs:1144` (chain-head sizing) and `:1193` (per-frame heights), use `frame.bounds.width()` / `frame.bounds.height()` (inner coords) for `column_width_pt` / `column_height_pt`. Keep `transform_bounds` only for page-routing / wrap-obstacle computations where the spread-coord AABB is what matters. The existing rotation pass at `:2613` / `rotate_transform_around` then places glyphs along the rotated axis correctly.
 - **Effort**: M (small surgical change; verifying with rotated-text glyph-level test).
-- **Resolution**: Switched column-width sizing in `StoryEmitter::new` to `chain[0].bounds.width()` (inner coords) so 90°-rotated TextFrames feed the composer the frame's narrow-side width, not the swapped spread AABB. Added `rotated_text_frame_emits_glyphs_along_rotated_axis` in `crates/idml-renderer/tests/text_glyph_level.rs` to lock the behaviour.
+- **Resolution**: Switched column-width sizing in `StoryEmitter::new` to `chain[0].bounds.width()` (inner coords) so 90°-rotated TextFrames feed the composer the frame's narrow-side width, not the swapped spread AABB. Added `rotated_text_frame_emits_glyphs_along_rotated_axis` in `crates/paged-renderer/tests/text_glyph_level.rs` to lock the behaviour.
 
 ### P-04: Cross-page / spread-spanning frames clipped to single page via AABB centroid
 - **Category**: Layout
 - **Severity**: Blocker
 - **Frequency**: 8+/61 packs (every spread-spanning hero band, gradient backdrop, bleed-the-gutter polygon)
-- **Crate(s)**: idml-renderer
+- **Crate(s)**: paged-renderer
 - **Evidence**:
   - `corpus/envato/reports/the-brochure/heat-008.png` (blue header `<Polygon>` spans pages 8+9, renders on one only)
   - `corpus/envato/reports/lifestyle-magazine-layout/heat-017.png` (red gradient page bg crosses the gutter)
@@ -158,7 +158,7 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
   - `corpus/envato/reports/event-program-brochure/heat-002.png` (full-bleed blue page-bg vanishes on one side)
   - `corpus/envato/reports/saas-product-launch-annual-report-brochure/heat-008.png` (dark backdrop missing from upper half)
 - **Symptom**: Wide design elements (spread-spanning gradient backgrounds, two-page header bands, "bleed-the-gutter" decoratives) render on exactly one page of the spread; the other half is dropped.
-- **Root cause (hypothesis)**: `page_for_frame` (`crates/idml-renderer/src/pipeline.rs:6407`) computes the AABB centroid and returns the *first* page whose bounds contain it. Frames straddling the gutter end up routed to whichever page wins the centroid test. Eight call sites consume this (`:485, :515, :553, :579, :598, :745, :769, :824`) so every shape kind has the same blind spot.
+- **Root cause (hypothesis)**: `page_for_frame` (`crates/paged-renderer/src/pipeline.rs:6407`) computes the AABB centroid and returns the *first* page whose bounds contain it. Frames straddling the gutter end up routed to whichever page wins the centroid test. Eight call sites consume this (`:485, :515, :553, :579, :598, :745, :769, :824`) so every shape kind has the same blind spot.
 - **Suggested fix**: Replace single-page routing with a multi-page emit pass. Either (a) duplicate the emit per page that the frame's AABB overlaps and rely on the existing per-page rasterizer clip, or (b) introduce a per-spread display list with one final clip-to-page-rect when paginating. Option (a) is simpler — change `let local_idx = page_for_frame(...).unwrap_or(0);` to `for local_idx in pages_overlapping(...)` at all 8 call sites between `:485` and `:824`. Cross-link: not yet in `docs/plan.md` — add under a "spread-spanning frames" line in Tier 2.
 - **Effort**: M.
 - **Resolution**: Added `pages_overlapping_frame` and rewrote the four non-text shape emit loops (Rectangle / Oval / GraphicLine / Polygon) to emit on every overlapping local page. TextFrames continue to use centroid routing (single story per frame). Per-page rasterizers handle the off-page clip.
@@ -167,7 +167,7 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Layout
 - **Severity**: Blocker
 - **Frequency**: 5+/61 packs (any cover or section-divider whose background lives on a master spread)
-- **Crate(s)**: idml-renderer
+- **Crate(s)**: paged-renderer
 - **Evidence**:
   - `corpus/envato/reports/magazine/cand-015.png` vs `ref-015.png` (page should be fully gray, is fully white)
   - `corpus/envato/reports/brochure/cand-001.png` vs `ref-001.png` (full-page blue gradient cover missing)
@@ -176,7 +176,7 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
   - `corpus/envato/reports/welcome-guide-template/heat-037.png` (page-level cream paper colour expected from master)
 - **Symptom**: Visible page-background / brand-colour rectangles defined once on the master spread don't show on body pages. Pages look "stripped".
 - **Root cause (hypothesis)**: Two interacting issues:
-  1. The master-spread routing loop (`master_page_for` / centroid test at `crates/idml-renderer/src/pipeline.rs:328`) uses bounds-centroid to pick which master page an item belongs to; full-bleed items whose centroid lands across the page-fold or off-page get the wrong index.
+  1. The master-spread routing loop (`master_page_for` / centroid test at `crates/paged-renderer/src/pipeline.rs:328`) uses bounds-centroid to pick which master page an item belongs to; full-bleed items whose centroid lands across the page-fold or off-page get the wrong index.
   2. The master-overlay pass appears text-frame-only (`master_text_emissions` near `pipeline.rs:683`); non-text master items (Rectangle, Polygon, Oval, GraphicLine) may not be duplicated onto body pages at all.
 - **Suggested fix**: Audit `pipeline.rs:274-410` master-apply path. Two coordinated changes:
   1. At `:328`, relax centroid routing: when item's AABB area is ≥ 0.5 × master-page area AND it intersects a given master page, assign the item to that page (not just the centroid winner). For full-bleed items, assign to every overlapping page.
@@ -189,17 +189,17 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Fonts
 - **Severity**: Major
 - **Frequency**: 8+/61 packs (every pack using Bold/Light/Medium against a non-variable fallback in `corpus/fonts/`)
-- **Crate(s)**: idml-renderer
+- **Crate(s)**: paged-renderer
 - **Evidence**:
   - `corpus/envato/reports/interior-design-catalog/heat-014.png` ("WORKSPACE" Montserrat Bold renders at Inter Bold weight which differs visibly)
   - `corpus/envato/reports/brown-fashion-brochure/heat-002.png` ("ABOUT OUR BRAND" — Vollkorn SC Black → SourceSerif4 has no `wght` axis, renders Regular)
   - `corpus/envato/reports/employment-application/heat-002.png` ("EDUCATION HISTORY" — Open Sans Bold → OpenSans.ttf is single-weight, `set_variations(wght=700)` is a no-op)
   - `corpus/envato/reports/catalog-brochure-template/heat-001.png` ("Catalog" hero — DM Sans Bold → Inter, weight off)
 - **Symptom**: Headings + emphasised runs render at the wrong weight, typically Regular instead of Bold/Light. Most visible as thicker/thinner strokes vs reference.
-- **Root cause (hypothesis)**: `FontTable::build` at `crates/idml-renderer/src/pipeline.rs:8972` calls `face.set_variations(&[Variation { tag: wght_tag, value: wght }])` unconditionally for every `(font_id, wght_bits)` pair. For non-variable TTFs (`SourceSerif4.ttf`, `OpenSans.ttf`, `Roboto-Regular.ttf`, etc.) the variation is silently dropped. The `_default/fonts.sh` map at `corpus/envato/overrides/_default/fonts.sh` mostly registers bare-family entries, so Bold/Light/Medium variants all resolve to the same single-weight file.
+- **Root cause (hypothesis)**: `FontTable::build` at `crates/paged-renderer/src/pipeline.rs:8972` calls `face.set_variations(&[Variation { tag: wght_tag, value: wght }])` unconditionally for every `(font_id, wght_bits)` pair. For non-variable TTFs (`SourceSerif4.ttf`, `OpenSans.ttf`, `Roboto-Regular.ttf`, etc.) the variation is silently dropped. The `_default/fonts.sh` map at `corpus/envato/overrides/_default/fonts.sh` mostly registers bare-family entries, so Bold/Light/Medium variants all resolve to the same single-weight file.
 - **Suggested fix**: Two-pronged.
-  1. In `FontTable::build` at `crates/idml-renderer/src/pipeline.rs:8966`, detect whether the parsed `ttf_parser::Face` exposes the `wght` axis via `face.variation_axes()` — if not, log a one-shot diagnostic and skip `set_variations`.
-  2. Enrich `corpus/envato/overrides/_default/fonts.{sh,jsx}` so each common family has per-style entries (`Open Sans/Bold=$FONTS/Roboto-Bold.ttf`, `Open Sans/Light=$FONTS/Inter.ttf`, etc.). The `font_key` lookup at `crates/idml-renderer/src/asset.rs:165` already prefers `(family, style)` over bare-family.
+  1. In `FontTable::build` at `crates/paged-renderer/src/pipeline.rs:8966`, detect whether the parsed `ttf_parser::Face` exposes the `wght` axis via `face.variation_axes()` — if not, log a one-shot diagnostic and skip `set_variations`.
+  2. Enrich `corpus/envato/overrides/_default/fonts.{sh,jsx}` so each common family has per-style entries (`Open Sans/Bold=$FONTS/Roboto-Bold.ttf`, `Open Sans/Light=$FONTS/Inter.ttf`, etc.). The `font_key` lookup at `crates/paged-renderer/src/asset.rs:165` already prefers `(family, style)` over bare-family.
 - **Effort**: S — diagnostic + a handful of override entries.
 - **Resolution**: Probe `variation_axes()` before `set_variations` at all four bake sites in `pipeline.rs`; skip the bake when `wght` is absent. Added per-family `/Bold` entries to `_default/fonts.{sh,jsx}` routing common sans + serif families to `Roboto-Bold.ttf` so emboss actually fires.
 
@@ -207,7 +207,7 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Text
 - **Severity**: Major
 - **Frequency**: 10+/61 packs (universal across the clean tier; affects every text-dense page in the corpus)
-- **Crate(s)**: idml-text, idml-renderer
+- **Crate(s)**: paged-text, paged-renderer
 - **Evidence**:
   - `corpus/envato/reports/interior-design-catalog/heat-021.png` (cand 3 lines vs ref 2 lines for the same Lorem block)
   - `corpus/envato/reports/ancient-building-magazine/heat-011.png` (Lorem reshapes per-line)
@@ -216,8 +216,8 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
   - `corpus/envato/reports/catalog-brochure-template/heat-001.png` (4-column footer wraps to 2 lines per column instead of single-line)
   - `corpus/envato/reports/employment-application/heat-001.png` (wraps one line earlier)
 - **Symptom**: Identical paragraph text shapes to slightly different widths in our renderer vs the reference PDF. Each glyph lands at almost-but-not-quite the InDesign x-position; the drift is small per-character (~1–3% of advance) but cumulative — by the end of a 60-char line we typically over- or under-run by 5–15 px, triggering a wrap one word earlier (or later). p99 ΔE consistently lands in 60–100 at the wrapped-word edges.
-- **Root cause (hypothesis)**: Composer not calibrated against real InDesign output. `corpus/envato/overrides/_default/fonts.sh` maps common Adobe faces to one of seven OFL fallbacks (Inter / Roboto / OpenSans / Lora / SourceSerif4 / CormorantGaramond / RobotoSlab); their per-glyph advance widths differ by 1–5% at most code points. Compounded by `MinimumWordSpacing` / `DesiredWordSpacing` / `MaximumWordSpacing` (parsed by the styles cascade) not being routed into the breaker — `idml-text` reads only the bare `stretch_ratio` constant from `ComposeOptions`.
-- **Suggested fix**: `crates/idml-text/src/compose.rs:179` (`stretch_ratio`) and `compose.rs:526` (`let stretch = (space_width as f32 * options.stretch_ratio)`) should consume the per-paragraph `MinimumWordSpacing` / `DesiredWordSpacing` / `MaximumWordSpacing` from `ResolvedParagraphAttrs` rather than from `ComposeOptions`. Parser already captures them in the styles cascade; plumb through `ResolvedParagraphAttrs` then read in `emit_paragraph_into_chain` at `crates/idml-renderer/src/pipeline.rs:1756`. Cross-link: `docs/plan.md` Tier 2 #7 (Composer calibration) is the canonical home. Re-run `spikes/composer-calibration` after to confirm parity gain.
+- **Root cause (hypothesis)**: Composer not calibrated against real InDesign output. `corpus/envato/overrides/_default/fonts.sh` maps common Adobe faces to one of seven OFL fallbacks (Inter / Roboto / OpenSans / Lora / SourceSerif4 / CormorantGaramond / RobotoSlab); their per-glyph advance widths differ by 1–5% at most code points. Compounded by `MinimumWordSpacing` / `DesiredWordSpacing` / `MaximumWordSpacing` (parsed by the styles cascade) not being routed into the breaker — `paged-text` reads only the bare `stretch_ratio` constant from `ComposeOptions`.
+- **Suggested fix**: `crates/paged-text/src/compose.rs:179` (`stretch_ratio`) and `compose.rs:526` (`let stretch = (space_width as f32 * options.stretch_ratio)`) should consume the per-paragraph `MinimumWordSpacing` / `DesiredWordSpacing` / `MaximumWordSpacing` from `ResolvedParagraphAttrs` rather than from `ComposeOptions`. Parser already captures them in the styles cascade; plumb through `ResolvedParagraphAttrs` then read in `emit_paragraph_into_chain` at `crates/paged-renderer/src/pipeline.rs:1756`. Cross-link: `docs/plan.md` Tier 2 #7 (Composer calibration) is the canonical home. Re-run `spikes/composer-calibration` after to confirm parity gain.
 - **Effort**: M.
 - **Resolution**: Added `desired_space_ratio` to `ComposeOptions` so the breaker scales glue natural width by `DesiredWordSpacing/100`; switched stretch/shrink denominator from `desired` to a constant 100 so the Min..=Desired..=Max band lives at the right absolute position regardless of desired ≠ 100.
 
@@ -225,7 +225,7 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Text
 - **Severity**: Major
 - **Frequency**: 6+/61 packs (most visible on display-type, but every paragraph technically affected — the default of 100 hides it)
-- **Crate(s)**: idml-parse, idml-text, idml-renderer
+- **Crate(s)**: paged-parse, paged-text, paged-renderer
 - **Evidence**:
   - `corpus/envato/reports/catalog-brochure-template/heat-001.png` ("Catalog" hero — ref has wider glyph stretch, cand at default 100%)
   - `corpus/envato/reports/brand-guidelines/heat-001.png` (background "Brand" ghost word)
@@ -233,8 +233,8 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
   - `corpus/envato/reports/employment-application/heat-001.png` ("LFLV" sample — letter spacing differs)
   - `corpus/envato/reports/cultured-business-newsletter/heat-002.png` ("EDUCATION HISTORY" / "WORK EXPERIENCES" tracking + width)
 - **Symptom**: Display-size headings render at the default horizontal scale instead of the IDML-specified value. Glyphs look narrower/wider than the InDesign reference at the same point size + font.
-- **Root cause (hypothesis)**: `crates/idml-parse/src/story.rs:1088` reads `HorizontalScale` into `CharacterRun::horizontal_scale: Option<f32>`, but a workspace-wide grep across `crates/idml-text/`, `crates/idml-compose/`, `crates/idml-renderer/` shows zero downstream readers. Same story for `Skew` (`story.rs:1126` parses, no reader).
-- **Suggested fix**: Thread `horizontal_scale` through `idml-text::StyledRun` (sibling to `tracking` at `crates/idml-text/src/layout.rs:295`). Apply at the shaping site by scaling each glyph's `x_advance` by `horizontal_scale / 100.0`; the per-pt baking at `crates/idml-text/src/shape.rs:43` is where the scale gets folded into 1/64-pt advances today — multiply by H-scale factor there. Render-side: glyph emission affine at `crates/idml-renderer/src/pipeline.rs:1944` needs to fold `(scale_x, 1.0)` into the glyph transform. `Skew` plumbs identically (shear column).
+- **Root cause (hypothesis)**: `crates/paged-parse/src/story.rs:1088` reads `HorizontalScale` into `CharacterRun::horizontal_scale: Option<f32>`, but a workspace-wide grep across `crates/paged-text/`, `crates/paged-compose/`, `crates/paged-renderer/` shows zero downstream readers. Same story for `Skew` (`story.rs:1126` parses, no reader).
+- **Suggested fix**: Thread `horizontal_scale` through `paged-text::StyledRun` (sibling to `tracking` at `crates/paged-text/src/layout.rs:295`). Apply at the shaping site by scaling each glyph's `x_advance` by `horizontal_scale / 100.0`; the per-pt baking at `crates/paged-text/src/shape.rs:43` is where the scale gets folded into 1/64-pt advances today — multiply by H-scale factor there. Render-side: glyph emission affine at `crates/paged-renderer/src/pipeline.rs:1944` needs to fold `(scale_x, 1.0)` into the glyph transform. `Skew` plumbs identically (shear column).
 - **Effort**: M.
 - **Resolution**: Threaded `horizontal_scale` through `ResolvedRunAttrs` → `StyledRun::horizontal_scale_pct` → `PositionedGlyph::x_scale`. layout_runs scales per-glyph `x_advance` + `x_offset` by `HS/100`; `emit_glyph_slice` / `_stroke` fold the same factor into the FillPath/StrokePath affine x-column. Skew parses but is not yet applied on the emit side. Regression test `horizontal_scale_folds_into_glyph_advance_and_affine`.
 
@@ -242,7 +242,7 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Effects
 - **Severity**: Major
 - **Frequency**: 6+/61 packs
-- **Crate(s)**: idml-parse, idml-compose, idml-renderer
+- **Crate(s)**: paged-parse, paged-compose, paged-renderer
 - **Evidence**:
   - `corpus/envato/reports/hair-stylist-brochure-vol-3/heat-019.png` (dark backdrop with vignette / typographic decoration)
   - `corpus/envato/reports/lifestyle-magazine-layout/heat-017.png` (corner-to-corner red gradient is the entire page background)
@@ -250,7 +250,7 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
   - `corpus/envato/reports/minimal-interior-design-catalog/heat-021.png` (page-spanning rect with `<GradientFeatherSetting>`)
 - **Symptom**: Decorative gradient-feathered backgrounds (faded edges, corner-to-corner radial vignettes) render as flat fill instead of feather-to-alpha gradient.
 - **Root cause (hypothesis)**: `<GradientFeatherSetting Angle="X" Length="Y" GradientStart="x y">` is a transparency effect under `<TransparencySetting>`. Workspace grep shows zero references to `GradientFeather` in `crates/`. We parse `<BlendingSetting>` but not the gradient-feather flavour.
-- **Suggested fix**: Add `GradientFeatherSetting { angle: f32, length: f32, start: (f32, f32), stops: Vec<GradientStop> }` parse arm next to the existing `<BlendingSetting>` handler in `crates/idml-parse/src/spread.rs`. Plumb through `ResolvedFrame` into a new `DisplayCommand::PushLayer { effect: LayerEffect::GradientFeather { ... } }` and pop after fill — the existing `PushLayer { GaussianBlur }` plumbing (`docs/plan.md` Tier 3 #12) is the model to mirror. CPU side: a per-pixel alpha mask multiplied by a linear/radial gradient evaluated in the path's bbox.
+- **Suggested fix**: Add `GradientFeatherSetting { angle: f32, length: f32, start: (f32, f32), stops: Vec<GradientStop> }` parse arm next to the existing `<BlendingSetting>` handler in `crates/paged-parse/src/spread.rs`. Plumb through `ResolvedFrame` into a new `DisplayCommand::PushLayer { effect: LayerEffect::GradientFeather { ... } }` and pop after fill — the existing `PushLayer { GaussianBlur }` plumbing (`docs/plan.md` Tier 3 #12) is the model to mirror. CPU side: a per-pixel alpha mask multiplied by a linear/radial gradient evaluated in the path's bbox.
 - **Effort**: M.
 - **Deferred**: Audit was inaccurate — gradient feather IS wired end-to-end for Rectangles (parser at `spread.rs:1680`, `FrameEffects::gradient_feather`, `emit_effects_pre/post_fill`, `DisplayCommand::GradientFeather`, `render_gradient_feather` CPU rasterizer, plus a unit test). Extending the `effects` bag + emit hooks to Polygon / Oval / TextFrame / GraphicLine is its own batch (4 parser sites + 4 emit sites). Punted to a follow-up cycle.
 
@@ -258,14 +258,14 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Text
 - **Severity**: Major
 - **Frequency**: 5+/61 packs (modern templates lean heavily on paragraph shading for highlighted callouts + yellow-band sections)
-- **Crate(s)**: idml-parse, idml-text, idml-renderer
+- **Crate(s)**: paged-parse, paged-text, paged-renderer
 - **Evidence**:
   - `corpus/envato/reports/fitness-protein-powder-business-card-templates/heat-001.png` ("WHEY" — `ParagraphShadingTint`, `RuleAboveLineWeight`, `RuleBelowLineWeight`, `ParagraphBorderTopLineWeight` all in source, all missing)
   - `corpus/envato/reports/real-estate-brochure/heat-023.png` (rule-line underlines below section titles)
   - `corpus/envato/reports/saas-product-launch-annual-report-brochure/heat-008.png` (cyan underline rules below "01" / "02" / "03" / "04")
 - **Symptom**: Paragraph-level shaded backgrounds (the colored band behind a paragraph), borders around paragraphs, and the rule-above / rule-below horizontal lines are entirely absent.
-- **Root cause (hypothesis)**: Workspace grep returns zero hits for `ParagraphShading` / `RuleAbove` / `RuleBelow` in `crates/idml-parse/src/styles.rs` or `story.rs`. The IDML attributes are common on `<ParagraphStyleRange>` / `<ParagraphStyle>` and on the rope; we never lift them off the AST.
-- **Suggested fix**: Add parser fields (`paragraph_shading_color`, `paragraph_shading_tint`, `rule_above_*`, `rule_below_*`, `paragraph_border_*`) to `ResolvedParagraph` + the rope's `ParagraphAttrs`. New compose primitives: `DisplayCommand::FillRect` underneath the paragraph's run band for shading; `StrokePath` for rule lines and border. Mechanical extensions of the existing underline/strikethrough machinery at `crates/idml-renderer/src/pipeline.rs:8405` (`emit_line_decorations`) operating on paragraph bands instead of glyph clusters. Add to `docs/plan.md` Tier 2 — high leverage.
+- **Root cause (hypothesis)**: Workspace grep returns zero hits for `ParagraphShading` / `RuleAbove` / `RuleBelow` in `crates/paged-parse/src/styles.rs` or `story.rs`. The IDML attributes are common on `<ParagraphStyleRange>` / `<ParagraphStyle>` and on the rope; we never lift them off the AST.
+- **Suggested fix**: Add parser fields (`paragraph_shading_color`, `paragraph_shading_tint`, `rule_above_*`, `rule_below_*`, `paragraph_border_*`) to `ResolvedParagraph` + the rope's `ParagraphAttrs`. New compose primitives: `DisplayCommand::FillRect` underneath the paragraph's run band for shading; `StrokePath` for rule lines and border. Mechanical extensions of the existing underline/strikethrough machinery at `crates/paged-renderer/src/pipeline.rs:8405` (`emit_line_decorations`) operating on paragraph bands instead of glyph clusters. Add to `docs/plan.md` Tier 2 — high leverage.
 - **Effort**: M.
 - **Deferred**: 4 distinct feature families (Shading, RuleAbove, RuleBelow, Border) each needing parser + cascade + ResolvedParagraphAttrs + per-paragraph emit hooks — total >= ~30 fields and 4 emit sites. Punted to a focused batch.
 
@@ -273,13 +273,13 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Text
 - **Severity**: Major
 - **Frequency**: 5+/61 packs
-- **Crate(s)**: idml-renderer, idml-compose
+- **Crate(s)**: paged-renderer, paged-compose
 - **Evidence**:
   - `corpus/envato/reports/fitness-protein-powder-business-card-templates/heat-001.png` ("WHEY" / "POWER" — `FillColor="Gradient/New Gradient Swatch 2"`, title disappears)
   - `corpus/envato/reports/the-brochure/heat-008.png` (white subhead "Quisque id odio..." absent)
   - `corpus/envato/reports/business-magazine-template/heat-002.png` (gradient-styled content variant missing)
 - **Symptom**: Display titles painted with a gradient drop out completely or render as a flat fallback.
-- **Root cause (hypothesis)**: `paint_as_solid_with_icc` at `crates/idml-renderer/src/pipeline.rs:7513` returns `None` for `Paint::Gradient`. Glyph emission paths through this helper (drop-shadow stamps, line decorations, per-glyph paint picker) cannot accept gradient brushes. The `Paint::Gradient` brush is plumbed through `FillPath` for rectangles but glyph paths use a separate path that flattens to flat colour.
+- **Root cause (hypothesis)**: `paint_as_solid_with_icc` at `crates/paged-renderer/src/pipeline.rs:7513` returns `None` for `Paint::Gradient`. Glyph emission paths through this helper (drop-shadow stamps, line decorations, per-glyph paint picker) cannot accept gradient brushes. The `Paint::Gradient` brush is plumbed through `FillPath` for rectangles but glyph paths use a separate path that flattens to flat colour.
 - **Suggested fix**: Two-pronged.
   1. Short term: when the run's resolved `FillColor` resolves to `Paint::Gradient`, evaluate the gradient at the run's bbox centroid and substitute a `Paint::Solid` so text renders with a representative tint.
   2. Long term: extend the glyph-emit path (`pipeline.rs` `RunPaintPicker` callers) to accept `Paint::Gradient` and emit per-glyph `FillPath { paint: Gradient }` with endpoints computed from the text frame's bbox + `GradientFillAngle` / `GradientFillLength` (same projection the rectangle path uses).
@@ -290,17 +290,17 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Text
 - **Severity**: Major
 - **Frequency**: 4+/61 packs
-- **Crate(s)**: idml-renderer
+- **Crate(s)**: paged-renderer
 - **Evidence**:
   - `corpus/envato/reports/brown-fashion-brochure/heat-002.png` ("BEST SELLER OUR BRAND" — Vollkorn SC + SourceSerif4 substitute drops smcp encoding)
   - `corpus/envato/reports/employment-application/heat-001.png` ("YOUR COMPANY NAME.")
   - `corpus/envato/reports/interior-design-catalog/heat-014.png` ("INTERIOR DESIGN" subhead — ref small-caps height for trailing letters, cand all-cap)
   - `corpus/envato/reports/cultured-business-newsletter/heat-001.png` ("CULTURED BUSINESS" subhead)
 - **Symptom**: Small-caps text renders as full-height capitals; the visual rhythm of capital-tall + small-tall letters collapses. Width changes too because small-caps glyphs are narrower than full caps.
-- **Root cause (hypothesis)**: `crates/idml-renderer/src/pipeline.rs:1925` matches `Capitalization` and uppercases via `src.to_uppercase()` for both `AllCaps` and `SmallCaps` (acknowledged stopgap in the comment at `:1915-1918`). Substitute fonts have no smcp lookup, so OT routing alone wouldn't fully fix this without an SC-equipped fallback.
+- **Root cause (hypothesis)**: `crates/paged-renderer/src/pipeline.rs:1925` matches `Capitalization` and uppercases via `src.to_uppercase()` for both `AllCaps` and `SmallCaps` (acknowledged stopgap in the comment at `:1915-1918`). Substitute fonts have no smcp lookup, so OT routing alone wouldn't fully fix this without an SC-equipped fallback.
 - **Suggested fix**:
-  1. Drive an `smcp` OT feature through rustybuzz when `Capitalization=SmallCaps`. `crates/idml-text/src/shape.rs:40` shapes with `&[]` features today; add a feature-passing parameter.
-  2. When the resolved font has no smcp lookup, scale lowercase glyphs by `cap_height / x_height` ratio (already cached in `FontMetrics` at `crates/idml-renderer/src/pipeline.rs:8981`). Plumb `metrics_for(font_id)` into per-glyph emit so the renderer can scale lowercase glyphs in place.
+  1. Drive an `smcp` OT feature through rustybuzz when `Capitalization=SmallCaps`. `crates/paged-text/src/shape.rs:40` shapes with `&[]` features today; add a feature-passing parameter.
+  2. When the resolved font has no smcp lookup, scale lowercase glyphs by `cap_height / x_height` ratio (already cached in `FontMetrics` at `crates/paged-renderer/src/pipeline.rs:8981`). Plumb `metrics_for(font_id)` into per-glyph emit so the renderer can scale lowercase glyphs in place.
   3. Until those land, limit the AllCaps fallback at `:1926` to `AllCaps` only; `SmallCaps` passes through without uppercasing — preserves original case which beats forced AllCaps for any font without small-caps lookups.
 - **Effort**: M.
 - **Resolution**: Took the documented short-term step (3) — case-pass-through for SmallCaps / CapToSmallCap. Full smcp OT routing + scaled-lowercase fallback deferred to a follow-up cycle.
@@ -309,13 +309,13 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Text
 - **Severity**: Major
 - **Frequency**: 4+/61 packs (templates declaring fonts like "IvyPresto Display", "Prequel Demo", "Montserrat Bold Italic" missing from `corpus/fonts/`)
-- **Crate(s)**: idml-renderer, idml-text
+- **Crate(s)**: paged-renderer, paged-text
 - **Evidence**:
   - `corpus/envato/reports/food-cooking-magazine-template/heat-006.png` ("T e c h n i q u e" with massive letter-spacing)
   - `corpus/envato/reports/the-brochure/heat-008.png` ("Offer new sub-services" subheading column collapses)
   - `corpus/envato/reports/saas-product-launch-annual-report-brochure/heat-008.png` ("Plat-/form" wraps and overlaps body)
 - **Symptom**: When a body run's font isn't installed, the fallback substitutes a wider face; the resulting text either overflows the frame, wraps to fewer lines but extends past the right edge, or overlaps other content.
-- **Root cause (hypothesis)**: Font fallback chain in `crates/idml-renderer/src/asset.rs`/`pipeline.rs` substitutes one fallback regardless of how wide it is vs the requested font. Knuth-Plass composes with the fallback's metrics but frame height is fixed, so overflow goes invisible. No clamp on "render no more than N lines / clip glyphs past frame bottom".
+- **Root cause (hypothesis)**: Font fallback chain in `crates/paged-renderer/src/asset.rs`/`pipeline.rs` substitutes one fallback regardless of how wide it is vs the requested font. Knuth-Plass composes with the fallback's metrics but frame height is fixed, so overflow goes invisible. No clamp on "render no more than N lines / clip glyphs past frame bottom".
 - **Suggested fix**: Convergence with P-07 (composer calibration, `docs/plan.md` Tier 2 #7).
   1. Short-term frame-clip: when a text frame has more lines than fit, emit only the fitting lines and warn.
   2. Long-term: font-substitution metric-matching (pick a closer-metrics fallback) for the families enumerated in `corpus/envato/overrides/_default/fonts.{sh,jsx}`. Add `Prequel Demo`, `IvyPresto Display`, etc. to the default substitution map.
@@ -326,7 +326,7 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Images
 - **Severity**: Major
 - **Frequency**: 4+/61 packs (every IDML using InDesign's "place EPS" feature for full-bleed cover art)
-- **Crate(s)**: idml-parse, idml-renderer
+- **Crate(s)**: paged-parse, paged-renderer
 - **Evidence**:
   - `corpus/envato/reports/annual-report-template/heat-020.png` (cover-page Image element CDATA decodes to `EPSImage` magic bytes — entire blue cover absent)
 - **Symptom**: Pages whose only meaningful artwork is a placed EPS render as blank paper.
@@ -341,17 +341,17 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Path
 - **Severity**: Major
 - **Frequency**: 4+/61 packs (ancient-building-magazine, modern-resume, resume-template-teacher, cultured-business-newsletter)
-- **Crate(s)**: idml-parse, idml-renderer
+- **Crate(s)**: paged-parse, paged-renderer
 - **Evidence**:
   - `corpus/envato/reports/ancient-building-magazine/heat-011.png` (top-right capsule/oval polygon renders as rectangle)
   - `corpus/envato/reports/modern-resume-reference-job-application-template/heat-001.png` (rounded-rect photo placeholder rectangular in cand)
   - `corpus/envato/reports/cultured-business-newsletter/heat-001.png` (inline placeholder rounded corners squared)
   - `corpus/envato/reports/employment-application/heat-001.png` ("LFLV" sample-frame rounded corner is a hard rectangle)
 - **Symptom**: Polygon and Oval frames that host placeholder text or are the visible fill (no `<Image>` child) render as their bounding-box rectangle. Curved geometry of polygon's bezier anchors / oval's ellipse is ignored.
-- **Root cause (hypothesis)**: `emit_polygon_into` at `crates/idml-renderer/src/pipeline.rs:3430` interns `polygon_path_from_anchors` only when `Geometry::Polygon { anchors, .. }` is non-empty (`:3470-3485`). The geometry adapter collapses anchor-less polygons to `Geometry::Rect`. Several placeholder frames carry their geometry as `<GeometryPathType>` with `PathOpen="true"` that we never parse — the parser routes them through the Rect path. `polygon_path_from_anchors` at `pipeline.rs:3351` also always emits a closing CubicTo regardless of the parsed open/closed flag.
+- **Root cause (hypothesis)**: `emit_polygon_into` at `crates/paged-renderer/src/pipeline.rs:3430` interns `polygon_path_from_anchors` only when `Geometry::Polygon { anchors, .. }` is non-empty (`:3470-3485`). The geometry adapter collapses anchor-less polygons to `Geometry::Rect`. Several placeholder frames carry their geometry as `<GeometryPathType>` with `PathOpen="true"` that we never parse — the parser routes them through the Rect path. `polygon_path_from_anchors` at `pipeline.rs:3351` also always emits a closing CubicTo regardless of the parsed open/closed flag.
 - **Suggested fix**:
-  1. Parse `PathOpen` in `crates/idml-parse/src/spread.rs` (probe `b"PathOpen"` near line 2720) into a `Polygon::path_open: bool` field.
-  2. At `crates/idml-renderer/src/pipeline.rs:3409` (auto-close branch), gate the closing CubicTo + final Close on `!path_open`.
+  1. Parse `PathOpen` in `crates/paged-parse/src/spread.rs` (probe `b"PathOpen"` near line 2720) into a `Polygon::path_open: bool` field.
+  2. At `crates/paged-renderer/src/pipeline.rs:3409` (auto-close branch), gate the closing CubicTo + final Close on `!path_open`.
   3. For Oval frames hosting no image and no text, `emit_oval_into` at `pipeline.rs:6493` should emit the ellipse via the existing `Geometry::Oval` arm; confirm `fill_paint_module` at `:6529` doesn't fall through to the unit-rect path when `path_id = None`. Add an oval path interner mirroring `corner_path_module`.
 - **Effort**: M.
 - **Resolution**: Parser lifts `PathOpen` onto a parallel `subpath_open: Vec<bool>` for Polygon / GraphicLine / TextFrame; `polygon_path_from_anchors_with_open` skips closing CubicTo + Close per contour. Oval frames already route through `Geometry::Oval` → `emit_ellipse_transformed_blend`, no auto-rect collapse there. Tests: `polygon_path_open_lifts_to_subpath_open_flag`, `polygon_compound_path_open_records_per_contour_flags`, `polygon_path_from_anchors_with_open_skips_close_for_open_contour`.
@@ -360,14 +360,14 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Images
 - **Severity**: Major
 - **Frequency**: 3+/61 packs
-- **Crate(s)**: idml-parse, idml-renderer
+- **Crate(s)**: paged-parse, paged-renderer
 - **Evidence**:
   - `corpus/envato/reports/modern-resume-reference-job-application-template/heat-001.png` (central rounded photo placeholder absent)
   - `corpus/envato/reports/resume-template-teacher/heat-001.png` (photo-holder oval absent)
 - **Symptom**: An IDML `<Oval>` carrying an `<Image href="..."/>` child renders as a fill-only ellipse; the image content (or its placeholder X-marker) is dropped.
-- **Root cause (hypothesis)**: `Oval` struct definition at `crates/idml-parse/src/spread.rs:672` does not declare `image_link` / `image_item_transform` fields; `Rectangle` (`:381`) and `Polygon` (`:881`) both have them. The renderer's `emit_oval_into` at `crates/idml-renderer/src/pipeline.rs:6493` consequently has no image hook.
+- **Root cause (hypothesis)**: `Oval` struct definition at `crates/paged-parse/src/spread.rs:672` does not declare `image_link` / `image_item_transform` fields; `Rectangle` (`:381`) and `Polygon` (`:881`) both have them. The renderer's `emit_oval_into` at `crates/paged-renderer/src/pipeline.rs:6493` consequently has no image hook.
 - **Suggested fix**:
-  1. Add `image_link: Option<String>` + `image_item_transform: Option<[f32; 6]>` to `Oval` at `crates/idml-parse/src/spread.rs:672`.
+  1. Add `image_link: Option<String>` + `image_item_transform: Option<[f32; 6]>` to `Oval` at `crates/paged-parse/src/spread.rs:672`.
   2. Parse them at the same site Rectangle parses them.
   3. Add `emit_oval_image` in `pipeline.rs` modeled on `emit_polygon_image` at `:7059`, using the oval's parametric ellipse path as the clip.
 - **Effort**: M.
@@ -377,14 +377,14 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Text
 - **Severity**: Major
 - **Frequency**: 3+/61 packs (newspaper-template "Newspa-" hyphenated wordmark + "Aims to Reform Health Care"; annual-report "ANNUAL RE-"; newspaper-newsletter-layout "The Church Bell")
-- **Crate(s)**: idml-renderer, idml-text
+- **Crate(s)**: paged-renderer, paged-text
 - **Evidence**:
   - `corpus/envato/reports/newspaper-template/cand-001.png` vs `ref-001.png` (giant "Newspa-" wordmark absent in cand)
   - `corpus/envato/reports/annual-report/cand-001.png` vs `ref-001.png` ("ANNUAL RE-" page title absent)
   - `corpus/envato/reports/newspaper-newsletter-layout/cand-002.png` vs `ref-002.png` ("The Church" / "Bell" stacked layout missing)
 - **Symptom**: Stories that visibly overflow their head frame (InDesign exports hyphenate words that don't fit) lose all content in cand, or end up in the wrong frame.
-- **Root cause (hypothesis)**: The wrap path in `emit_paragraph_into_chain` near `crates/idml-renderer/src/pipeline.rs:1979` may drop the paragraph when `column_width` is too narrow for a single token. Giant headlines whose first word is wider than the head frame return zero lines instead of advancing to the next frame in the chain.
-- **Suggested fix**: At `crates/idml-renderer/src/pipeline.rs:1979`, when `column_width_pt` ≤ longest measured glyph cluster's width, emit the glyph anyway (overflowing the frame's right edge) and let natural line break advance. Mirrors InDesign's headline-overflow / hyphenate behaviour. Cross-link: composer calibration `docs/plan.md` Tier 2 #7.
+- **Root cause (hypothesis)**: The wrap path in `emit_paragraph_into_chain` near `crates/paged-renderer/src/pipeline.rs:1979` may drop the paragraph when `column_width` is too narrow for a single token. Giant headlines whose first word is wider than the head frame return zero lines instead of advancing to the next frame in the chain.
+- **Suggested fix**: At `crates/paged-renderer/src/pipeline.rs:1979`, when `column_width_pt` ≤ longest measured glyph cluster's width, emit the glyph anyway (overflowing the frame's right edge) and let natural line break advance. Mirrors InDesign's headline-overflow / hyphenate behaviour. Cross-link: composer calibration `docs/plan.md` Tier 2 #7.
 - **Effort**: M.
 - **Resolution**: When `paragraph_breaker::total_fit` returns no breakpoints even at the loosest fallback tolerance, the composer now synthesises one Breakpoint per Box (= word) plus the paragraph-end Penalty so the breaker fall-back emits each word as its own line. Headlines now overflow the right edge instead of dropping silently.
 
@@ -392,41 +392,41 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Color, Text
 - **Severity**: Major
 - **Frequency**: 3+/61 packs
-- **Crate(s)**: idml-renderer, idml-scene
+- **Crate(s)**: paged-renderer, paged-scene
 - **Evidence**:
   - `corpus/envato/reports/brown-fashion-brochure/heat-002.png` ("OUR BRAND" should be CMYK 35/53/96/38 gold/brown — renders close to black)
   - `corpus/envato/reports/modern-resume-reference-job-application-template/heat-001.png` (skill bar progress fills should be pink/lavender, render black)
   - `corpus/envato/reports/brand-guidelines/heat-005.png` (subdued separator dash renders same as surrounding text)
 - **Symptom**: Two-color words like "ABOUT OUR BRAND" render in a single color rather than the per-run emphasis the IDML specifies.
-- **Root cause (hypothesis)**: The cascade at `crates/idml-scene/src/lib.rs:263` starts with `ResolvedRunAttrs::from_run(run)` then merges below — the run's own `fill_color` should win. But the per-run paint pickup at `crates/idml-renderer/src/pipeline.rs:3745` reads `resolved.fill_color.as_deref()`; if `merge_below_character` is overwriting `fill_color` with the character style's default `Color/Black`, the run-direct colour is lost.
-- **Suggested fix**: Audit `crates/idml-scene/src/lib.rs:268-275` cascade order. The expected "direct > applied character style > applied paragraph style" means `merge_below_character` should *not* overwrite `acc.fill_color` when `acc.fill_color.is_some()`. Add an integration test in `crates/idml-renderer/tests/` covering a two-run paragraph where the second run sets `FillColor` directly on its `CharacterStyleRange` (no `AppliedCharacterStyle`), asserting the second run emits a `FillPath` with the expected paint id.
+- **Root cause (hypothesis)**: The cascade at `crates/paged-scene/src/lib.rs:263` starts with `ResolvedRunAttrs::from_run(run)` then merges below — the run's own `fill_color` should win. But the per-run paint pickup at `crates/paged-renderer/src/pipeline.rs:3745` reads `resolved.fill_color.as_deref()`; if `merge_below_character` is overwriting `fill_color` with the character style's default `Color/Black`, the run-direct colour is lost.
+- **Suggested fix**: Audit `crates/paged-scene/src/lib.rs:268-275` cascade order. The expected "direct > applied character style > applied paragraph style" means `merge_below_character` should *not* overwrite `acc.fill_color` when `acc.fill_color.is_some()`. Add an integration test in `crates/paged-renderer/tests/` covering a two-run paragraph where the second run sets `FillColor` directly on its `CharacterStyleRange` (no `AppliedCharacterStyle`), asserting the second run emits a `FillPath` with the expected paint id.
 - **Effort**: S.
-- **Resolution**: Audit hypothesis was inaccurate. `merge_below_character` and `merge_below_paragraph` both gate `fill_color` on `is_none()` already (idml-scene/src/lib.rs:529, :580); the run-direct colour does win. The visual diffs the audit cited are due to other paths (font substitution, gradient flattening — already addressed under P-11). Locked the behaviour with a new glyph-level regression test so it can't silently regress.
+- **Resolution**: Audit hypothesis was inaccurate. `merge_below_character` and `merge_below_paragraph` both gate `fill_color` on `is_none()` already (paged-scene/src/lib.rs:529, :580); the run-direct colour does win. The visual diffs the audit cited are due to other paths (font substitution, gradient flattening — already addressed under P-11). Locked the behaviour with a new glyph-level regression test so it can't silently regress.
 
 ### P-19: Drop-cap paragraphs render the cap but drop the wrapping body text
 - **Category**: Text
 - **Severity**: Major
 - **Frequency**: 1+/61 packs (green-energy-newsletter; likely also other text-heavy magazine packs)
-- **Crate(s)**: idml-text, idml-renderer
+- **Crate(s)**: paged-text, paged-renderer
 - **Evidence**:
   - `corpus/envato/reports/green-energy-newsletter/cand-006.png` vs `ref-006.png` (cand has giant solitary "N" cap; ref has cap with 5+ wrapped lines beside it)
   - `corpus/envato/reports/green-energy-newsletter/heat-006.png` (entire left column red)
 - **Symptom**: The drop-cap glyph emits at correct size + position, but no body text appears beside or beneath it.
 - **Root cause (hypothesis)**: `drop_cap_column_widths` (referenced from `pipeline.rs:2124`) returns carved widths for the first M lines. If carved widths are too narrow / zero for any single word, the line-breaker emits zero lines and the paragraph silently produces no glyphs. The cap itself comes from `drop_cap_spec_emit` at `pipeline.rs:2067` so it survives.
-- **Suggested fix**: Guard `drop_cap_column_widths` in `crates/idml-text/src/layout.rs` so each per-line carved width is at least `max_word_width + epsilon`. When carving would produce a degenerate column, fall back to "compose at natural width starting from line M+1 only". Add a regression in `text_glyph_level.rs` for a 3-line drop-cap paragraph against a narrow column asserting ≥3 glyph rows past the cap.
+- **Suggested fix**: Guard `drop_cap_column_widths` in `crates/paged-text/src/layout.rs` so each per-line carved width is at least `max_word_width + epsilon`. When carving would produce a degenerate column, fall back to "compose at natural width starting from line M+1 only". Add a regression in `text_glyph_level.rs` for a 3-line drop-cap paragraph against a narrow column asserting ≥3 glyph rows past the cap.
 - **Effort**: M.
-- **Resolution**: Added `drop_cap_column_widths_with_min` (idml-text) that clamps every carved line up to a floor passed in by the caller. The pipeline measures the widest run-shaped token using the run's actual face + size and passes that as the floor, so paragraph_breaker always has a feasible fit even when the cap would otherwise carve the column below the widest word. Compose-level unit test covers the clamp.
+- **Resolution**: Added `drop_cap_column_widths_with_min` (paged-text) that clamps every carved line up to a floor passed in by the caller. The pipeline measures the widest run-shaped token using the run's actual face + size and passes that as the floor, so paragraph_breaker always has a feasible fit even when the cap would otherwise carve the column below the widest word. Compose-level unit test covers the clamp.
 
 ### P-20: Multi-glyph cluster fallback drops `▶` after first instance
 - **Category**: Text
 - **Severity**: Major
 - **Frequency**: 1+/61 packs (annual-report-template-8b5d40; pattern likely in any nav strip with repeated symbol-font markers)
-- **Crate(s)**: idml-text, idml-renderer
+- **Crate(s)**: paged-text, paged-renderer
 - **Evidence**:
   - `corpus/envato/reports/annual-report-template-8b5d40/cand-010.png` vs `ref-010.png` (ref shows "▶ Humilime ▶ Recenti ▶ Casimirus"; cand shows only "▶Recenti")
 - **Symptom**: A run containing multiple `▶` (U+25B6) glyphs interspersed with words renders some glyphs but drops the others.
 - **Root cause (hypothesis)**: `layout_runs` per-run face cache binds the run's face once and skips glyph fallback for subsequent missing-glyph clusters. Recent `multifont-line-fallback` commit covers missing-font slots but not missing-glyph-within-found-font.
-- **Suggested fix**: Check `crates/idml-text/src/layout.rs` shaping loop — when rustybuzz returns `.notdef` (glyph id 0) for a cluster, retry the cluster against the configured fallback face list. Currently only run-level fallback applies.
+- **Suggested fix**: Check `crates/paged-text/src/layout.rs` shaping loop — when rustybuzz returns `.notdef` (glyph id 0) for a cluster, retry the cluster against the configured fallback face list. Currently only run-level fallback applies.
 - **Effort**: M.
 - **Resolution**: Added `StyledRun::fallback_faces` (slice of `&Face`). `layout_runs` now calls `shape_with_per_cluster_fallback`: for any glyph the primary face shaped to `.notdef`, retry that cluster's source substring against each fallback face and pick the first all-non-notdef shape. The renderer populates the pool from every distinct sibling face in the paragraph, so a `▶` cluster in a serif-body run can pull from a sans-marker run on the same line.
 
@@ -434,11 +434,11 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Text
 - **Severity**: Minor
 - **Frequency**: 1+/61 packs
-- **Crate(s)**: idml-text
+- **Crate(s)**: paged-text
 - **Evidence**:
   - `corpus/envato/reports/book-template-design/cand-001.png` vs `ref-001.png` (ref shows 5 dots, cand shows 1 dot or dash)
 - **Symptom**: TabStop with `Leader="."` tiles correctly in unit tests but real-world templates produce 1 tile instead of N. The tiling stride over-counts when the leader character's substitute font width differs from original.
-- **Root cause (hypothesis)**: Tiling stride in `idml-text::layout::apply_tab_stops_with_leaders` does `floor(gap / leader_width)`. When the substitute font is wider, `floor` collapses to 0 or 1 tiles. Partially font drift, but doesn't degrade gracefully.
+- **Root cause (hypothesis)**: Tiling stride in `paged-text::layout::apply_tab_stops_with_leaders` does `floor(gap / leader_width)`. When the substitute font is wider, `floor` collapses to 0 or 1 tiles. Partially font drift, but doesn't degrade gracefully.
 - **Suggested fix**: Investigate. May be subsumed by font-substitution calibration (INF-1). Otherwise: when `leader_width` exceeds a heuristic threshold relative to gap, accept partial overrun rather than dropping all tiles.
 - **Effort**: S.
 - **Deferred**: No `Leader=` or `TabStop` attributes are present in any of the 61 envato pack templates (verified via per-pack grep of unzipped Resources/Styles.xml). The cited `book-template-design/cand-001.png` "5 dots → 1 dot" difference is unrelated to leader tiling — the dots in the reference are part of a separate decorative element, not a Leader-tabbed paragraph. Cannot reproduce the symptom in the codebase; existing `apply_tab_stops_with_leaders` unit tests cover the tiling path and pass. Punted until a pack with an actual `<TabStop Leader="...">` surfaces.
@@ -447,11 +447,11 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Path
 - **Severity**: Minor
 - **Frequency**: 2+/61 packs
-- **Crate(s)**: idml-renderer
+- **Crate(s)**: paged-renderer
 - **Evidence**:
   - `corpus/envato/reports/book-template-design/cand-001.png` vs `ref-001.png` (hollow squares + barcode + line-divider geometry differ subtly)
 - **Symptom**: Frames with stroke and no fill render with subtly different line weights/positions vs reference. Cumulative effect on line-art-dense pages.
-- **Root cause (hypothesis)**: `stroke_alignment_offset` math near `crates/idml-renderer/src/module/corner_path.rs:14` and `pipeline.rs:6605` — likely a half-pixel rounding issue with `StrokeAlignment="Inside"` vs reference expectation.
+- **Root cause (hypothesis)**: `stroke_alignment_offset` math near `crates/paged-renderer/src/module/corner_path.rs:14` and `pipeline.rs:6605` — likely a half-pixel rounding issue with `StrokeAlignment="Inside"` vs reference expectation.
 - **Suggested fix**: Compare `stroke_alignment_offset` math against InDesign-PDF expectations using a generated geometry fixture with all three alignment modes. Likely a 0.5-px nudge on `Inside` or `Center` strokes.
 - **Effort**: S.
 - **Resolution**: The math is correct — verified against `corpus/generated/geometry` (passing at meanΔE 0.108, p99 0.000, SSIM 0.994 with thresholds 0.13/0.5/0.99). Inside ⇒ +stroke/2 inward, Outside ⇒ −stroke/2, Center/None ⇒ 0, then `inset_rect` shrinks/grows the rect by exactly the stroke width. Locked with four unit tests in `pipeline::tests` covering each alignment branch + the composed inset rect. The book-template-design positional drift cited in the evidence is a separate frame-position issue unrelated to stroke alignment (parser/style cascade, see P-23).
@@ -460,11 +460,11 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Path
 - **Severity**: Minor
 - **Frequency**: 1+/61 packs
-- **Crate(s)**: idml-renderer
+- **Crate(s)**: paged-renderer
 - **Evidence**:
   - `corpus/envato/reports/business-proposal/cand-001.png` vs `ref-001.png` (main "Business Proposal" panel: sharp corners in cand, rounded in ref)
 - **Symptom**: Rounded-rect renders as sharp-cornered when corner radius lives on the applied object style instead of the rectangle.
-- **Root cause (hypothesis)**: `crates/idml-renderer/src/module/object_style.rs:58` cascade only fills the radius when `frame.corner_radius.is_none()`. If parser sets `Some(0.0)` for explicit "no rounding" vs `None` for "inherit", the cascade is skipped incorrectly. Or `CornerOption` isn't parsed when on the object style.
+- **Root cause (hypothesis)**: `crates/paged-renderer/src/module/object_style.rs:58` cascade only fills the radius when `frame.corner_radius.is_none()`. If parser sets `Some(0.0)` for explicit "no rounding" vs `None` for "inherit", the cascade is skipped incorrectly. Or `CornerOption` isn't parsed when on the object style.
 - **Suggested fix**: Trace `business-proposal/template.idml` to confirm where `CornerOption` lives. If on the object style, ensure `module/object_style.rs:58` cascades `corner_option` and `corner_radius` together.
 - **Effort**: S.
 - **Deferred**: The cascade at `module/object_style.rs:58` is correct — it preserves `Some(0.0)` and fills `None`. The actual bug producing the cited symptom is that Rectangle u1b4 in `business-proposal/template.idml` carries per-corner attributes (`TopRightCornerOption="RoundedCorner"`, `TopRightCornerRadius="42.51968503937008"`, `BottomRightCornerOption="RoundedCorner"`, `BottomRightCornerRadius="42.51968503937008"`) which the parser doesn't read at all — `read_corner_attrs` only reads the legacy `CornerRadius` + `CornerOption`. Adding per-corner support (4 parser fields, 4 cascade fields, a per-corner `rounded_rect_path` variant) is materially larger than the sized S effort. Punted to a focused batch.
@@ -473,12 +473,12 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Path
 - **Severity**: Minor
 - **Frequency**: 2/61 packs
-- **Crate(s)**: idml-renderer, idml-gpu
+- **Crate(s)**: paged-renderer, paged-gpu
 - **Evidence**:
   - `corpus/envato/reports/welcome-guide-template/heat-037.png` (horizontal rule below "Our Mission Title Here" — tall triangle pointing right)
 - **Symptom**: A `<GraphicLine>` that should render as a thin horizontal stripe degrades to a triangular wedge — left endpoint at full stroke width, right endpoint converging to zero.
 - **Root cause (hypothesis)**: Possibly non-uniform `StrokeAlignment`, a tapered stroke style ("calligraphic" stroke profiles), or path-tessellation treating endpoint stroke widths differently. Could also be a degenerate 3-anchor path forming a triangle when filled.
-- **Suggested fix**: Reproduce against `welcome-guide-template/template.idml` GraphicLine elements. Look at `crates/idml-renderer/src/pipeline.rs::emit_line_into` and the CPU rasterizer's stroke pad. Check whether the line's path has 3 anchors.
+- **Suggested fix**: Reproduce against `welcome-guide-template/template.idml` GraphicLine elements. Look at `crates/paged-renderer/src/pipeline.rs::emit_line_into` and the CPU rasterizer's stroke pad. Check whether the line's path has 3 anchors.
 - **Effort**: S.
 - **Deferred**: The cited triangle in `welcome-guide-template/heat-037.png` isn't a GraphicLine — Spread_ua10 (page 13 named, page 37 rendered) has zero `<GraphicLine>` elements. The triangle is a 3-anchor `PathOpen="true"` Polygon (e.g. `ua23` with anchors forming an L-shape) whose open stroke renders correctly post-P-15 but visually differs from the ref's "horizontal rule" because the ref bakes an arrowhead-tipped line (`RightLineEnd="CircleArrowHead"` on the actual GraphicLine `u1604` in a different spread). Closing the gap requires either (a) parsing & rendering `LeftLineEnd` / `RightLineEnd` arrowheads (LineEnd/ArrowHead parsing currently absent — workspace grep returns zero hits) or (b) a per-polygon stroke-line-cap audit. Neither fits the sized S effort. Punted to a focused batch.
 
@@ -486,13 +486,13 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Text
 - **Severity**: Minor
 - **Frequency**: 1/61 packs
-- **Crate(s)**: idml-renderer
+- **Crate(s)**: paged-renderer
 - **Evidence**:
   - `corpus/envato/reports/cultured-business-newsletter/heat-001.png` ("01" page-number circle shows ghosted "0/1")
   - `corpus/envato/reports/cultured-business-newsletter/heat-004.png` ("Oct 10, 2020" date pill reflowed)
 - **Symptom**: A paragraph that visually reads as one line ghosts in the heatmap as two overlapping renders.
-- **Root cause (hypothesis)**: `split_paragraph_at_breaks` at `crates/idml-renderer/src/pipeline.rs:5549` splits at every `\n` in any run's text; a trailing `\n` at the end of the story produces a second empty sub-paragraph that still emits the numbering counter.
-- **Suggested fix**: At `pipeline.rs:5549`, after the split, drop a trailing sub-paragraph whose every run is `\n`-only or empty. Add a glyph-level test in `crates/idml-renderer/tests/text_glyph_level.rs` covering a paragraph ending in `\n`.
+- **Root cause (hypothesis)**: `split_paragraph_at_breaks` at `crates/paged-renderer/src/pipeline.rs:5549` splits at every `\n` in any run's text; a trailing `\n` at the end of the story produces a second empty sub-paragraph that still emits the numbering counter.
+- **Suggested fix**: At `pipeline.rs:5549`, after the split, drop a trailing sub-paragraph whose every run is `\n`-only or empty. Add a glyph-level test in `crates/paged-renderer/tests/text_glyph_level.rs` covering a paragraph ending in `\n`.
 - **Effort**: S.
 - **Resolution**: Tail guard at the end of `split_paragraph_at_breaks`: while the last sub-paragraph's runs are entirely empty or `\n`-only AND the list has > 1 sub, pop it (carrying SpaceAfter forward). Interior empty subs from `<Br/><Br/>` patterns are kept intact since they encode "advance one line of vertical space". Two unit tests in `pipeline::tests`: trailing-`\n`-on-single-run, and all-`\n` trailing run after visible content.
 
@@ -500,12 +500,12 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Layout
 - **Severity**: Minor
 - **Frequency**: 1+/61 packs (possibly more)
-- **Crate(s)**: idml-renderer
+- **Crate(s)**: paged-renderer
 - **Evidence**:
   - `corpus/envato/reports/saas-product-launch-annual-report-brochure/cand-008.png` (taller than `ref-008.png` — extra white space below page content)
 - **Symptom**: Per-page PNG dimensions in cand vs ref don't match, causing the diff to compare misaligned pixels and inflating ΔE.
 - **Root cause (hypothesis)**: Either we render at a different DPI than `pdftoppm`, or honor a `<DocumentPreference>` page size that differs from the actual page geometry, or interpret crop/trim/bleed boxes differently.
-- **Suggested fix**: Compare `cand-XXX.png` dimensions to `ref-XXX.png` across packs. If consistently off, audit page-size dispatch in `crates/idml-renderer/src/pipeline.rs::render` against `pdftoppm -r 144`'s assumed output.
+- **Suggested fix**: Compare `cand-XXX.png` dimensions to `ref-XXX.png` across packs. If consistently off, audit page-size dispatch in `crates/paged-renderer/src/pipeline.rs::render` against `pdftoppm -r 144`'s assumed output.
 - **Effort**: S.
 - **Resolution**: Verified — swept every `cand-NNN.png` vs `ref-NNN.png` pair across all 61 reports directories via `sips -g pixelHeight -g pixelWidth`; zero dimensional mismatches. The `saas-product-launch-annual-report-brochure/cand-008.png` "taller than ref" symptom was a pre-Wave-1 issue resolved upstream (likely closed by P-04 cross-page routing + P-05 master-spread routing).
 
@@ -513,12 +513,12 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Effects
 - **Severity**: Minor (likely invisible once P-01 lands)
 - **Frequency**: 3+/61 packs
-- **Crate(s)**: idml-renderer
+- **Crate(s)**: paged-renderer
 - **Evidence**:
   - `corpus/envato/reports/business-proposal-template/heat-001.png` (diagonal stripes with `BlendMode="Multiply"` — at 3% tint after P-01, multiply against paper is near-imperceptible)
 - **Symptom**: Multiply/Screen/Overlay blend modes honored on solid swatches but downgraded on gradients or tinted CMYK with overprint.
-- **Root cause (hypothesis)**: `frame_needs_blend_group` at `crates/idml-renderer/src/pipeline.rs:1461` gates blend-group push correctly. Likely fine — re-test after P-01 (the stripes-as-100%-black symptom goes away once tint is honoured, then we'll see whether multiply actually works).
-- **Suggested fix**: Re-evaluate after P-01. If still broken, audit `crates/idml-gpu/src/cpu.rs::blend_group_pop` (dispatch table for `TsBlendMode::Multiply`).
+- **Root cause (hypothesis)**: `frame_needs_blend_group` at `crates/paged-renderer/src/pipeline.rs:1461` gates blend-group push correctly. Likely fine — re-test after P-01 (the stripes-as-100%-black symptom goes away once tint is honoured, then we'll see whether multiply actually works).
+- **Suggested fix**: Re-evaluate after P-01. If still broken, audit `crates/paged-gpu/src/cpu.rs::blend_group_pop` (dispatch table for `TsBlendMode::Multiply`).
 - **Effort**: S.
 - **Resolution**: Verified closed by P-01. Inspected `corpus/envato/reports/business-proposal-template/cand-001.png` vs `ref-001.png` — the 3% black diagonal stripe pattern now renders as the intended barely-visible light grey in both cand and ref, with the multiply blend respecting the tinted base. The "stripes-as-100%-black" symptom is gone once FillTint cascades into Polygon (P-01 commit `9f4500f`).
 
@@ -526,7 +526,7 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Text
 - **Severity**: Minor
 - **Frequency**: 2/61 packs
-- **Crate(s)**: idml-text
+- **Crate(s)**: paged-text
 - **Evidence**:
   - `corpus/envato/reports/hair-stylist-brochure-vol-3/heat-019.png` (huge "FLST/YIT" 50%-grey rotated decorative letters missing)
 - **Symptom**: Display-size letters with negative tracking and large rotation transforms drop out entirely.
@@ -539,7 +539,7 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Text
 - **Severity**: Minor
 - **Frequency**: 3+/61 packs
-- **Crate(s)**: idml-renderer, idml-text
+- **Crate(s)**: paged-renderer, paged-text
 - **Evidence**:
   - `corpus/envato/reports/the-brochure/heat-008.png` ("04" / "05" / "06" inside circles — rotated 90° in cand, upright in ref)
   - `corpus/envato/reports/hair-stylist-brochure-vol-3/heat-019.png` ("www.yourcompany.com" right-edge text)
@@ -547,20 +547,20 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Root cause (hypothesis)**: Probably an attribute we don't read (e.g. `<StoryPreference StoryOrientation="..."/>`) that gates whether text counter-rotates the frame's rotation.
 - **Suggested fix**: Investigate first — grep an IDML's `Spread_*.xml` for the rotated frames + their `<Story>` / `<StoryPreference>`. If the marker is `StoryOrientation`, honor it in text emit by counter-rotating glyph advance directions. Otherwise document as InDesign quirk.
 - **Effort**: S (investigation), M (fix).
-- **Deferred**: Investigation confirmed `StoryPreference StoryOrientation="..."` does appear in `corpus/envato/packs/the-brochure/template.idml` (values "Horizontal" / "Unknown" observed across spreads). The IDML carries the attribute but our parser ignores it — fix requires plumbing `StoryOrientation` through `idml-parse` (`StoryPreference`), `idml-scene` (cascade), and counter-rotation in text emit at the four shape-frame emit sites. Exceeds the sized S+M effort for this batch; punted to a focused follow-up.
+- **Deferred**: Investigation confirmed `StoryPreference StoryOrientation="..."` does appear in `corpus/envato/packs/the-brochure/template.idml` (values "Horizontal" / "Unknown" observed across spreads). The IDML carries the attribute but our parser ignores it — fix requires plumbing `StoryOrientation` through `paged-parse` (`StoryPreference`), `paged-scene` (cascade), and counter-rotation in text emit at the four shape-frame emit sites. Exceeds the sized S+M effort for this batch; punted to a focused follow-up.
 
 ### P-30: Paper-coloured knockout rectangles not punching through underlying colour
 - **Category**: Layout
 - **Severity**: Minor
 - **Frequency**: 1+/61 packs
-- **Crate(s)**: idml-renderer
+- **Crate(s)**: paged-renderer
 - **Evidence**:
   - `corpus/envato/reports/white-blue-modern-company-annual-report/cand-024.png` vs `ref-024.png` (ref shows white rectangle overlapping blue forming "T" pattern; cand shows full blue with no white overlap)
 - **Symptom**: Multiple stacked rectangles with later white rects "punching out" the underlying colour don't render correctly — final image shows only the underlying colour.
 - **Root cause (hypothesis)**: Either (a) the white rectangles are master-spread items not routed (overlaps P-05), (b) draw order is being reordered (group-lift pass at `pipeline.rs:350-410` could swap sort keys), or (c) Paper-coloured fills are being mapped to transparent.
-- **Suggested fix**: Check whether the white rectangles are `fill=Paper`; if so, confirm `color_id_to_paint` resolves `Color/Paper` to opaque white not transparent. Diff `idml-inspect`'s frame dump for page 24 — count rectangles emitted vs the spread XML's count.
+- **Suggested fix**: Check whether the white rectangles are `fill=Paper`; if so, confirm `color_id_to_paint` resolves `Color/Paper` to opaque white not transparent. Diff `paged-inspect`'s frame dump for page 24 — count rectangles emitted vs the spread XML's count.
 - **Effort**: M.
-- **Deferred**: Investigated `Spreads/Spread_u21fc.xml` (the page-24 spread). It contains exactly one `FillColor="Color/Paper"` Rectangle (`u2219`, ItemLayer `ub8`) plus one `FillColor="Color/Blue"` Rectangle (`u221a`, ItemLayer `ueb`, with a large `-12032` y-translation in `ItemTransform`). Paper resolution itself is healthy (`crates/idml-parse/src/graphic.rs:416` defaults `Color/Paper` to RGB 255 255 255). The candidate shows full blue with the white rect entirely absent and the "Let's Move Together With Us" text frame also missing — i.e. items on layers `ub8` / `uf0` aren't reaching page 24's raster while layer `ueb`'s blue rect is. Visible delta has a cause outside Paper-fill resolution (likely ItemLayer stacking order or cross-spread routing of the heavily-translated blue rect); needs deeper z-order / layer-stack investigation than this batch's effort budget allows. Punted.
+- **Deferred**: Investigated `Spreads/Spread_u21fc.xml` (the page-24 spread). It contains exactly one `FillColor="Color/Paper"` Rectangle (`u2219`, ItemLayer `ub8`) plus one `FillColor="Color/Blue"` Rectangle (`u221a`, ItemLayer `ueb`, with a large `-12032` y-translation in `ItemTransform`). Paper resolution itself is healthy (`crates/paged-parse/src/graphic.rs:416` defaults `Color/Paper` to RGB 255 255 255). The candidate shows full blue with the white rect entirely absent and the "Let's Move Together With Us" text frame also missing — i.e. items on layers `ub8` / `uf0` aren't reaching page 24's raster while layer `ueb`'s blue rect is. Visible delta has a cause outside Paper-fill resolution (likely ItemLayer stacking order or cross-spread routing of the heavily-translated blue rect); needs deeper z-order / layer-stack investigation than this batch's effort budget allows. Punted.
 
 ---
 
@@ -581,7 +581,7 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Color
 - **Severity**: Info (corpus curation, not renderer)
 - **Frequency**: 5+/61 packs (resume-template-teacher, employment-application, cultured-business-newsletter, brown-fashion-brochure, modern-resume)
-- **Crate(s)**: corpus/envato (pack curation), idml-fidelity (gate-mode flagging)
+- **Crate(s)**: corpus/envato (pack curation), paged-fidelity (gate-mode flagging)
 - **Evidence**:
   - `corpus/envato/reports/cultured-business-newsletter/heat-001.png` (banner blue in ref, orange in cand — IDML's actual FillColor matches cand)
   - `corpus/envato/reports/resume-template-teacher/heat-001.png` (ref has deep red bg; IDML's `Color/ue637` is CMYK 4/3/2/0 → near-white, cand renders that correctly)
@@ -666,7 +666,7 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 | Q-15  | Single-word-per-line wrap on wide TextFrames (likely word-spacing units bug)       | Text      | Major    |  4+/61   | S      | open   |
 | Q-16  | Per-corner `CornerOption` (asymmetric radii) ignored (promoted from P-23)          | Path      | Major    |  3+/61   | M      | landed — per-corner `(option, radius)` plumbed through Rectangle + `rounded_rect_path_per_corner` |
 | Q-17  | `<Layer Printable="false">` not honoured                                           | Layout    | Major    |  4+/61   | S      | already implemented; regression test pinned this cycle |
-| Q-18  | Real `<Table>` / `<Row>` / `<Cell>` IDML element family unparsed                   | Tables    | Major    |  2+/61   | L      | **already code-complete** — parser at `crates/idml-parse/src/story.rs:358-523` (`Table`, `TableRow`, `TableColumn`, `TableCell`, `TableBorder`, `TableLineStrokes`), renderer at `crates/idml-renderer/src/pipeline.rs::emit_table_into_chain:5040` with content-driven row growth + cell text layout + edge strokes. The cited blank-cell symptom traced to a font-substitution gap: cited packs use Muli / Mulish / Kozuka Mincho Pro and `_default/fonts.sh` had no entry for those. Added now. Employment-application cover (cand-001) now renders the full form. |
+| Q-18  | Real `<Table>` / `<Row>` / `<Cell>` IDML element family unparsed                   | Tables    | Major    |  2+/61   | L      | **already code-complete** — parser at `crates/paged-parse/src/story.rs:358-523` (`Table`, `TableRow`, `TableColumn`, `TableCell`, `TableBorder`, `TableLineStrokes`), renderer at `crates/paged-renderer/src/pipeline.rs::emit_table_into_chain:5040` with content-driven row growth + cell text layout + edge strokes. The cited blank-cell symptom traced to a font-substitution gap: cited packs use Muli / Mulish / Kozuka Mincho Pro and `_default/fonts.sh` had no entry for those. Added now. Employment-application cover (cand-001) now renders the full form. |
 | Q-19  | `<PatternColor>` / pattern fills render as flat colour                             | Color     | Major    |  2+/61   | M      | misdiagnosed — neither business-proposal-template nor brown-fashion-brochure has `<PatternColor>` swatches (both carry `<PastedSmoothShade>` instead). The diagonal-stripe pattern likely comes from a custom `<StrokeStyle>` dash; cycle 3 should re-audit what's actually authoring it. |
 | Q-20  | Composer wrap drift extension — soft-hyphen + min/max spacing (P-07 follow-up)     | Text      | Major    | 12+/61   | L      | (a) Min/Desired/Max LetterSpacing + GlyphScaling parsed + cascaded + folded into ComposeOptions stretch/shrink budget; (b) soft-hyphen at flagged Penalty already closed by Q-23. The cited magazine pack has all 6 attrs at default values so the corpus-wide impact is limited — wrap drift on default-spacing packs is a separate calibration track requiring a reference-pixel A/B harness. |
 | Q-21  | AllCaps headline cascade audit — paragraph-style vs character-style FillColor      | Text      | Minor    |  3+/61   | S      | cascade pinned green; residual brochure symptom past this layer |
@@ -681,15 +681,15 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Color
 - **Severity**: Blocker
 - **Frequency**: 9+/61 packs (interior-design-catalog, ancient-building-magazine, business-proposal-template, brown-fashion-brochure, welcome-guide-template, wedding-newspaper, travel-guide-brochure-template-indd-canva, annual-report-template-8b5d40)
-- **Crate(s)**: idml-parse, idml-renderer
+- **Crate(s)**: paged-parse, paged-renderer
 - **Evidence**:
   - `corpus/envato/reports/welcome-guide-template/heat-002.png` (placeholder rects → solid black; should be 15% grey)
   - `corpus/envato/reports/wedding-newspaper/heat-001.png` (tiled "YOUR IMAGE GOES HERE" → solid black)
   - `corpus/envato/reports/travel-guide-brochure-template-indd-canva/heat-001.png` (central panel solid black; ref 15% grey)
   - `corpus/envato/reports/interior-design-catalog/heat-016.png` (bottom-page placeholder: solid black; ref 15% grey)
 - **Symptom**: Image-placeholder rectangles + decorative panels that cascade their fill from an `<ObjectStyle>` carrying `FillColor="…" FillTint="N"` paint at 100% strength. The frame omits FillTint inline; the cascade drops the tint floor. Dominant driver of the welcome-guide / wedding-newspaper / travel-guide regressions.
-- **Root cause (hypothesis)**: `ResolvedObject` at `crates/idml-parse/src/styles.rs:152` lists five fields (`fill_color`, `stroke_color`, `stroke_weight`, `corner_radius`, `corner_option`) — no `fill_tint`. `object_style_cascade` at `crates/idml-renderer/src/module/object_style.rs:42` consequently can't propagate it.
-- **Suggested fix**: Add `pub fill_tint: Option<f32>` (and `pub stroke_tint: Option<f32>` for symmetry) to `ResolvedObject` at `crates/idml-parse/src/styles.rs:152`; populate from `<ObjectStyle FillTint="…">` in the parser; cascade in `object_style_cascade` at `crates/idml-renderer/src/module/object_style.rs:42` next to `fill_color`.
+- **Root cause (hypothesis)**: `ResolvedObject` at `crates/paged-parse/src/styles.rs:152` lists five fields (`fill_color`, `stroke_color`, `stroke_weight`, `corner_radius`, `corner_option`) — no `fill_tint`. `object_style_cascade` at `crates/paged-renderer/src/module/object_style.rs:42` consequently can't propagate it.
+- **Suggested fix**: Add `pub fill_tint: Option<f32>` (and `pub stroke_tint: Option<f32>` for symmetry) to `ResolvedObject` at `crates/paged-parse/src/styles.rs:152`; populate from `<ObjectStyle FillTint="…">` in the parser; cascade in `object_style_cascade` at `crates/paged-renderer/src/module/object_style.rs:42` next to `fill_color`.
 - **Effort**: S
 - **Resolution**: 9bd0353 — added `fill_tint` + `stroke_tint` to ObjectStyleDef + ResolvedObject; populated from `<ObjectStyle FillTint="…"/StrokeTint="…">`; cascaded `fill_tint` into ResolvedFrame in `object_style_cascade`.
 
@@ -697,7 +697,7 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Text
 - **Severity**: Blocker
 - **Frequency**: 13+/61 packs (business-proposal-template, resume-template-teacher, book-template-design, brand-guidelines, catalog-brochure-template, interior-design-catalog, indesign-magazine, brochure, church-newsletter-template, project-case-study-template, lifestyle-magazine-layout, real-estate-brochure, hr-employee-handbook)
-- **Crate(s)**: idml-parse, idml-renderer
+- **Crate(s)**: paged-parse, paged-renderer
 - **Evidence**:
   - `corpus/envato/reports/indesign-magazine/heat-001.png` ("MAGAZINE" → "MAG")
   - `corpus/envato/reports/business-proposal-template/heat-001.png` ("BUSINESS PROPOSAL" → "BUSI / PRO")
@@ -705,36 +705,36 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
   - `corpus/envato/reports/church-newsletter-template/cand-002.png` vs `ref-002.png` ("THE MESSENGER" → "THE")
   - `corpus/envato/reports/project-case-study-template/cand-015.png` ("MARKETING PROJECT" → "MAR / KET")
 - **Symptom**: Display headlines clip to the first 3-6 characters or 1-2 words because the IDML stores the frame undersized expecting composition-time growth. P-17's frame-clip then drops anything past the original edge.
-- **Root cause (hypothesis)**: Workspace grep for `AutoSizingType` / `AutoSizingReferencePoint` / `MinimumWidthForAutoSizing` / `UseMinimumHeightForAutoSizing` in `idml-parse` returns zero hits. The IDML attaches these as `<TextFramePreference>` attributes; our parser drops them.
-- **Suggested fix**: Parse the four `AutoSizing*` attributes in `crates/idml-parse/src/spread.rs` near the existing `<TextFramePreference>` block (~line 2110). Plumb through to `TextFrame::auto_sizing: Option<AutoSizingType>`. In `crates/idml-renderer/src/pipeline.rs` near text-frame width calc (~`:1900-2000`), when `auto_sizing == WidthOnly | WidthAndHeight`, expand column width to fit the longest token's measured advance, pinned to the IDML's `MinimumWidth*` floor, before invoking Knuth-Plass.
+- **Root cause (hypothesis)**: Workspace grep for `AutoSizingType` / `AutoSizingReferencePoint` / `MinimumWidthForAutoSizing` / `UseMinimumHeightForAutoSizing` in `paged-parse` returns zero hits. The IDML attaches these as `<TextFramePreference>` attributes; our parser drops them.
+- **Suggested fix**: Parse the four `AutoSizing*` attributes in `crates/paged-parse/src/spread.rs` near the existing `<TextFramePreference>` block (~line 2110). Plumb through to `TextFrame::auto_sizing: Option<AutoSizingType>`. In `crates/paged-renderer/src/pipeline.rs` near text-frame width calc (~`:1900-2000`), when `auto_sizing == WidthOnly | WidthAndHeight`, expand column width to fit the longest token's measured advance, pinned to the IDML's `MinimumWidth*` floor, before invoking Knuth-Plass.
 - **Effort**: M
 
 ### Q-03: Embedded image bytes in `<Image>/<Contents>` CDATA never decoded
 - **Category**: Images
 - **Severity**: Blocker
 - **Frequency**: 8+/61 packs (newspaper, newspaper-template, food-cooking-magazine-template, church-newsletter-template, magazine-editorial-layout, indesign-magazine, hr-employee-handbook, project-case-study-template)
-- **Crate(s)**: idml-parse, idml-renderer
+- **Crate(s)**: paged-parse, paged-renderer
 - **Evidence**:
   - `corpus/envato/reports/newspaper-template/heat-005.png` (30+ embedded JPEG tiles → nothing)
   - `corpus/envato/reports/church-newsletter-template/heat-002.png` (tiled placeholders → empty)
   - `corpus/envato/reports/food-cooking-magazine-template/heat-009.png` (full-page tile → blank)
   - `corpus/envato/reports/newspaper/heat-002.png` (data-table cells of embedded JPEGs)
 - **Symptom**: Pages with placed JPEGs that ship inline in the IDML (rather than as external files) render as blank rectangles or P-02 placeholders. The `<Image>` element's `<Properties><Contents><![CDATA[base64 …]]></Contents></Properties>` payload is ignored end-to-end.
-- **Root cause (hypothesis)**: `crates/idml-parse/src/spread.rs:2009-2036` captures only `LinkResourceURI` / `href`. No code path parses `<Contents>`. The asset-resolver lookup in `crates/idml-renderer/src/pipeline.rs:7775-7796` returns `None`, P-02 placeholder fires.
-- **Suggested fix**: (1) In `crates/idml-parse/src/spread.rs` `<Image>` parser (~`:2009`), when the element has a `<Contents>` child, base64-decode the CDATA into `Vec<u8>` and stash on the parent shape (new `Rectangle::image_bytes: Option<Vec<u8>>`, similarly for Oval / Polygon / TextFrame). (2) In `crates/idml-renderer/src/pipeline.rs:7775`, extend `page_image_cache` lookup: if the asset resolver returns `None` but the frame carries `image_bytes`, decode via existing `decode_image_bytes` helper.
+- **Root cause (hypothesis)**: `crates/paged-parse/src/spread.rs:2009-2036` captures only `LinkResourceURI` / `href`. No code path parses `<Contents>`. The asset-resolver lookup in `crates/paged-renderer/src/pipeline.rs:7775-7796` returns `None`, P-02 placeholder fires.
+- **Suggested fix**: (1) In `crates/paged-parse/src/spread.rs` `<Image>` parser (~`:2009`), when the element has a `<Contents>` child, base64-decode the CDATA into `Vec<u8>` and stash on the parent shape (new `Rectangle::image_bytes: Option<Vec<u8>>`, similarly for Oval / Polygon / TextFrame). (2) In `crates/paged-renderer/src/pipeline.rs:7775`, extend `page_image_cache` lookup: if the asset resolver returns `None` but the frame carries `image_bytes`, decode via existing `decode_image_bytes` helper.
 - **Effort**: M
 
 ### Q-04: `<GradientFeatherSetting>` extension to Polygon / Oval / TextFrame / GraphicLine
 - **Category**: Effects
 - **Severity**: Blocker
 - **Frequency**: 5+/61 packs (hair-stylist-brochure-vol-3, soccer-career-flyer-templates, fitness-protein-powder-business-card-templates, the-brochure, annual-report-template-8b5d40)
-- **Crate(s)**: idml-parse, idml-compose, idml-renderer
+- **Crate(s)**: paged-parse, paged-compose, paged-renderer
 - **Evidence**:
   - `corpus/envato/reports/hair-stylist-brochure-vol-3/heat-001.png` (gradient-feathered backdrop missing on cover)
   - `corpus/envato/reports/soccer-career-flyer-templates/heat-001.png` (orange page bg with multiple gradient-feathered Polygons → blank)
   - `corpus/envato/reports/fitness-protein-powder-business-card-templates/heat-001.png` (gradient-feathered Rectangle backgrounds gone; ties to Q-05 Multiply-on-transparent)
 - **Symptom**: Decorative gradient-feathered backdrops on non-Rectangle shapes paint as flat fill (or nothing when frame.fill_color is None). Cycle 1's `PushLayer { GradientFeather }` plumbing for Rectangle was never extended.
-- **Root cause (hypothesis)**: `effects: Option<FrameEffects>` lives only on `Rectangle` (`crates/idml-parse/src/spread.rs:470`). `Polygon` (`:881`), `Oval` (`:707`), `TextFrame` (`:443`), `GraphicLine` (`:750`) lack the field and the matching `emit_effects_pre_fill` / `emit_effects_post_fill` calls in their per-shape emit paths in `pipeline.rs`.
+- **Root cause (hypothesis)**: `effects: Option<FrameEffects>` lives only on `Rectangle` (`crates/paged-parse/src/spread.rs:470`). `Polygon` (`:881`), `Oval` (`:707`), `TextFrame` (`:443`), `GraphicLine` (`:750`) lack the field and the matching `emit_effects_pre_fill` / `emit_effects_post_fill` calls in their per-shape emit paths in `pipeline.rs`.
 - **Suggested fix**: Mechanical extension of cycle 1's Rectangle path. Add `pub effects: Option<FrameEffects>` to the four parser structs, populate from the same parse arm. Mirror Rectangle emit hooks at `pipeline.rs:7038-7058` into `emit_polygon_into`, `emit_oval_into`, `emit_text_frame_into`, the GraphicLine emit site. Compose-side `DisplayCommand::GradientFeather` + CPU `render_gradient_feather` are already shape-agnostic — no rasterizer changes needed.
 - **Effort**: M
 - **Cross-link**: cycle-1 P-09 (deferred there).
@@ -743,13 +743,13 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Effects
 - **Severity**: Blocker
 - **Frequency**: 4+/61 packs (fitness-protein-powder-business-card-templates, soccer-career-flyer-templates, business-proposal-template, hair-stylist-brochure-vol-3)
-- **Crate(s)**: idml-renderer, idml-gpu
+- **Crate(s)**: paged-renderer, paged-gpu
 - **Evidence**:
   - `corpus/envato/reports/fitness-protein-powder-business-card-templates/heat-001.png` (Multiply Rectangle → transparent over white instead of red over paper; primary driver of the +63% regression)
   - `corpus/envato/reports/soccer-career-flyer-templates/heat-001.png` (HardLight / Overlay / ColorBurn stack composes to nothing)
 - **Symptom**: When a frame uses a non-Normal BlendMode and the spread doesn't draw an explicit Paper rectangle behind it, the blend group composites against α=0 backdrop and the frame's contribution annihilates (Multiply×0=0).
-- **Root cause (hypothesis)**: `BeginBlendGroup` at `crates/idml-gpu/src/cpu.rs:1513` snapshots the parent's existing pixels for the non-isolated semantic, but the parent pixmap is cleared transparent rather than to opaque paper-white. InDesign treats the page as opaque white paper; we treat it as PDF's transparent device.
-- **Suggested fix**: (a) Quick win (S): when the snapshot region is fully α=0 at `crates/idml-gpu/src/cpu.rs:1541`, substitute opaque white. (b) Correct fix (M): paint an opaque Paper rect at page bbox before any spread items in `crates/idml-renderer/src/pipeline.rs::render` page-init.
+- **Root cause (hypothesis)**: `BeginBlendGroup` at `crates/paged-gpu/src/cpu.rs:1513` snapshots the parent's existing pixels for the non-isolated semantic, but the parent pixmap is cleared transparent rather than to opaque paper-white. InDesign treats the page as opaque white paper; we treat it as PDF's transparent device.
+- **Suggested fix**: (a) Quick win (S): when the snapshot region is fully α=0 at `crates/paged-gpu/src/cpu.rs:1541`, substitute opaque white. (b) Correct fix (M): paint an opaque Paper rect at page bbox before any spread items in `crates/paged-renderer/src/pipeline.rs::render` page-init.
 - **Effort**: S (snapshot patch) / M (paper init)
 - **Resolution**: bd601f6 — S-path landed. When the `BeginBlendGroup` snapshot is fully α=0, substitute it with opaque paper before the bypass; the existing `near_paper`-driven SrcOver-on-paper pass then runs normally. Unit test `q05_multiply_group_over_transparent_paper_renders_as_multiply_on_white` guards.
 
@@ -757,12 +757,12 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Images
 - **Severity**: Blocker
 - **Frequency**: 3+/61 packs (soccer-career-flyer-templates, annual-report-template, the-brochure)
-- **Crate(s)**: idml-parse, idml-renderer
+- **Crate(s)**: paged-parse, paged-renderer
 - **Evidence**:
   - `corpus/envato/reports/soccer-career-flyer-templates/heat-001.png` (Rectangle u6aa3 hosts a `<PDF>` element with inline base64 — placeholder grey-X stamps over the player silhouette + textured backdrop)
   - `corpus/envato/reports/annual-report-template/heat-001.png` (cover Rectangle ua055: 35MB embedded `<Image>` undecodable; placeholder X over what should be blue gradient cover)
 - **Symptom**: Pages whose hero artwork is a placed PDF render as InDesign's missing-image placeholder. Where the placeholder lands on a transparent backdrop, white-on-color text from above reads as light-grey-on-grey (much worse ΔE).
-- **Root cause (hypothesis)**: `crates/idml-parse/src/spread.rs:2007` treats `<PDF>` like `<Image>` — flips `has_image_element=true` so P-02 placeholder fires, but never extracts the inline `<Contents>` CDATA. `decode_image_bytes` at `crates/idml-renderer/src/pipeline.rs:7967` sniffs `%!PS` (P-14 EPS triage) and would similarly bail on `%PDF-`.
+- **Root cause (hypothesis)**: `crates/paged-parse/src/spread.rs:2007` treats `<PDF>` like `<Image>` — flips `has_image_element=true` so P-02 placeholder fires, but never extracts the inline `<Contents>` CDATA. `decode_image_bytes` at `crates/paged-renderer/src/pipeline.rs:7967` sniffs `%!PS` (P-14 EPS triage) and would similarly bail on `%PDF-`.
 - **Suggested fix**: Triage (S): in the parser, when `<PDF>` carries `<Contents>` but no `LinkResourceURI`, set `has_inline_pdf: bool` distinct from `has_image_element`. In the missing-image-placeholder emit, special-case inline-PDF rectangles to emit Paper fill rather than grey + X-cross (matches InDesign's "placed PDF can't render → frame fill shows"). Defer full Ghostscript/pdfium decode (L).
 - **Effort**: S triage / L full decode
 - **Resolution**: 82531be — S-triage landed. `has_inline_pdf` flag set during `<PDF>` parse when no LinkResourceURI; placeholder emit short-circuits so the frame's intrinsic FillColor (already emitted upstream) shows through. Full decode deferred.
@@ -771,14 +771,14 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Text
 - **Severity**: Major
 - **Frequency**: 3+/61 packs (employment-application, interior-design-catalog, ancient-building-magazine)
-- **Crate(s)**: idml-text, idml-renderer
+- **Crate(s)**: paged-text, paged-renderer
 - **Evidence**:
   - `corpus/envato/reports/employment-application/cand-001.png` vs `ref-001.png` ("LFLV" in cand vs "L F L V" in ref)
   - `corpus/envato/reports/interior-design-catalog/heat-016.png` ("LAUDRY" hero: cand natural spacing, ref wide tracking)
   - `corpus/envato/reports/interior-design-catalog/heat-010.png` ("BATHROOM" hero: same pattern)
 - **Symptom**: Display headlines authored with a large positive `Tracking` value (typical Envato section titles tracked 400-1000 thousandths-of-em) render with natural inter-letter advance.
 - **Root cause (hypothesis)**: `Tracking` likely parsed at `<CharacterStyleRange Tracking="…">` but not propagated to per-glyph advance in `shape_run` or `compose_paragraph`. Sibling gap to cycle 1's P-08 (HorizontalScale/Skew).
-- **Suggested fix**: Grep `crates/idml-text/src/` for `tracking`. If `shape_run` doesn't apply it, thread the per-run tracking (`tracking * font_size_pt / 1000.0` extra advance per cluster) into the advance accumulator in the shaping loop.
+- **Suggested fix**: Grep `crates/paged-text/src/` for `tracking`. If `shape_run` doesn't apply it, thread the per-run tracking (`tracking * font_size_pt / 1000.0` extra advance per cluster) into the advance accumulator in the shaping loop.
 - **Effort**: S
 - **Deferred**: Tracking is already plumbed end-to-end: parser → cascade (`ResolvedRunAttrs.tracking`, both character and paragraph fold-in) → `StyledRun.tracking` → `apply_tracking` in `layout_runs`. The cited evidence (employment-application "REFERENCES" table cells, interior-design-catalog "LAUDRY" pricing table) is text inside `<Table>` IDML elements that our parser drops entirely (Q-18). Re-audit after Q-18 lands; if the regression is still visible on non-table headlines, file as a new Q.
 
@@ -786,11 +786,11 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Color, Effects
 - **Severity**: Major
 - **Frequency**: 5+/61 packs (brochure, food-cooking-magazine-template, lifestyle-magazine-layout, modern-architecture-portfolio-template, magazine)
-- **Crate(s)**: idml-renderer
+- **Crate(s)**: paged-renderer
 - **Evidence**:
   - `corpus/envato/reports/brochure/cand-001.png` vs `ref-001.png` (page bg gradient + 3 gradient circles missing; IDML has `<Polygon FillColor="Gradient/…" GradientFillAngle="90">` for page bg and `<Oval ... ItemTransform="0 1 -1 0 …">` for rotated gradient circles)
 - **Symptom**: Polygons + Ovals with `FillColor="Gradient/…"` render as solid fallback. Rectangle gradients work; the bug is shape-specific to non-Rect.
-- **Root cause (hypothesis)**: `color_id_to_paint_with_list_dir` at `crates/idml-renderer/src/pipeline.rs:8615` projects gradient endpoints from `GradientFillAngle` + `GradientFillLength` + `path_dims` but never consults the shape's `ItemTransform`. For rotated shapes the gradient line lands wrong relative to the post-transform geometry.
+- **Root cause (hypothesis)**: `color_id_to_paint_with_list_dir` at `crates/paged-renderer/src/pipeline.rs:8615` projects gradient endpoints from `GradientFillAngle` + `GradientFillLength` + `path_dims` but never consults the shape's `ItemTransform`. For rotated shapes the gradient line lands wrong relative to the post-transform geometry.
 - **Suggested fix**: Add an `ItemTransform` parameter to the gradient-line projection at `pipeline.rs:8615` and apply the inverse before the unit-rect mapping.
 - **Effort**: M
 - **Resolution (2026-05-20)**: Hypothesis was wrong. `linear_gradient_endpoints` returns unit-rect coords; the downstream `Transform::for_rect_in(rect, outer)` composition (rect / oval path) DOES bake `ItemTransform` into the stored gradient line. Unit test `q08_gradient_endpoints_rotate_with_item_transform` in `pipeline.rs` pins that. **Actual bug:** Polygon fills route through `emit_fill_path` whose `path_transform = outer` directly (the path lives in inner-anchor coords). The unit→bbox step that `for_rect_in` provides for rect / oval is missing — the rasterizer applies `outer` to unit-rect endpoints `(0.5, ~0.07)` / `(0.5, ~0.93)` and the gradient line collapses to ~1pt near the spread origin, flattening the polygon. Ovals work; only Polygons hit this. **Fix**: `fill_paint_module` now rebases the stored `LinearGradient`'s endpoints from unit-rect to the polygon's inner-coord bbox before emit, so the downstream `outer.apply(...)` lands them inside the polygon's actual span. Brochure p1: page-bg + bottom-wave polygons now render as gradients (mean ΔE 13.2 → still dominated by other unrelated diffs; the gradient regions themselves match). Radial gradients on polygons left for a follow-up (the tiny-skia radius compensation differs from the for_rect_in codepath). Tests: `q08_polygon_gradient_rebases_to_bbox` + `q08_gradient_endpoints_rotate_with_item_transform`.
@@ -799,10 +799,10 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Text
 - **Severity**: Major
 - **Frequency**: 5+/61 packs (fitness-protein-powder-business-card-templates, soccer-career-flyer-templates, real-estate-brochure, saas-product-launch-annual-report-brochure)
-- **Crate(s)**: idml-parse, idml-text, idml-renderer
+- **Crate(s)**: paged-parse, paged-text, paged-renderer
 - **Evidence**: see cycle-1 P-10 evidence section.
 - **Symptom**: Headlines + callouts depending on paragraph-level decorative bands / borders / rules render without them.
-- **Root cause (hypothesis)**: Workspace grep zero hits across `idml-parse/src/styles.rs` and `story.rs`.
+- **Root cause (hypothesis)**: Workspace grep zero hits across `paged-parse/src/styles.rs` and `story.rs`.
 - **Suggested fix**: As cycle-1 P-10. Re-sized as L given 4 feature families × cascade × emit machinery.
 - **Effort**: L
 
@@ -810,13 +810,13 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Layout
 - **Severity**: Major
 - **Frequency**: 4+/61 packs (the-brochure, white-blue-modern-company-annual-report, plus 2 others sampled)
-- **Crate(s)**: idml-renderer
+- **Crate(s)**: paged-renderer
 - **Evidence**:
   - `corpus/envato/reports/the-brochure/heat-022.png` (blue strip on upper layer renders behind red column on lower layer)
   - `corpus/envato/reports/the-brochure/heat-016.png` (similar)
   - `corpus/envato/reports/white-blue-modern-company-annual-report/cand-024.png` (Paper-coloured rect doesn't punch through Blue rect — P-30 cause)
 - **Symptom**: Frames in upper `ItemLayer` render *behind* frames in lower layers when XML order disagrees with layer stack order.
-- **Root cause (hypothesis)**: `crates/idml-renderer/src/pipeline.rs:548-564` uses ItemLayer for visibility only, never for z-order. The per-spread emit loop iterates `text_frames` / `rectangles` / `polygons` lists in XML order.
+- **Root cause (hypothesis)**: `crates/paged-renderer/src/pipeline.rs:548-564` uses ItemLayer for visibility only, never for z-order. The per-spread emit loop iterates `text_frames` / `rectangles` / `polygons` lists in XML order.
 - **Suggested fix**: Build `layer_stack_index: HashMap<&str, usize>` from `document.container.designmap.layers`. In the per-spread emit loop at `pipeline.rs:581-824`, build a combined `Vec<FrameRef>` across shape kinds, sort by `(layer_stack_index, xml_order_within_layer)`, iterate.
 - **Effort**: M
 
@@ -824,11 +824,11 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Path
 - **Severity**: Major
 - **Frequency**: 3+/61 packs (fitness-protein-powder-business-card-templates, soccer-career-flyer-templates, hair-stylist-brochure-vol-3)
-- **Crate(s)**: idml-renderer
+- **Crate(s)**: paged-renderer
 - **Evidence**:
   - `corpus/envato/reports/fitness-protein-powder-business-card-templates/heat-001.png` (Rectangle ube48 — 241-anchor torn-paper shape → plain rectangle in cand)
 - **Symptom**: A Rectangle whose `<PathGeometry>` declares a non-rectangular outline renders as the AABB. P-15 fixed the analogous Polygon bug; Rectangle wasn't addressed.
-- **Root cause (hypothesis)**: `ResolvedFrame::from_rectangle` at `crates/idml-renderer/src/module/frame.rs:201` hardcodes `geometry: Geometry::Rect`. Polygon's adapter at `:238-251` already routes to `Geometry::Polygon` when anchors are non-empty.
+- **Root cause (hypothesis)**: `ResolvedFrame::from_rectangle` at `crates/paged-renderer/src/module/frame.rs:201` hardcodes `geometry: Geometry::Rect`. Polygon's adapter at `:238-251` already routes to `Geometry::Polygon` when anchors are non-empty.
 - **Suggested fix**: Mirror the Polygon adapter in `from_rectangle`: when `rect.anchors.len() > 4`, emit `Geometry::Polygon { … }` instead.
 - **Effort**: S
 
@@ -836,7 +836,7 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Color, Layout
 - **Severity**: Major
 - **Frequency**: 2+/61 packs (event-program-brochure, likely more)
-- **Crate(s)**: idml-renderer
+- **Crate(s)**: paged-renderer
 - **Evidence**:
   - `corpus/envato/reports/event-program-brochure/heat-002.png` (TextFrame `FillColor="Color/Color 2c"` deep blue; cand renders white; text "TABLE OF CONTENTS" reads black instead of white-on-blue)
 - **Symptom**: A TextFrame that doubles as a page-bg colour panel renders text correctly but loses its frame fill. White text designed to land on coloured frame lands on white paper.
@@ -849,7 +849,7 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Text
 - **Severity**: Major
 - **Frequency**: 2+/61 packs (welcome-guide-template)
-- **Crate(s)**: idml-renderer
+- **Crate(s)**: paged-renderer
 - **Evidence**:
   - `corpus/envato/reports/welcome-guide-template/heat-002.png` ("Linda Brown" renders as overlapping "LinedaBrown"; body paragraph + "Page No: 2" double-rendered)
 - **Symptom**: Some text frames produce duplicate overlapping render passes despite P-25's trailing-`\n` guard.
@@ -861,11 +861,11 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Images
 - **Severity**: Major
 - **Frequency**: 4+/61 packs (annual-report-template, fitness-protein-powder-business-card-templates, hair-stylist-brochure-vol-3, the-brochure)
-- **Crate(s)**: idml-renderer
+- **Crate(s)**: paged-renderer
 - **Evidence**:
   - `corpus/envato/reports/annual-report-template/heat-001.png` (Rectangle ua055: link resolved but decode fails on 35MB payload → placeholder grey + X stamps over what should be deep-blue gradient cover; white "ANNUAL" headline now light grey on grey)
 - **Symptom**: A frame whose `<Image>` link resolves to a payload our decoder can't handle gets the missing-link placeholder. White text on the original colorful background reads light-grey-on-grey — much worse ΔE than the pre-fix "background missing, text matches paper" baseline.
-- **Root cause (hypothesis)**: `crates/idml-renderer/src/pipeline.rs::resolve_image_id` at `:7311` doesn't distinguish "link missing" from "link resolved but decode failed". InDesign would render the actual content for the latter.
+- **Root cause (hypothesis)**: `crates/paged-renderer/src/pipeline.rs::resolve_image_id` at `:7311` doesn't distinguish "link missing" from "link resolved but decode failed". InDesign would render the actual content for the latter.
 - **Suggested fix**: Distinguish the two cases. For decode-failed, emit the frame's intrinsic `FillColor` rather than the InDesign-style grey-X placeholder. Alternatively broaden the decoder (streaming JPEG for oversized payloads).
 - **Effort**: S triage / M decoder broadening
 
@@ -873,26 +873,26 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Text
 - **Severity**: Major
 - **Frequency**: 4+/61 packs (real-estate-brochure, business-proposal, newspaper, indesign-magazine)
-- **Crate(s)**: idml-renderer, idml-text
+- **Crate(s)**: paged-renderer, paged-text
 - **Evidence**:
   - `corpus/envato/reports/real-estate-brochure/cand-019.png` ("To be a world-class property company that..." renders 7 single-word lines on a 487pt-wide frame; ref shows 2 lines of 5-6 words each)
   - `corpus/envato/reports/business-proposal/cand-003.png` (right-column quote stacked one short word per line)
 - **Symptom**: A subset of `<TextFrame>` paragraphs wrap dramatically narrower than the actual frame width — every word lands on its own line.
 - **Root cause (hypothesis)**: Suspect units bug. Verified for real-estate-brochure p19: frame `u7688` has correct width 487.56pt, `TextColumnCount=1`. Paragraph style cascades `MaximumWordSpacing="100" MinimumWordSpacing="90"` (percentages). Likely those percentages interpreted as absolute pt in the breaker, so each space-glyph advances 100pt.
-- **Suggested fix**: Add `RUST_LOG=trace` dump of `column_width_pt` + the breaker's `word_spacing`. Likely a `/ 100.0` fix in `crates/idml-text/src/layout.rs` where word/letter spacing percentages enter the breaker.
+- **Suggested fix**: Add `RUST_LOG=trace` dump of `column_width_pt` + the breaker's `word_spacing`. Likely a `/ 100.0` fix in `crates/paged-text/src/layout.rs` where word/letter spacing percentages enter the breaker.
 - **Effort**: S → M worst case
 
 ### Q-16: Per-corner `CornerOption` (asymmetric radii) ignored
 - **Category**: Path
 - **Severity**: Major
 - **Frequency**: 3+/61 packs (resume-template-teacher, modern-resume-reference-job-application-template, brown-fashion-brochure)
-- **Crate(s)**: idml-parse, idml-renderer
+- **Crate(s)**: paged-parse, paged-renderer
 - **Evidence**:
   - `corpus/envato/reports/resume-template-teacher/cand-001.png` vs `ref-001.png` (yellow accent rect: ref rounded bottom-left only; cand sharp all corners)
   - `corpus/envato/reports/modern-resume-reference-job-application-template/ref-001.png` (large grey placeholder centre-left: ref rounded bottom-left only)
 - **Symptom**: Rectangles authored with per-corner overrides (`<TopLeftCornerOption>`, `<BottomLeftCornerOption>`, etc.) render with all four corners flat.
 - **Root cause (hypothesis)**: `Rectangle::corner_radius: f32` is scalar; IDML carries per-corner children. Renderer applies one radius to all four corners.
-- **Suggested fix**: Promote `corner_radius` to `[Option<(CornerOption, f32)>; 4]` in `crates/idml-parse/src/spread.rs <Rectangle>` parser; parse the four per-corner children; update `crates/idml-renderer/src/pipeline.rs` rect-emit to call a 4-corner path builder.
+- **Suggested fix**: Promote `corner_radius` to `[Option<(CornerOption, f32)>; 4]` in `crates/paged-parse/src/spread.rs <Rectangle>` parser; parse the four per-corner children; update `crates/paged-renderer/src/pipeline.rs` rect-emit to call a 4-corner path builder.
 - **Effort**: M
 - **Cross-link**: cycle-1 P-23 (deferred there as cascade-bug; cycle-2 audit clarified the root cause is missing per-corner support).
 
@@ -900,13 +900,13 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Layout
 - **Severity**: Major
 - **Frequency**: 4+/61 packs (gridtastic-grid-kit, hr-employee-handbook, project-case-study-template, real-estate-brochure)
-- **Crate(s)**: idml-parse, idml-renderer
+- **Crate(s)**: paged-parse, paged-renderer
 - **Evidence**:
   - `corpus/envato/reports/gridtastic-grid-kit/cand-001.png` (master-page guide rectangles render at full saturation; ref suppresses them — they're on a layer marked `Printable="false"`)
   - `corpus/envato/reports/project-case-study-template/cand-015.png` (right-side master rectangle visible in cand, absent in ref)
 - **Symptom**: Items on layers marked `Printable="false"` render. InDesign's PDF export suppresses them.
-- **Root cause (hypothesis)**: `idml-parse/src/designmap.rs` reads `Visible` + `Name` but not `Printable`. The renderer's per-frame emit skips on `!layer_visible` but never checks printability.
-- **Suggested fix**: Parse `<Layer Printable="...">` in `designmap.rs`; add a `layer_printable` check at frame-emit time in `crates/idml-renderer/src/pipeline.rs`.
+- **Root cause (hypothesis)**: `paged-parse/src/designmap.rs` reads `Visible` + `Name` but not `Printable`. The renderer's per-frame emit skips on `!layer_visible` but never checks printability.
+- **Suggested fix**: Parse `<Layer Printable="...">` in `designmap.rs`; add a `layer_printable` check at frame-emit time in `crates/paged-renderer/src/pipeline.rs`.
 - **Resolution**: Both halves were already implemented before cycle 2. `designmap.rs:131` parses `Printable` (default true); `pipeline.rs:557` folds it into the `layer_renders` map as `visible && printable` so the canonical `layer_visible` closure (despite its name) honours both attributes. Cycle 2 pinned the parser contract with a regression test in `designmap::tests::q17_layer_printable_attribute_round_trips`. If symptoms persist in the cited packs the root cause is *not* Printable — likely guide-layer items reaching the renderer through a different path.
 - **Effort**: S (was already done)
 
@@ -914,50 +914,50 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Tables
 - **Severity**: Major
 - **Frequency**: 2+/61 packs sampled; unknown ceiling
-- **Crate(s)**: idml-parse, idml-renderer
-- **Evidence**: workspace grep across `idml-parse/src/` for `b"Table"\|<Cell\|<Row\|TableStyle` returns zero functional hits (only TOC strings).
+- **Crate(s)**: paged-parse, paged-renderer
+- **Evidence**: workspace grep across `paged-parse/src/` for `b"Table"\|<Cell\|<Row\|TableStyle` returns zero functional hits (only TOC strings).
 - **Symptom**: Reference renders multi-row, multi-column data grids that the candidate leaves blank.
-- **Root cause (hypothesis)**: `<Table>` lives inside `<CharacterStyleRange>` in IDMLs; `crates/idml-parse/src/story.rs` recognises only `<ParagraphStyleRange>` / `<CharacterStyleRange>` / `<Content>` / `<Br/>`. We silently drop the entire subtree.
-- **Suggested fix**: (1) `<Table>` parsing in `story.rs` — table dimensions, per-cell text, `AppliedTableStyle` ref. (2) Add `DisplayCommand::Table { cells, transform }` to `idml-compose` + renderer pass at `pipeline.rs` that places each cell via the per-paragraph composer + strokes cell borders. Large feature; tables have their own typographic concept.
+- **Root cause (hypothesis)**: `<Table>` lives inside `<CharacterStyleRange>` in IDMLs; `crates/paged-parse/src/story.rs` recognises only `<ParagraphStyleRange>` / `<CharacterStyleRange>` / `<Content>` / `<Br/>`. We silently drop the entire subtree.
+- **Suggested fix**: (1) `<Table>` parsing in `story.rs` — table dimensions, per-cell text, `AppliedTableStyle` ref. (2) Add `DisplayCommand::Table { cells, transform }` to `paged-compose` + renderer pass at `pipeline.rs` that places each cell via the per-paragraph composer + strokes cell borders. Large feature; tables have their own typographic concept.
 - **Effort**: L
 
 ### Q-19: `<PatternColor>` / pattern fills render as flat colour
 - **Category**: Color
 - **Severity**: Major
 - **Frequency**: 2+/61 packs (business-proposal-template, brown-fashion-brochure)
-- **Crate(s)**: idml-parse, idml-renderer
+- **Crate(s)**: paged-parse, paged-renderer
 - **Evidence**:
   - `corpus/envato/reports/business-proposal-template/cand-001.png` vs `ref-001.png` (ref full-page bg has subtle gray diagonal-stripe texture; cand flat white)
   - `corpus/envato/reports/brown-fashion-brochure/heat-002.png` (page-level dark band missing)
 - **Symptom**: Pages with full-bleed pattern fills (diagonal stripes, dot grids, watermarks) render flat.
 - **Root cause (hypothesis)**: Either `<PatternColor>` swatches we don't resolve, or `<Image>` whose `<Contents>` is base64-embedded (cross-link Q-03).
-- **Suggested fix**: First confirm whether it's a `PatternColor` swatch or an embedded image. If pattern: parse `<PatternColor>` in `crates/idml-parse/src/` and map to a `Paint::Pattern` variant tiled by `idml-gpu`'s image pool. If embedded image: closes via Q-03.
+- **Suggested fix**: First confirm whether it's a `PatternColor` swatch or an embedded image. If pattern: parse `<PatternColor>` in `crates/paged-parse/src/` and map to a `Paint::Pattern` variant tiled by `paged-gpu`'s image pool. If embedded image: closes via Q-03.
 - **Effort**: S if subsumed by Q-03 / M if pattern parse
 
 ### Q-20: Composer wrap drift — soft-hyphen + min/max spacing (P-07 follow-up)
 - **Category**: Text
 - **Severity**: Major
 - **Frequency**: 12+/61 packs (universal across magazine + columned layouts)
-- **Crate(s)**: idml-text, idml-renderer
+- **Crate(s)**: paged-text, paged-renderer
 - **Evidence**:
   - `corpus/envato/reports/magazine/heat-014.png` (justified body two columns; every line shifted ~5px)
   - `corpus/envato/reports/modern-architecture-portfolio-template/cand-005.png` ("venimin-vende" hyphenated differently from ref)
   - `corpus/envato/reports/minimal-furniture-brochure/heat-014.png` ("Sustainability" wraps differently)
 - **Symptom**: Body text wraps at different word/line boundaries than reference. Subtle cases ±1 line per paragraph; severe cases drop the inserted hyphen.
-- **Root cause (hypothesis)**: Cycle-1 P-07 follow-up. (a) `MinimumWordSpacing` / `MaximumWordSpacing` / `MinimumLetterSpacing` / `MaximumGlyphScaling` parsed at `crates/idml-parse/src/styles.rs:407-416` but possibly not consulted by the breaker. (b) Soft-hyphen glyph at break point not emitted into the glyph stream.
+- **Root cause (hypothesis)**: Cycle-1 P-07 follow-up. (a) `MinimumWordSpacing` / `MaximumWordSpacing` / `MinimumLetterSpacing` / `MaximumGlyphScaling` parsed at `crates/paged-parse/src/styles.rs:407-416` but possibly not consulted by the breaker. (b) Soft-hyphen glyph at break point not emitted into the glyph stream.
 - **Suggested fix**: (1) Plumb all five spacing/scaling params from `ResolvedParagraphAttrs` → `LayoutOptions` → breaker. (2) When breaker emits a flagged-Penalty break, append soft-hyphen glyph at line terminal x.
 - **Effort**: L (P-07-scale calibration track)
 
 ### Q-21: AllCaps headline cascade audit
-- **Status**: cascade pinned green. Cycle-2 test `idml_scene::tests::character_style_fill_color_wins_over_paragraph_style` exercises a paragraph style FillColor=Black + character style FillColor=Paper run with no direct fill and asserts the cascade resolves to Paper. The residual brochure cover symptom must therefore trace past this layer — most plausibly the parser losing AllCaps' AppliedCharacterStyle reference at the CharacterStyleRange → CharacterRun threading, or a downstream override (object-style cascade, run-paint picker fallback). Queued for re-audit if the brochure pack still regresses post envato re-render.
+- **Status**: cascade pinned green. Cycle-2 test `paged_scene::tests::character_style_fill_color_wins_over_paragraph_style` exercises a paragraph style FillColor=Black + character style FillColor=Paper run with no direct fill and asserts the cascade resolves to Paper. The residual brochure cover symptom must therefore trace past this layer — most plausibly the parser losing AllCaps' AppliedCharacterStyle reference at the CharacterStyleRange → CharacterRun threading, or a downstream override (object-style cascade, run-paint picker fallback). Queued for re-audit if the brochure pack still regresses post envato re-render.
 - **Category**: Text
 - **Severity**: Minor
 - **Frequency**: 3+/61 packs (project-case-study-template, brochure, indesign-magazine)
-- **Crate(s)**: idml-renderer, idml-scene
+- **Crate(s)**: paged-renderer, paged-scene
 - **Evidence**:
   - `corpus/envato/reports/brochure/cand-001.png` ("Product Design" black in cand vs white in ref — per-run FillColor=Paper from character style not winning over paragraph-style FillColor=Black)
 - **Symptom**: When character style sets FillColor=Paper and paragraph style sets FillColor=Black, the precedence may be inverted for AllCaps headlines.
-- **Root cause (hypothesis)**: `crates/idml-scene/src/lib.rs:529-580` `merge_below_character` / `merge_below_paragraph` cascade. P-18 closed the direct-run case; this is character-style-vs-paragraph-style precedence.
+- **Root cause (hypothesis)**: `crates/paged-scene/src/lib.rs:529-580` `merge_below_character` / `merge_below_paragraph` cascade. P-18 closed the direct-run case; this is character-style-vs-paragraph-style precedence.
 - **Suggested fix**: Glyph-level regression test mirroring brochure cover (paragraph style FillColor=Black + character style FillColor=Paper, no run-direct colour). Fix cascade ordering if it fails.
 - **Effort**: S
 
@@ -965,19 +965,19 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Images
 - **Severity**: Minor
 - **Frequency**: 5+/61 packs (magazine-editorial-layout, modern-architecture-portfolio-template, minimal-furniture-brochure, catalog, project-case-study-template)
-- **Crate(s)**: idml-renderer
+- **Crate(s)**: paged-renderer
 - **Evidence**:
   - `corpus/envato/reports/magazine-editorial-layout/cand-015.png` vs `ref-015.png` (placeholder rects: cand 20% tint; ref 50% tint with heavier diagonal X)
 - **Symptom**: P-02's 30%-grey + thin-X placeholder doesn't match InDesign's reference uniformly. Better match would be ~50% grey + heavier 1.5pt black X.
 - **Root cause (hypothesis)**: P-02's calibration was a first-pass guess.
-- **Suggested fix**: Histogram reference-PDF placeholder greys across 3-4 packs; pick a canonical grey + line weight; adjust the constants in the P-02 helper at `crates/idml-renderer/src/pipeline.rs`.
+- **Suggested fix**: Histogram reference-PDF placeholder greys across 3-4 packs; pick a canonical grey + line weight; adjust the constants in the P-02 helper at `crates/paged-renderer/src/pipeline.rs`.
 - **Effort**: S
 
 ### Q-23: Soft-hyphen glyph dropped at auto-hyphenation line break
 - **Category**: Text
 - **Severity**: Minor
 - **Frequency**: 2+/61 packs (lifestyle-magazine-layout, green-energy-newsletter)
-- **Crate(s)**: idml-text
+- **Crate(s)**: paged-text
 - **Evidence**:
   - `corpus/envato/reports/lifestyle-magazine-layout/cand-006.png` vs `ref-006.png` ("CONTRIBUTORS" wraps to "CON / TRIB" in cand; ref shows "CON- / TRIBU-" with trailing hyphens)
 - **Symptom**: When Knuth-Plass selects a mid-word hyphenation point, the trailing hyphen glyph isn't emitted.
@@ -991,10 +991,10 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Effects
 - **Severity**: Minor
 - **Frequency**: 1+/61 packs (soccer-career-flyer-templates uses HardLight + Overlay + ColorBurn + SoftLight + Darken)
-- **Crate(s)**: idml-gpu
+- **Crate(s)**: paged-gpu
 - **Evidence**: deferred until Q-05 lands so the underlying composites work.
 - **Symptom**: After Q-05 fixes Multiply-on-paper, subtle differences in HardLight / Overlay / SoftLight / ColorBurn may emerge — tiny-skia matches W3C Compositing/Blending L1, which differs from PDF 1.7 Annex H in edge cases.
-- **Root cause (hypothesis)**: `blend_mode_to_ts` at `crates/idml-gpu/src/cpu.rs:2675-2693` maps every BlendMode to tiny-skia equivalents. Edge-case formulae (SoftLight, ColorBurn over transparency) may differ.
+- **Root cause (hypothesis)**: `blend_mode_to_ts` at `crates/paged-gpu/src/cpu.rs:2675-2693` maps every BlendMode to tiny-skia equivalents. Edge-case formulae (SoftLight, ColorBurn over transparency) may differ.
 - **Suggested fix**: Per-blend-mode unit tests after Q-05; tweak formulae if needed.
 - **Effort**: S audit / M per-mode tweaks
 
@@ -1003,7 +1003,7 @@ Sorted by (Severity desc, Frequency desc, Effort asc).
 - **Category**: Fonts
 - **Severity**: Minor
 - **Frequency**: 2+/61 packs (catalog-brochure-template, brand-guidelines)
-- **Crate(s)**: idml-renderer, corpus calibration
+- **Crate(s)**: paged-renderer, corpus calibration
 - **Evidence**:
   - `corpus/envato/reports/catalog-brochure-template/cand-001.png` vs `ref-001.png` ("Catalog" hero ~30% thicker in cand)
 - **Symptom**: Display headlines authored at `FontStyle="Light"` / `"Thin"` render at Regular weight when the bundled font lacks lighter weights.

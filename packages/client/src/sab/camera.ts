@@ -1,6 +1,6 @@
 // SharedArrayBuffer camera contract.
 //
-// Source of truth: `crates/idml-canvas/src/camera.rs` (constants
+// Source of truth: `crates/paged-canvas/src/camera.rs` (constants
 // `CAMERA_SAB_BYTES` + `OFFSET_*` + the `CameraSabLayout` tsify'd
 // struct). The constants below MIRROR the Rust spec so a SAB allocation
 // can run before wasm finishes loading; the worker reconciles via

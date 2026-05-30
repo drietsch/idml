@@ -7,15 +7,15 @@ unblocked this audit.
 ## Audit findings
 
 - **Implementation review**: `apply_tracking` at
-  `crates/idml-text/src/shape.rs:250` correctly applies IDML's
+  `crates/paged-text/src/shape.rs:250` correctly applies IDML's
   Tracking (1/1000 em units): each glyph's `x_advance` gets
   `tracking_thousandths_em * point_size * 64 / 1000` added; the run's
   `total_advance` is updated in lockstep so the composer's column-fit
   measures with tracking applied.
 - **Call-site coverage**: tracking is invoked from
-  - `crates/idml-text/src/layout.rs:450-452` in `layout_runs` — the
+  - `crates/paged-text/src/layout.rs:450-452` in `layout_runs` — the
     multi-font path that table cells use,
-  - `crates/idml-renderer/src/pipeline.rs:4654-4656` in
+  - `crates/paged-renderer/src/pipeline.rs:4654-4656` in
     `emit_text_path_into` — the text-on-path path.
   Both fire when `resolved.tracking.is_some()`. The table-cell
   emission path at `pipeline.rs:6696` populates `tracking:
@@ -40,7 +40,7 @@ Q-07 fix the cycle-4 corpus signal points to.
 
 ## Regression pins added
 
-Two integration tests in `crates/idml-renderer/tests/text_glyph_level.rs`
+Two integration tests in `crates/paged-renderer/tests/text_glyph_level.rs`
 (`cycle4_q07_positive_tracking_widens_emitted_glyph_advances`,
 `cycle4_q07_negative_tracking_tightens_emitted_glyph_advances`) build
 synthetic 4-A IDMLs at Tracking=0, Tracking=200, and Tracking=-100,

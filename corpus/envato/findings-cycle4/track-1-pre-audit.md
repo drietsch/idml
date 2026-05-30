@@ -12,8 +12,8 @@ should pick up" item #4) lists Q-18 as *"still deferred from cycle
 2; the single largest unaddressed corpus gap. Multi-day."* This
 contradicts git history. Commit `ace96e8` ("Q-18 (cycle 3 open):
 table renderer already code-complete; add Muli/Kozuka
-substitutions") explicitly inspected `crates/idml-parse/src/story.rs`
-+ `crates/idml-renderer/src/pipeline.rs::emit_table_into_chain` and
+substitutions") explicitly inspected `crates/paged-parse/src/story.rs`
++ `crates/paged-renderer/src/pipeline.rs::emit_table_into_chain` and
 found the parser + renderer code-complete (`Table`, `TableRow`,
 `TableColumn`, `TableCell`, `TableBorder`, `TableLineStrokes`
 defined; `<Table>` / `<Cell>` / `<Row>` parsed; content-driven row
@@ -102,7 +102,7 @@ Recommended Track 5 scope:
 2. Compute per-cell tracking-attributable drift by isolating
    table-cell regions in the heat-NNN.png artefacts.
 3. If drift is visible and tracking-attributable, file the
-   renderer fix at `crates/idml-text/src/shape.rs` (tracking
+   renderer fix at `crates/paged-text/src/shape.rs` (tracking
    application path).
 4. If drift is within threshold, document Q-07 closed in
    `findings-cycle4/q07-closed.md`.

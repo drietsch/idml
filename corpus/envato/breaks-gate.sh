@@ -21,7 +21,7 @@
 #      (falling back to overrides/_default/fonts.sh).
 #
 # Pipeline per fixture:
-#   1. idml-inspect --emit-breaks → candidate JSONL
+#   1. paged-inspect --emit-breaks → candidate JSONL
 #      Uses --default-font + --font-family flags from the per-pack
 #      sidecar when the fixture is an Envato pack.
 #   2. breaks-extract.py over the reference PDF → reference JSONL
@@ -50,7 +50,7 @@ ENVATO_DIR="$ROOT/corpus/envato"
 PACKS_DIR="$ENVATO_DIR/packs"
 OVERRIDES_DIR="$ENVATO_DIR/overrides"
 MANIFEST="$ENVATO_DIR/break-thresholds.json"
-INSPECT="$ROOT/target/release/idml-inspect"
+INSPECT="$ROOT/target/release/paged-inspect"
 EXTRACT="$ENVATO_DIR/breaks-extract.py"
 COMPARE="$ENVATO_DIR/breaks-compare.py"
 FONTS="$ROOT/corpus/fonts"
@@ -63,8 +63,8 @@ MODE="${IDML_BREAKS_GATE:-strict}"  # strict | advisory
 command -v pdftotext >/dev/null || { echo "install poppler-utils (pdftotext)"; exit 2; }
 
 if [ ! -x "$INSPECT" ]; then
-    echo "==> build idml-inspect (release)"
-    (cd "$ROOT" && cargo build --release --bin idml-inspect >/dev/null 2>&1)
+    echo "==> build paged-inspect (release)"
+    (cd "$ROOT" && cargo build --release --bin paged-inspect >/dev/null 2>&1)
 fi
 
 if [ "$#" -gt 0 ]; then
@@ -164,7 +164,7 @@ for name in "${SELECTED[@]}"; do
     report="$OUT/$name.json"
 
     # Cycle-6 Track 1: thread the candidate-side filters through
-    # idml-inspect when the manifest set them.
+    # paged-inspect when the manifest set them.
     FILTER_FLAGS=()
     [ -n "$FX_BREAK_STORY" ] && FILTER_FLAGS+=(--break-story-id "$FX_BREAK_STORY")
     [ -n "$FX_BREAK_PAGE_RANGE" ] && FILTER_FLAGS+=(--break-page-range "$FX_BREAK_PAGE_RANGE")
@@ -176,7 +176,7 @@ for name in "${SELECTED[@]}"; do
             ${FILTER_FLAGS[@]+"${FILTER_FLAGS[@]}"} \
             --emit-breaks "$cand" \
             "$FX_IDML" >/dev/null 2>"$OUT/$name.inspect.log" || {
-                echo "[$name] FAIL: idml-inspect exited non-zero (see $OUT/$name.inspect.log)" >&2
+                echo "[$name] FAIL: paged-inspect exited non-zero (see $OUT/$name.inspect.log)" >&2
                 OVERALL_PASS=0
                 continue
             }
@@ -186,7 +186,7 @@ for name in "${SELECTED[@]}"; do
             ${FILTER_FLAGS[@]+"${FILTER_FLAGS[@]}"} \
             --emit-breaks "$cand" \
             "$FX_IDML" >/dev/null 2>"$OUT/$name.inspect.log" || {
-                echo "[$name] FAIL: idml-inspect exited non-zero (see $OUT/$name.inspect.log)" >&2
+                echo "[$name] FAIL: paged-inspect exited non-zero (see $OUT/$name.inspect.log)" >&2
                 OVERALL_PASS=0
                 continue
             }

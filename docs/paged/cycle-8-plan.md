@@ -42,20 +42,20 @@ InDesign but the candidate doesn't route it there.
 ### 1a. Instrument page-routing
 
 Add a `--trace-routing <story_or_self_id>` tracing flag on
-`idml-inspect` (mirroring cycle-6 Track 1's break filters): when
-set, emit `tracing::debug!(target = "idml_renderer::routing", …)`
+`paged-inspect` (mirroring cycle-6 Track 1's break filters): when
+set, emit `tracing::debug!(target = "paged_renderer::routing", …)`
 each time a page-item's target page is selected. Captures the rect's
 spread-coord center, each candidate page's bounds, and the chosen
 page (or rejection reason).
 
-**Files:** `crates/idml-renderer/src/pipeline.rs` (instrumentation
+**Files:** `crates/paged-renderer/src/pipeline.rs` (instrumentation
 at the page-routing site, ~lines 814-832 from cycle-7's trace),
-`crates/idml-renderer/src/bin/inspect.rs` (CLI flag).
+`crates/paged-renderer/src/bin/inspect.rs` (CLI flag).
 **Effort:** S (2-3 hours).
 
 ### 1b. Reproduce + capture trace
 
-Run `idml-inspect --trace-routing ubb6b
+Run `paged-inspect --trace-routing ubb6b
 corpus/envato/packs/company-profile-template/template.idml`,
 capture output, save to
 `corpus/envato/findings-cycle8/track-1-routing-trace.md`.
@@ -177,12 +177,12 @@ actually surfaces metric movement on the self-diff harness.
 
 ### 4a. Tighten the fixture column
 
-Edit `crates/idml-gen/src/samples/text_letterspacing.rs`:
+Edit `crates/paged-gen/src/samples/text_letterspacing.rs`:
 - Reduce `FRAME_W_PT` from 200 to ~80pt
 - Verify the new breaks still produce a reasonable line count
 - Re-pin `corpus/generated/text-letterspacing.breaks.jsonl`
 
-**Files:** `crates/idml-gen/src/samples/text_letterspacing.rs`,
+**Files:** `crates/paged-gen/src/samples/text_letterspacing.rs`,
 `corpus/generated/text-letterspacing.breaks.jsonl`.
 **Effort:** S (1-2 hours).
 

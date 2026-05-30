@@ -46,7 +46,7 @@ fallback-page selection isn't matching what InDesign considers
 page 20's pasteboard.
 
 **Fix path (deferred)**: instrument
-`crates/idml-renderer/src/pipeline.rs::build_document`'s
+`crates/paged-renderer/src/pipeline.rs::build_document`'s
 page-routing for this Rectangle (around the
 `page_idx` selection that calls `emit_rectangle_into` +
 `emit_rectangle_image` at lines 814-832), print the rect's

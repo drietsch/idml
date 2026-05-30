@@ -2,10 +2,10 @@
 //
 // Every type in this file is a re-export of a tsify-generated type
 // from Rust. To add a new type, derive `Tsify` in
-// `crates/idml-canvas/src/channel.rs` (or the appropriate crate),
+// `crates/paged-canvas/src/channel.rs` (or the appropriate crate),
 // rebuild via `bash apps/canvas/build-wasm.sh`, then re-export here.
 // Do not hand-write types in this file. The generated
-// `packages/client/src/wasm/idml_canvas_wasm.d.ts` (emitted by
+// `packages/client/src/wasm/paged_canvas_wasm.d.ts` (emitted by
 // tsify-next + wasm-bindgen) is the source of truth; this barrel
 // exists so consumers don't have to learn the wasm import path.
 //
@@ -16,7 +16,7 @@
 //
 // `PROTOCOL_VERSION` stays a TS constant because the canvas
 // outgoing messages need a value (not a type) at runtime; the
-// matching Rust constant is in `idml-canvas/src/channel.rs` and
+// matching Rust constant is in `paged-canvas/src/channel.rs` and
 // must update in lockstep — `scripts/check-protocol-version.sh`
 // catches drift on PRs that change the `.d.ts` structurally.
 
@@ -104,4 +104,4 @@ export type {
   WorkerError,
   WorkerToMain,
   WorkerToMainKind,
-} from "./wasm/idml_canvas_wasm";
+} from "./wasm/paged_canvas_wasm";

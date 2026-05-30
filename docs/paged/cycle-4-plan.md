@@ -103,7 +103,7 @@ halves before declaring the harness usable.
 
 ### 2a. Candidate-side break extraction
 
-- Add `--emit-breaks <path>` to `idml-inspect`. Walk the laid-out
+- Add `--emit-breaks <path>` to `paged-inspect`. Walk the laid-out
   story, emit `[(page_idx, frame_idx, line_idx, first_byte,
   last_byte, baseline_y_pt, width_pt)]` per line as JSON Lines.
 - Source the data from `StoryEmitter`'s existing per-frame line
@@ -111,8 +111,8 @@ halves before declaring the harness usable.
   the cycle-3 plan exactly so downstream tooling can be written
   reference-side-first.
 
-**Files:** `crates/idml-renderer/src/bin/inspect.rs`,
-`crates/idml-renderer/src/pipeline.rs` (expose per-line records on
+**Files:** `crates/paged-renderer/src/bin/inspect.rs`,
+`crates/paged-renderer/src/pipeline.rs` (expose per-line records on
 `StoryEmitter`).
 **Effort:** S (1-2 days).
 
@@ -161,7 +161,7 @@ With 2a-c green on a sub-corpus, tune
 budget. Iterate: change a knob → harness run → compare break score →
 merge or revert. Target 2-3 calibration rounds.
 
-**Files:** `crates/idml-text/src/compose.rs::apply_paragraph_compose_options`.
+**Files:** `crates/paged-text/src/compose.rs::apply_paragraph_compose_options`.
 **Effort:** S-M (2-3 days; the harness makes this safe rather than
 inherently fast).
 
@@ -182,9 +182,9 @@ that have been blocked on regression infra.
 / `<WavyStrokeStyle>` patterns now feed the dash slot, but only when
 applied to a `Rectangle`. Parser structs for `Oval` / `Polygon` /
 `GraphicLine` don't capture `stroke_type` at all
-(`crates/idml-parse/src/spread.rs:593` defines it on `Rectangle`
+(`crates/paged-parse/src/spread.rs:593` defines it on `Rectangle`
 only); `from_oval` / `from_polygon` / `from_graphic_line` in
-`crates/idml-renderer/src/module/frame.rs:244,289,329` hard-code
+`crates/paged-renderer/src/module/frame.rs:244,289,329` hard-code
 `stroke_type: None`. Until both are wired, a polygon or oval with a
 custom dash pattern silently falls back to solid.
 
@@ -195,22 +195,22 @@ custom dash pattern silently falls back to solid.
   `attr(e, b"StrokeType")` in each shape's parse path.
 - Confirm `TextFrame` already carries `stroke_type` via the shared
   `Rectangle`-derived path (it does — `TextFrame` reuses the
-  rectangle attribute set in `crates/idml-parse/src/spread.rs`).
+  rectangle attribute set in `crates/paged-parse/src/spread.rs`).
 
-**Files:** `crates/idml-parse/src/spread.rs`.
+**Files:** `crates/paged-parse/src/spread.rs`.
 **Effort:** S (half-day).
 
 ### 3b. Wire through frame adapter
 
-- In `crates/idml-renderer/src/module/frame.rs`,
+- In `crates/paged-renderer/src/module/frame.rs`,
   `from_oval` / `from_polygon` / `from_graphic_line` read the
   parser field instead of `None`.
 - Confirm the cycle-3 `stroke_for` lookup (which now takes the
   `stroke_styles: &BTreeMap<…>` table) is called uniformly for all
   shape kinds, not just rectangles.
 
-**Files:** `crates/idml-renderer/src/module/frame.rs`,
-`crates/idml-renderer/src/pipeline.rs` (audit `stroke_for` call sites).
+**Files:** `crates/paged-renderer/src/module/frame.rs`,
+`crates/paged-renderer/src/pipeline.rs` (audit `stroke_for` call sites).
 **Effort:** S (1 day).
 
 ### 3c. Regression coverage
@@ -222,7 +222,7 @@ custom dash pattern silently falls back to solid.
   it to the body-pack gated subset if one exists; Track 1b's sweep
   will surface candidates.
 
-**Files:** `crates/idml-gen/src/samples/strokes_fills.rs` (extend),
+**Files:** `crates/paged-gen/src/samples/strokes_fills.rs` (extend),
 `corpus/generated/fidelity-thresholds.json` (add pages if needed).
 **Effort:** S (1 day).
 
@@ -246,13 +246,13 @@ multiplicative fallback.
 - Add `tracing::debug!` at the branch points in
   `decode_image_bytes`: "took embedded ICC (n bytes)", "fell back to
   doc-level CMYK profile", "fell back to naive multiplicative".
-- Add a `--trace-icc` flag to `idml-inspect` that enables the
+- Add a `--trace-icc` flag to `paged-inspect` that enables the
   `tracing` subscriber at debug level for the relevant target.
 - Run the harness across Q-03 packs once and capture the branch
   distribution in `corpus/envato/findings-cycle4/icc-coverage.md`.
 
-**Files:** `crates/idml-renderer/src/pipeline.rs::decode_image_bytes`,
-`crates/idml-renderer/src/bin/inspect.rs`.
+**Files:** `crates/paged-renderer/src/pipeline.rs::decode_image_bytes`,
+`crates/paged-renderer/src/bin/inspect.rs`.
 **Effort:** S (half-day).
 
 ### Expected corpus impact
@@ -277,7 +277,7 @@ Cycle 2 gated Q-07 on Q-18 because the evidence is table content.
 Gates on Track 1a confirming Q-18 is truly closed. If Track 1a
 surfaces residual Q-18 gaps, Q-07 defers again.
 
-**Files:** `crates/idml-text/src/shape.rs` (tracking-application path)
+**Files:** `crates/paged-text/src/shape.rs` (tracking-application path)
 if a fix is needed; otherwise `corpus/envato/findings-cycle4/q07.md`.
 **Effort:** S-M (1-3 days depending on findings).
 

@@ -8,7 +8,7 @@ Worker that runs Vello on WebGPU through an `OffscreenCanvas`.
 The main thread owns the React UI, the camera transform (written via
 `SharedArrayBuffer`), pointer events, and the navigator. It does no
 rendering work. The dedicated worker (`src/worker/worker.ts`) owns
-the `OffscreenCanvas`, the WASM bundle (`idml-canvas-wasm`), the
+the `OffscreenCanvas`, the WASM bundle (`paged-canvas-wasm`), the
 WebGPU device, the Vello renderer, and a per-page Vello scene cache
 (LRU, 200-page default budget). The camera SAB is read once per
 render-loop tick (`setTimeout`, 16 ms cadence) and the scene cache is
@@ -37,19 +37,19 @@ cd apps/canvas
 bash build-wasm.sh
 ```
 
-Outputs `src/wasm/idml_canvas_wasm.{js,d.ts}` and the binary
-`idml_canvas_wasm_bg.wasm` (~4.5 MB optimised). The `.js` loader
+Outputs `src/wasm/paged_canvas_wasm.{js,d.ts}` and the binary
+`paged_canvas_wasm_bg.wasm` (~4.5 MB optimised). The `.js` loader
 and the `.wasm` binary are `.gitignore`'d; the `.d.ts` is
 **vendored** because the tsify-generated type contract is review-
 visible and a CI check (`.github/workflows/protocol-version.yml`)
 fails any PR that changes it without bumping `PROTOCOL_VERSION` in
-`crates/idml-canvas/src/channel.rs`. Regenerate the .d.ts and
+`crates/paged-canvas/src/channel.rs`. Regenerate the .d.ts and
 commit it in the same PR as any Rust-side type change:
 
 ```bash
 cd apps/canvas
 bash build-wasm.sh
-git add src/wasm/idml_canvas_wasm.d.ts
+git add src/wasm/paged_canvas_wasm.d.ts
 ```
 
 ## Run
@@ -130,7 +130,7 @@ src/
 - **Text glyphs**: the fixture used for development has no fonts
   loaded; text won't render until a font resolver is wired through.
 - **Tier 3 resolution**: anchor + field model + page-number assigner
-  exist (`crates/idml-canvas/src/resolve.rs`) but aren't yet wired
+  exist (`crates/paged-canvas/src/resolve.rs`) but aren't yet wired
   into the display list. Phase 2's parser-side work emits `Field`
   placeholders that the resolver substitutes.
 - **Cross-page features**: footnotes, running headers, computed
@@ -143,7 +143,7 @@ src/
 
 ```bash
 # Rust unit tests on the canvas crates
-cargo test -p idml-canvas -p idml-canvas-wasm -p idml-renderer -p idml-scene
+cargo test -p paged-canvas -p paged-canvas-wasm -p paged-renderer -p paged-scene
 
 # TypeScript typecheck
 npx tsc --noEmit

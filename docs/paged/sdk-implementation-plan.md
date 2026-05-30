@@ -18,7 +18,7 @@ The mechanism described in Phases 0–4 below is live in main as of 2026-05-29:
 - `paged.stories()` host fn — enumerates loaded stories (selfId + characterCount + paragraphCount) so scripts + tests can pick valid range addresses.
 - Phase 4 menu commands — Edit/Undo+Redo + View/Zoom* + keybindings cmd+= / cmd+-, all `CommandContribution`s through the registry. Convergence test: shell's `paged.file.openIdml` registration projects into the same MenuBar.
 
-PROTOCOL_VERSION is 17 in main. 85/85 editor Playwright tests + 14/14 idml-script + 95/95 idml-canvas + 68/68 idml-mutate native pass.
+PROTOCOL_VERSION is 17 in main. 85/85 editor Playwright tests + 14/14 paged-script + 95/95 paged-canvas + 68/68 paged-mutate native pass.
 
 What's still open:
 - **Phase 3.x — partial-range run-splitting** for character writes. Today the apply arm returns `OperationError::InvalidValue` when a range cuts inside a CharacterRun. Needs a story-snapshot inverse (clone affected paragraphs' run lists pre-mutation; restore via a new `Operation::RestoreParagraphRuns { story_id, paragraph_index, runs }` variant; requires `CharacterRun` to derive Deserialize/PartialEq/Tsify).
@@ -79,14 +79,14 @@ The current state is "all SDK-exposed types are tsify'd already." This phase onl
 
 ### Work
 
-1. CI step: run `apps/canvas/build-wasm.sh` and `git diff --exit-code apps/canvas/src/wasm/idml_canvas_wasm.d.ts`. A renamed Rust field can't ship without the regenerated `.d.ts` being committed. (Alternative: snapshot-test the `.d.ts` via Vitest. CI-diff is mechanical and preferred.)
+1. CI step: run `apps/canvas/build-wasm.sh` and `git diff --exit-code apps/canvas/src/wasm/paged_canvas_wasm.d.ts`. A renamed Rust field can't ship without the regenerated `.d.ts` being committed. (Alternative: snapshot-test the `.d.ts` via Vitest. CI-diff is mechanical and preferred.)
 2. SAB layout audit. Today `CameraBuffer` and `GestureBuffer` declare offsets in both Rust and TS. Confirm each has exactly one source of truth — Rust should expose byte sizes via a tsify'd `*Layout` struct. The existing `cameraSabBytes()` already does this for camera; verify or add the same for gesture.
 3. Once `packages/client/` exists (Phase 1), add a `README.md` block documenting: every SDK-exposed type must derive `Tsify` and be re-exported from `packages/client/src/protocol.ts`.
 
 ### Critical files
 
 - `.github/workflows/<existing>.yml` — add the wasm-diff CI step.
-- `crates/idml-canvas/src/channel.rs` — add tsify'd `GestureLayout` if absent.
+- `crates/paged-canvas/src/channel.rs` — add tsify'd `GestureLayout` if absent.
 - `apps/canvas/src/channel/camera.ts`, `packages/shell/src/gestures/gesture-sab.ts` — consume the layout type instead of hardcoding offsets.
 
 ### Acceptance criteria
@@ -203,7 +203,7 @@ packages/
 
 ### Work
 
-1. **Verify the convergence.** Add a native test in `crates/idml-script/tests/` that asserts `paged.inspect(id)` returns JSON-identical output to what the channel's `RequestElementProperties` reply carries for the same id. Same Rust source data → same JSON shape.
+1. **Verify the convergence.** Add a native test in `crates/paged-script/tests/` that asserts `paged.inspect(id)` returns JSON-identical output to what the channel's `RequestElementProperties` reply carries for the same id. Same Rust source data → same JSON shape.
 2. **Add `paged.selection()`** — host function returning the current `ElementId[]`. The model already exposes selection state; the host function just routes through `with_model`.
 3. **Add `paged.contentSelection()`** — analogous for the text-side caret.
 4. **Resolve §11.1.** Document: **snapshot.** Both consumers already snapshot and re-fetch on `mutationApplied`. Update `sdk.md` §11.1 to closed.
@@ -213,8 +213,8 @@ packages/
 
 | File | Change |
 |---|---|
-| `crates/idml-script/src/lib.rs` | add `paged_selection`, `paged_content_selection` host fns |
-| `crates/idml-script/tests/script_basics.rs` | new test: parity of `paged.inspect` vs channel reply |
+| `crates/paged-script/src/lib.rs` | add `paged_selection`, `paged_content_selection` host fns |
+| `crates/paged-script/tests/script_basics.rs` | new test: parity of `paged.inspect` vs channel reply |
 | `apps/canvas/tests/script-editor.spec.ts` | new AC-SCRIPT-7: `console.log(paged.selection())` matches the visually-selected IDs |
 | `docs/paged/sdk.md` | mark §11.1, §11.2 resolved |
 
@@ -400,11 +400,11 @@ Reasoning:
 
 **Implementation status (this commit is Phase 3 *prep*):**
 
-- ✅ `NodeId::StoryRange { story_id, start, end }` variant added with `self_id()` / `kind()` helpers (`crates/idml-mutate/src/operation.rs`).
+- ✅ `NodeId::StoryRange { story_id, start, end }` variant added with `self_id()` / `kind()` helpers (`crates/paged-mutate/src/operation.rs`).
 - ✅ `PropertyPath::CharacterFontSize` / `CharacterLeading` / `CharacterTracking` / `CharacterFillColor` added with `label()` entries (same file).
-- ✅ `PropertyEntry.value: Option<Value>` (`crates/idml-canvas/src/channel.rs` — was `Value`). `None` signals "mixed / indeterminate" — a `StoryRange` whose `CharacterRun`s carry conflicting values returns `None` so the binding renderer can show a placeholder (em-dash) rather than picking an arbitrary winner. `PROTOCOL_VERSION` bumped 14 → 15.
+- ✅ `PropertyEntry.value: Option<Value>` (`crates/paged-canvas/src/channel.rs` — was `Value`). `None` signals "mixed / indeterminate" — a `StoryRange` whose `CharacterRun`s carry conflicting values returns `None` so the binding renderer can show a placeholder (em-dash) rather than picking an arbitrary winner. `PROTOCOL_VERSION` bumped 14 → 15.
 - ✅ Inspector panel handles null entries with an em-dash placeholder.
-- ✅ Native serde round-trip test for `NodeId::StoryRange` + smoke test for the new character paths (`crates/idml-mutate/src/lib.rs`).
+- ✅ Native serde round-trip test for `NodeId::StoryRange` + smoke test for the new character paths (`crates/paged-mutate/src/lib.rs`).
 - ⏳ Apply arms for `(StoryRange, Character*)` — **Phase 3 proper.** Today a `SetProperty` against `(StoryRange, CharacterFontSize)` returns `OperationError::UnsupportedProperty`; the test pins this. Phase 3's first work after the catalog package is built is the run-walking apply layer: walk paragraphs + runs covering `[start, end)`, split runs at boundaries, set the new property per affected run, return a `Batch` inverse of per-run restorations.
 - ⏳ `model.element_properties(StoryRange { ... })` snapshot — **Phase 3 proper.** Walks the story's runs within `[start, end)`, collapses uniform values, emits `None` for mixed.
 - ⏳ Catalog binding extension (`selectionProperty.scope: "element" | "content"`) — **Phase 3 proper** (lands with the catalog package itself).
@@ -416,7 +416,7 @@ Reasoning:
 
 `sdk.md` is categorical: "panel friction is specification" (invariant 8). Phase 3 will surface gaps:
 
-- `Operation::SetProperty{CharacterFontSize | CharacterLeading | CharacterTracking | CharacterFillColor}` — verify in `idml-mutate`. If only frame-level paths exist, the gap is in the Operation set, not the panel.
+- `Operation::SetProperty{CharacterFontSize | CharacterLeading | CharacterTracking | CharacterFillColor}` — verify in `paged-mutate`. If only frame-level paths exist, the gap is in the Operation set, not the panel.
 - `Operation::MovePage` — verify; if absent, add it before Pages reorder ships.
 - Layer-write Ops are already shipped per Track M; no work there.
 
@@ -443,8 +443,8 @@ Each gap is Phase 3 work. Phase 3 does not close while any panel papers over a m
 | `apps/canvas/tests/character-panel.spec.ts` *(new)* | Playwright |
 | `apps/canvas/tests/pages-panel.spec.ts` *(new)* | Playwright |
 | `apps/canvas/tests/spread-minimap.spec.ts` *(new)* | Playwright |
-| `crates/idml-mutate/src/operation.rs` | new SetProperty paths if surfaced |
-| `crates/idml-mutate/src/apply.rs` | apply arms + inverses for the new paths |
+| `crates/paged-mutate/src/operation.rs` | new SetProperty paths if surfaced |
+| `crates/paged-mutate/src/apply.rs` | apply arms + inverses for the new paths |
 
 ### Acceptance criteria
 

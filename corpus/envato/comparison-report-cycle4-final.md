@@ -20,7 +20,7 @@ reference is cycle-3 final (`f83cf8c`). Plan companion:
 | Track | Status | Commit / Notes |
 |---|---|---|
 | 1 — Pre-audit + plan-state cleanup | ✅ landed | `ba42916` |
-| 2a — `idml-inspect --emit-breaks` | ✅ landed | `7993c34` |
+| 2a — `paged-inspect --emit-breaks` | ✅ landed | `7993c34` |
 | 2b — `breaks-extract.py` | ✅ landed | `7993c34` |
 | 2c — `breaks-compare.py` + gate | ✅ landed | `7993c34` |
 | 2d — Q-20 calibration rounds | ⏸ deferred | Needs body-text packs through harness; see findings-cycle4/track-2-ab-harness.md |
@@ -60,7 +60,7 @@ zero cost). When set, `StoryEmitter` accumulates one `BreakRecord`
 per laid-out line with `(story_id, paragraph_idx, line_idx,
 page_idx, frame_idx, first_byte, last_byte, baseline_y_pt,
 width_pt)`. Drained into `BuiltDocument::breaks`.
-`--emit-breaks PATH` on `idml-inspect` writes JSONL.
+`--emit-breaks PATH` on `paged-inspect` writes JSONL.
 
 **2b** — `corpus/envato/breaks-extract.py` parses
 `pdftotext -bbox-layout`'s XHTML to emit one record per detected
@@ -111,9 +111,9 @@ GraphicLine, and TextFrame — not just Rectangle.
 
 ### Track 4 — ICC branch telemetry (973639f)
 
-Added `tracing::debug!(target: "idml_renderer::icc", …)` at the
+Added `tracing::debug!(target: "paged_renderer::icc", …)` at the
 two missing branch points in `cmyk32_to_rgba` (success + no-
-profile), and `--trace-icc` on `idml-inspect` to install a
+profile), and `--trace-icc` on `paged-inspect` to install a
 `tracing-subscriber` fmt layer. Confirmed Track 1b fires on the
 expected Q-03 packs:
 

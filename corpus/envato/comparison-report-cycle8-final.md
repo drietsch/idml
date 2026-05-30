@@ -29,7 +29,7 @@ Baseline reference is cycle-7 final (`c6b0fa0`). Plan companion:
 
 Cycle 7 Track 3's "image-bearing Rectangle page-routing"
 hypothesis was *almost* right — the diagnostic flag added in Track
-1a (`--trace-routing` on `idml-inspect`) confirmed the rect was
+1a (`--trace-routing` on `paged-inspect`) confirmed the rect was
 correctly routed onto page 20. The actual bug was downstream in
 z-order: cycle-2's Q-10 commit had assumed IDML designmap
 ordering put the TOP layer first (`designmap[0] = topmost`),

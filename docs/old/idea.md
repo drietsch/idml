@@ -535,15 +535,15 @@ Native API mirrors the TS API semantically. Same fidelity contract.
 
 ### 15.1 Build
 
-- Rust workspace. Core crate plus per-subsystem crates (`idml-parse`, `idml-text`, `idml-color`, `idml-compose`, `idml-gpu`).
+- Rust workspace. Core crate plus per-subsystem crates (`paged-parse`, `paged-text`, `paged-color`, `paged-compose`, `paged-gpu`).
 - Browser build: `wasm-pack` + `wasm-bindgen`.
 - Native build: standard `cargo build --release`.
 - Single source tree; platform-specific code isolated behind feature flags (`feature = "browser"` vs `feature = "native"`).
 
 ### 15.2 Distribution
 
-- NPM package: `@pimcore/idml-renderer` (browser). ESM main, `.d.ts`, WASM as side-resource.
-- Rust crate: `pimcore-idml-renderer` (crates.io or private registry) for native consumers.
+- NPM package: `@pimcore/paged-renderer` (browser). ESM main, `.d.ts`, WASM as side-resource.
+- Rust crate: `pimcore-paged-renderer` (crates.io or private registry) for native consumers.
 - Versioned semver. Breaking API or fidelity changes are major versions.
 
 ### 15.3 Licensing

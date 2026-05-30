@@ -6,7 +6,7 @@ A Chrome-DevTools-style inspector for IDML scene graphs. Three panes:
 - **Properties** (right) — typed property descriptors for the selected
   node, with authored vs. computed value distinction and per-kind
   widgets (Bounds inputs, Color picker, etc.). Editing a property
-  fires a `Mutation` into `idml-introspect-wasm` → `idml-mutate` →
+  fires a `Mutation` into `paged-introspect-wasm` → `paged-mutate` →
   the underlying `Document`.
 - **Render** (center) — PNG of the selected page, re-rendered after
   every mutation.
@@ -14,7 +14,7 @@ A Chrome-DevTools-style inspector for IDML scene graphs. Three panes:
 This is the M0 scaffold of the inspector-first parallel track
 (`docs/inspector.md`). Property coverage is intentionally narrow at
 M0 — frame `Bounds` + `Fill color` for `TextFrame` — and expands as
-`idml-mutate`/`idml-introspect` add support.
+`paged-mutate`/`paged-introspect` add support.
 
 ## One-time setup
 
@@ -56,7 +56,7 @@ apps/devtools/
     ├── Tree.tsx           Spread → Page → Frame tree
     ├── Properties.tsx     property descriptors + widgets
     ├── RenderPane.tsx     PNG render of the selected page
-    ├── inspector.ts       typed wrapper over idml-introspect-wasm
+    ├── inspector.ts       typed wrapper over paged-introspect-wasm
     ├── styles.css         layout + widget styling
     └── wasm/              produced by build-wasm.sh (gitignored)
 ```
@@ -68,11 +68,11 @@ apps/devtools/
 - ✅ Render pane shows PNG of selected page.
 - ✅ Property edit fires a Mutation, render re-renders.
 - ⚠️ Mutation only covers TextFrame (Rectangle/Oval/Polygon/etc. need
-  idml-mutate extension).
+  paged-mutate extension).
 - ⚠️ "Live, not snapshot" (A1) is currently approximated by re-fetching
   on each mutation; a real change-subscription path lands when
-  idml-mutate's Notifier surfaces through the WASM bridge.
+  paged-mutate's Notifier surfaces through the WASM bridge.
 - ❌ Computed-vs-authored split (A3) is a no-op today — every property
   surfaces both equal. Cascade-aware properties (e.g. paragraph font
-  size) will exercise this once they land in `idml-introspect`.
+  size) will exercise this once they land in `paged-introspect`.
 - ❌ Diff view, command palette, history (A5/A6/A7) — stretch goals.

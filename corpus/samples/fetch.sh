@@ -14,7 +14,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OUT_DIR="$SCRIPT_DIR/customerscanvas"
 GALLERY_URL="https://customerscanvas.com/help/designers-manual/adobe/indesign/gallery.html"
-UA="Mozilla/5.0 (compatible; idml-renderer-fetcher/0.1)"
+UA="Mozilla/5.0 (compatible; paged-renderer-fetcher/0.1)"
 
 mkdir -p "$OUT_DIR"
 

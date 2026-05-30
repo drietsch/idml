@@ -19,7 +19,7 @@ export const MANIFEST_PATH = resolve(ENVATO_DIR, "manifest.json");
 // Override via the FIDELITY_DPI env var.
 export const FIDELITY_DPI = Number(process.env.FIDELITY_DPI ?? 144);
 export const FIDELITY_OUT_ROOT = resolve(
-  process.env.FIDELITY_OUT ?? "/tmp/idml-canvas-fidelity",
+  process.env.FIDELITY_OUT ?? "/tmp/paged-canvas-fidelity",
 );
 
 export type PackStage = "smoke" | "gated" | "skip";

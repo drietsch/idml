@@ -1,6 +1,6 @@
 // Scripting Stage 2 — embedded-Boa acceptance. Tests the
 // end-to-end path: TS client → worker channel → wasm-bundled
-// Boa engine → idml-script bridge → apply layer → wire surface
+// Boa engine → paged-script bridge → apply layer → wire surface
 // reflects the change.
 
 import { dirname, resolve as pathResolve } from "node:path";

@@ -17,7 +17,7 @@ makes both undo journaling and wasm-bindgen plumbing simple. The returned
 `Patch` carries `InvalidationKind` + `affected_frames` + `affected_stories`,
 which is exactly what the cache layer needs to evict the right slice of work.
 
-Adopt for idml-mutate. Rename the type if the new shape is narrower (the
+Adopt for paged-mutate. Rename the type if the new shape is narrower (the
 inspector probably only needs a uniform `Mutation { node, property, value }`
 rather than a wide command vocabulary).
 
@@ -71,7 +71,7 @@ threaded through `Rc<RefCell<Editor>>` worked but the ownership graph was
 non-obvious. Async-init was a `Promise` from JS side, post-init the presenter
 had to be re-attached to a `ProjectHandle`.
 
-For the new inspector: start with `idml-wasm::render_to_png` (PNG bytes
+For the new inspector: start with `paged-sdk::render_to_png` (PNG bytes
 round-tripped through an `<img>`). Vello directly-to-canvas is a worthwhile
 optimization but it's premature when the inspector's primary job is property
 inspection, not 60fps interaction. Add it back when the renderer surface
@@ -81,7 +81,7 @@ becomes the bottleneck.
 
 ### NodeId only covered TextFrames
 
-`idml-scene::Document::text_frame_index` provides O(1) `self_id → (spread, idx)`
+`paged-scene::Document::text_frame_index` provides O(1) `self_id → (spread, idx)`
 lookup, but only for TextFrames. Rectangles, Ovals, Polygons, GraphicLines are
 not globally indexed by their `Self="..."` ids. `idml-edit`'s `NodeId` wrapped
 text-frame ids only; mutations to non-text shapes had to go through positional
@@ -89,7 +89,7 @@ references.
 
 The new inspector wants unified `NodeId` across all frame kinds (and probably
 runs, paragraphs, characters too). Extend the scene-graph indexing surface as
-part of `idml-mutate` scaffold.
+part of `paged-mutate` scaffold.
 
 ### Editor-shaped surface area on the WASM bridge
 
@@ -97,14 +97,14 @@ part of `idml-mutate` scaffold.
 shapes — these were correctly built for an editor (drag-and-drop with snap
 guides). They're the wrong primitives for an inspector, whose mental model is
 DevTools-style "click a node, see its properties, modify a property, see the
-re-render." Don't carry the editor-shaped API into idml-introspect-wasm.
+re-render." Don't carry the editor-shaped API into paged-introspect-wasm.
 
 ### Document::open(zip) as the only Document constructor — constructible-but-unguarded
 
 The picture turned out subtler than first reported. `Document::open(zip)` is
 the only *named* entry point and `Container` is ZIP-coupled in spirit, but
 every field on `Container`, `DesignMap`, and `Document` is `pub`. The C1
-seam test (`crates/idml-renderer/tests/seam_hand_construct.rs`) passes today
+seam test (`crates/paged-renderer/tests/seam_hand_construct.rs`) passes today
 — hand-construct empty + single-page documents and render them via
 `pipeline::build_document` works.
 

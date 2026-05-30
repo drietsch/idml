@@ -14,7 +14,7 @@
 //     stores one slot — the most recent — and a generation counter
 //     so the worker's tick knows whether to apply.
 //
-// Source of truth: `crates/idml-canvas/src/gesture.rs` (constants
+// Source of truth: `crates/paged-canvas/src/gesture.rs` (constants
 // `GESTURE_SAB_BYTES` + `GESTURE_OFFSET_*` + `GESTURE_MODIFIER_*` +
 // the `GestureSabLayout` tsify'd struct). The constants below MIRROR
 // the Rust spec so a SAB allocation can run before wasm finishes
@@ -39,7 +39,7 @@
 export const GESTURE_SAB_BYTES = 32;
 
 /** u32 word indices into the gesture SAB. Mirrors `GESTURE_OFFSET_*`
- *  in `crates/idml-canvas/src/gesture.rs`; reconciled at worker init. */
+ *  in `crates/paged-canvas/src/gesture.rs`; reconciled at worker init. */
 export const GESTURE_SAB_OFFSETS = {
   handleLo: 0,
   handleHi: 1,

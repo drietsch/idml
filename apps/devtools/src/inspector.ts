@@ -1,17 +1,17 @@
-// Typed wrapper around the idml-introspect-wasm module.
+// Typed wrapper around the paged-introspect-wasm module.
 //
 // The wasm-bindgen module is loaded lazily so the initial bundle
 // stays small until the user actually loads an IDML. All wire types
 // here mirror the Rust serde shapes in:
-//   crates/idml-introspect/src/{tree,descriptor}.rs
-//   crates/idml-introspect-wasm/src/lib.rs
+//   crates/paged-introspect/src/{tree,descriptor}.rs
+//   crates/paged-introspect-wasm/src/lib.rs
 
-let modulePromise: Promise<typeof import("./wasm/idml_introspect_wasm")> | null = null;
+let modulePromise: Promise<typeof import("./wasm/paged_introspect_wasm")> | null = null;
 
 async function loadModule() {
   if (!modulePromise) {
     modulePromise = (async () => {
-      const mod = await import("./wasm/idml_introspect_wasm");
+      const mod = await import("./wasm/paged_introspect_wasm");
       const init = mod.default as (url?: string | URL) => Promise<unknown>;
       await init();
       return mod;
@@ -92,7 +92,7 @@ export interface MutationResult {
 }
 
 export class InspectorClient {
-  private constructor(private inner: import("./wasm/idml_introspect_wasm").Inspector) {}
+  private constructor(private inner: import("./wasm/paged_introspect_wasm").Inspector) {}
 
   static async open(bytes: Uint8Array): Promise<InspectorClient> {
     const mod = await loadModule();

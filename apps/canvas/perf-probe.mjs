@@ -1,7 +1,7 @@
 // Standalone perf probe — bypasses the 5min per-test timeout and
 // measures end-to-end loadDocument + per-page snapshot timing for
 // one pack with detailed phase breakdown from the wasm-side
-// `[idml-canvas perf]` console messages.
+// `[paged-canvas perf]` console messages.
 //
 // Usage: node perf-probe.mjs <pack-name>
 //   or: PROBE_PACK=<name> node perf-probe.mjs
@@ -21,7 +21,7 @@ const browser = await chromium.launch({
 const page = await browser.newPage();
 page.on("console", (m) => {
   const t = m.text();
-  if (t.includes("[idml-canvas perf]") || t.includes("[err]") || m.type() === "error" || m.type() === "warning") {
+  if (t.includes("[paged-canvas perf]") || t.includes("[err]") || m.type() === "error" || m.type() === "warning") {
     console.log(`  browser[${m.type()}]: ${t}`);
   }
 });

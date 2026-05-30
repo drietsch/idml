@@ -166,7 +166,7 @@ export interface PagedHandle {
 Backed by a single Rust read method family, mirroring the `model.element_properties` pattern that already serves `paged.inspect` / `client.elementProperties`:
 
 ```rust
-// crates/idml-canvas/src/channel.rs  (request kinds)
+// crates/paged-canvas/src/channel.rs  (request kinds)
 RequestCollection { name: CollectionName },     // -> CollectionReply { items: Vec<serde_json::Value> }
 RequestDocumentMeta,                            // -> DocumentMetaReply { .. }
 ```
@@ -759,7 +759,7 @@ Every `Operation` referenced above, deduplicated, grouped by domain. This is the
 
 **Production:** `CreatePreflightProfile, SetActivePreflightProfile, RunPreflight, CreateTrapPreset, EditTrapPreset`
 
-> Each arm needs its inverse in `crates/idml-mutate/src/apply.rs` for undo (the plan's AC pattern). The property-write arms are mechanical; the collection and geometry arms carry the real implementation weight.
+> Each arm needs its inverse in `crates/paged-mutate/src/apply.rs` for undo (the plan's AC pattern). The property-write arms are mechanical; the collection and geometry arms carry the real implementation weight.
 
 ---
 

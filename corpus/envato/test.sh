@@ -7,9 +7,9 @@
 #   2. export-pdf.sh     — InDesign opens template.idml, applies the
 #                          per-pack font substitutions, exports
 #                          reference.pdf. Cached.
-#   3. render            — idml-inspect → reports/<name>/cand-NNN.png.
+#   3. render            — paged-inspect → reports/<name>/cand-NNN.png.
 #   4. rasterise         — pdftoppm reference.pdf → ref-NNN.png.
-#   5. diff              — idml-diff per page → report.json.
+#   5. diff              — paged-diff per page → report.json.
 #   6. gate              — if manifest stage == "gated", compare
 #                          against fidelity-thresholds.json → gate.json.
 #
@@ -63,12 +63,12 @@ for p in m['packs']:
 ")
 fi
 
-echo "==> build idml-inspect + idml-diff (release)"
+echo "==> build paged-inspect + paged-diff (release)"
 (cd "$ROOT" && cargo build --release \
-    -p idml-renderer --bin idml-inspect \
-    -p idml-fidelity --bin idml-diff >/dev/null)
-INSPECT="$ROOT/target/release/idml-inspect"
-DIFF="$ROOT/target/release/idml-diff"
+    -p paged-renderer --bin paged-inspect \
+    -p paged-fidelity --bin paged-diff >/dev/null)
+INSPECT="$ROOT/target/release/paged-inspect"
+DIFF="$ROOT/target/release/paged-diff"
 
 mkdir -p "$REPORTS"
 # Track aggregate results in a JSON shard per pack; we roll them up
@@ -155,7 +155,7 @@ for p in m['packs']:
     fi
 
     # ---- 4. Render ------------------------------------------------------
-    # idml-inspect's --render takes a "base.png" and writes one file
+    # paged-inspect's --render takes a "base.png" and writes one file
     # per page as base-NNN.png (3-digit zero-padding).
     local cand_base="$out/cand.png"
     rm -f "$out"/cand-*.png "$out"/ref-*.png "$out"/heat-*.png
@@ -166,11 +166,11 @@ for p in m['packs']:
             "${FONT_FLAGS[@]}" \
             --dpi "$DPI" >> "$out/test.log" 2>&1); then
         result="render-error"
-        note="idml-inspect exited non-zero"
+        note="paged-inspect exited non-zero"
         emit_pack_summary "$name" "$stage" "$result" "$note" "" "" "" 0 "$out"
         return 1
     fi
-    # idml-inspect writes a single-page IDML to "cand.png" with no
+    # paged-inspect writes a single-page IDML to "cand.png" with no
     # numeric suffix, but multi-page IDMLs split to "cand-NNN.png".
     # Normalise to the suffixed form so the per-page loop below pairs
     # cleanly with pdftoppm's ref-NNN.png output.

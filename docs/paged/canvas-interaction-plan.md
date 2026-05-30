@@ -52,7 +52,7 @@ snapping, and multi-select transforms.
 
 ### 1.1 What exists (and is solid)
 
-**Text selection + caret (model level).** `crates/idml-canvas/src/`:
+**Text selection + caret (model level).** `crates/paged-canvas/src/`:
 
 - `selection.rs` — `ContentSelection { story_id, start, end, affinity }`,
   content-addressed so it survives re-layout (AC-E-9 for text). Has
@@ -74,7 +74,7 @@ with `to_viewport` / `to_document`, backed by the `SharedArrayBuffer`
 contract. The TS side already maps viewport↔doc (`viewportToDoc` in
 `apps/canvas/src/channel/camera.ts`).
 
-**The Operation log (canonical mutation primitive).** `crates/idml-mutate/`:
+**The Operation log (canonical mutation primitive).** `crates/paged-mutate/`:
 
 - `operation.rs` — `Operation { SetProperty, InsertNode, RemoveNode,
   MoveNode, Batch }` — exactly the canonical set from
@@ -114,17 +114,17 @@ round-trip. The overlay (`Overlay.tsx`) already renders
 3. **No gesture layer.** No `begin/update/commit/cancel`, no ephemeral
    overlay. `Mutation::MoveFrame` / `ResizeFrame` exist on the wire but
    the worker rejects them with `WorkerError::NotImplemented`
-   (`idml-canvas-wasm/src/lib.rs` ~L771/L830).
-4. **No transform Operations.** `idml-mutate` has no `ItemTransform`
+   (`paged-canvas-wasm/src/lib.rs` ~L771/L830).
+4. **No transform Operations.** `paged-mutate` has no `ItemTransform`
    property path — only `FrameBounds`. Rotation/scale (which live in
    the affine matrix) cannot yet be expressed as an Operation.
 5. **The mutation-log fork.** `CanvasModel` (`model.rs`) has its **own**
-   `TextOp`-based undo/redo log, separate from `idml-mutate`'s
+   `TextOp`-based undo/redo log, separate from `paged-mutate`'s
    `Operation` log. `mutate.rs` carries an explicit comment that the
    two are meant to converge ("variants can be folded into
-   `idml_mutate::Operation`"). `idml-canvas` does not yet depend on
-   `idml-mutate`. **Frame gestures must commit through the
-   `idml-mutate` log, so this fork has to be bridged** (§3.5).
+   `paged_mutate::Operation`"). `paged-canvas` does not yet depend on
+   `paged-mutate`. **Frame gestures must commit through the
+   `paged-mutate` log, so this fork has to be bridged** (§3.5).
 
 ---
 
@@ -138,11 +138,11 @@ Per `editor-architecture.md`: a drag produces **one** `Operation` at
 commit, not one per pointer frame. During the drag, an **ephemeral
 overlay** holds the in-progress transform and the renderer draws from
 it. On `commit`, the worker diffs the overlay against the committed
-state and applies exactly one `idml-mutate::Operation` (or a `Batch`
+state and applies exactly one `paged-mutate::Operation` (or a `Batch`
 for multi-select), which yields the inverse + invalidation for free.
 On `cancel`, the overlay is dropped and nothing enters the log.
 
-### 2.2 Gesture geometry lives in Rust (`idml-canvas`), not TypeScript
+### 2.2 Gesture geometry lives in Rust (`paged-canvas`), not TypeScript
 
 Rotation-about-pivot, locked-aspect scale, marquee over rotated
 objects, and snapping are real geometry and belong in one place — the
@@ -190,7 +190,7 @@ the dragged edge(s). Both are expressible *today* as
 `SetProperty{ FrameBounds, Value::Bounds }` for TextFrame and
 Rectangle — `apply.rs` already implements it with inverse + the
 `frame_geometry` invalidation hint. This makes translate/resize the
-cheapest possible first slice: **no `idml-mutate` change required**,
+cheapest possible first slice: **no `paged-mutate` change required**,
 only the gesture spine + overlay around it.
 
 Caveat — the move-via-bounds vs move-via-transform decision: IDML
@@ -207,7 +207,7 @@ not into bounds (which live in the rotated content-box space). So:
 
 ### 3.2 Rotate and scale need a `FrameTransform` Operation (new)
 
-Add to `idml-mutate`:
+Add to `paged-mutate`:
 
 - `PropertyPath::FrameTransform`
 - `Value::Transform([f32; 6])` (the 2D affine `[a b c d tx ty]`)
@@ -249,21 +249,21 @@ an extra lookup in the page slice.
 
 ### 3.5 Bridging the mutation-log fork
 
-`CanvasModel` currently owns a `TextOp` undo log; `idml-mutate` owns
-the `Operation` log; the two are disjoint and `idml-canvas` doesn't
-depend on `idml-mutate`. For frame gestures we need the `Operation`
+`CanvasModel` currently owns a `TextOp` undo log; `paged-mutate` owns
+the `Operation` log; the two are disjoint and `paged-canvas` doesn't
+depend on `paged-mutate`. For frame gestures we need the `Operation`
 log. Recommended bridge (smallest step that unifies undo):
 
-1. Add `idml-mutate` as a dependency of `idml-canvas`.
+1. Add `paged-mutate` as a dependency of `paged-canvas`.
 2. Generalize `CanvasModel`'s undo log entry from `TextOp` to an enum
-   `LoggedMutation { Text(TextOp), Frame(idml_mutate::AppliedOperation) }`
+   `LoggedMutation { Text(TextOp), Frame(paged_mutate::AppliedOperation) }`
    so a single ordered undo stack covers both text edits and frame
    transforms (users expect one Cmd-Z timeline).
 3. Route `Mutation::MoveFrame` / `ResizeFrame` (and new gesture-commit
-   messages) through `idml_mutate::apply`, pushing the
+   messages) through `paged_mutate::apply`, pushing the
    `AppliedOperation` onto the unified log.
 4. Leave the `TextOp` path as-is for now; the eventual full convergence
-   (folding `TextOp` into `idml_mutate::Operation`) is tracked
+   (folding `TextOp` into `paged_mutate::Operation`) is tracked
    separately and is **out of scope** for this plan.
 
 This is the one cross-crate structural change; it should land early
@@ -271,9 +271,9 @@ This is the one cross-crate structural change; it should land early
 
 ---
 
-## 4. The gesture spine (new `idml-canvas` module)
+## 4. The gesture spine (new `paged-canvas` module)
 
-New file `crates/idml-canvas/src/gesture.rs`:
+New file `crates/paged-canvas/src/gesture.rs`:
 
 ```rust
 pub enum GestureType {
@@ -328,7 +328,7 @@ Three concrete improvements, in priority order:
    with a single pass over all page items, topmost-first. The order is
    **layer order first, then document order within a layer** — *not*
    raw spread document order. Source it from the *same* computation the
-   renderer paints from: `crates/idml-renderer/src/pipeline.rs` already
+   renderer paints from: `crates/paged-renderer/src/pipeline.rs` already
    builds a `layer_z_index` (~L864) keyed by each item's `ItemLayer`.
    Hit-testing must consult that index (or a shared helper extracted
    from it) so selection and rendering can never disagree about which
@@ -349,7 +349,7 @@ Layers already exist in the model and the renderer, and they gate
 interaction in two ways that belong in *this* plan (the layer **model
 and management UI** do not — see "out of scope" below).
 
-- **The model.** `crates/idml-parse/src/designmap.rs:54` parses
+- **The model.** `crates/paged-parse/src/designmap.rs:54` parses
   `Layer { self_id, name, visible, locked, printable }`. Every page
   item references its layer via `ItemLayer`.
 - **Visibility gating.** The renderer already skips items on a layer
@@ -427,7 +427,7 @@ M ≈ 3–6 days, L ≈ 1–2 weeks, for one focused engineer.
 **Goal:** click/shift-click/marquee selection of frames, exact under
 rotation and z-order. Pure foundation; no mutation.
 
-- **Rust** (`idml-canvas`):
+- **Rust** (`paged-canvas`):
   - New `ElementSelection { ids: Vec<NodeId> }` (application state) +
     set ops (set/add/toggle/remove/clear). Mirror to worker via a new
     `SetElementSelection` channel message (parallel to `SetSelection`).
@@ -458,9 +458,9 @@ rotation and z-order. Pure foundation; no mutation.
 entry; preview at frame rate.
 
 - **Rust:**
-  - The §3.5 bridge: `idml-canvas` depends on `idml-mutate`; unified
+  - The §3.5 bridge: `paged-canvas` depends on `paged-mutate`; unified
     `LoggedMutation` enum; route frame commits through
-    `idml_mutate::apply`.
+    `paged_mutate::apply`.
   - `gesture.rs` (§4) with `GestureType::Translate` only.
   - Ephemeral overlay (§3.4) + page-slice compose hook in the Tier-4
     build.
@@ -550,7 +550,7 @@ These reuse the same gesture spine + overlay; no new architecture.
    `FrameTransform`'s `a/d`. Decide and document per
    `CLAUDE.md`'s "pick one consciously" rule.
 2. **Mutation-log convergence (Phase B).** Bridge now (§3.5), full fold
-   of `TextOp` into `idml_mutate::Operation` later. Confirm the unified
+   of `TextOp` into `paged_mutate::Operation` later. Confirm the unified
    `LoggedMutation` enum is acceptable as the interim shape.
 3. **Move-via-bounds vs move-via-transform (Phase B/D).** Un-rotated →
    bounds; rotated → transform (§3.1). Confirm the renderer treats a
@@ -568,7 +568,7 @@ These reuse the same gesture spine + overlay; no new architecture.
 
 ## 9. Test strategy
 
-- **Rust unit (`cargo test -p idml-canvas`, `-p idml-mutate`):**
+- **Rust unit (`cargo test -p paged-canvas`, `-p paged-mutate`):**
   oriented hit-testing (AC-E-12), gesture math (translate/resize/rotate
   produce the asserted bounds/matrix), commit→Operation→inverse
   round-trips (AC-E-8), zoom-independence by running the same
@@ -634,7 +634,7 @@ Adobe chrome).
 - [ ] **A** Element selection set + worker mirror + oriented hit-test +
       layer-aware z-order + hidden/locked-layer gating (§5.1); marquee.
       (AC-E-10/11/12)
-- [ ] **B** `idml-mutate` bridge + unified undo log; `gesture.rs` +
+- [ ] **B** `paged-mutate` bridge + unified undo log; `gesture.rs` +
       ephemeral overlay; translate end-to-end. (AC-E-13, AC-E-7/8)
 - [ ] **C** Resize handles + anchoring + aspect-lock. (AC-E-14)
 - [ ] **D** `FrameTransform` Operation; rotate + scale; resize-vs-scale
@@ -642,5 +642,5 @@ Adobe chrome).
 - [ ] **E** Multi-select Batch transforms; snapping; modifiers. (AC-E-16)
 - [ ] **F** (later) image fit/crop; vector path-point editing.
 - [ ] Group descent + group transforms (slot into A.1 / E per §8.4).
-- [ ] Full `TextOp` → `idml_mutate::Operation` convergence (separate
+- [ ] Full `TextOp` → `paged_mutate::Operation` convergence (separate
       effort, post-plan).

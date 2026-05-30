@@ -220,7 +220,7 @@ test.describe("Track K — cross-spread Alt-duplicate", () => {
     page,
   }) => {
     // End-to-end coverage of cross-spread routing is split between
-    // here and the Rust unit tests in idml-mutate's lib.rs:
+    // here and the Rust unit tests in paged-mutate's lib.rs:
     //   - `clone_translate_with_destination_routes_to_dest_with_corrected_delta`
     //     proves the apply layer inserts into the named spread with
     //     the corrected effective delta.

@@ -4,7 +4,7 @@
 Runs `pdftotext -bbox-layout` against the reference PDF for a pack,
 parses the resulting XHTML, and emits one JSONL record per detected
 line. Records intentionally mirror the candidate-side
-[`BreakRecord`] schema produced by `idml-inspect --emit-breaks` so
+[`BreakRecord`] schema produced by `paged-inspect --emit-breaks` so
 `compare.py` can match candidate lines to reference lines by
 `(page_idx, baseline_y_pt ± tol)` and score divergence per line.
 

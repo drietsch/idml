@@ -39,12 +39,12 @@ content) drowning the signal.
 
 ### 1a. `--story-id <id>` filter
 
-When set, `idml-inspect --emit-breaks` writes records only for the
+When set, `paged-inspect --emit-breaks` writes records only for the
 matching story (by `Self` id). `StoryEmitter::current_story_id`
 already carries the value; gate the push on equality.
 
-**Files:** `crates/idml-renderer/src/bin/inspect.rs`,
-`crates/idml-renderer/src/pipeline.rs` (extend `PipelineOptions`
+**Files:** `crates/paged-renderer/src/bin/inspect.rs`,
+`crates/paged-renderer/src/pipeline.rs` (extend `PipelineOptions`
 with `Option<String>` filter or a closure-style accept fn).
 **Effort:** S (1-2 hours).
 
@@ -60,7 +60,7 @@ filters AND together.
 
 `break-thresholds.json` fixtures grow optional `story_id` /
 `page_range` fields. When set, `breaks-gate.sh` passes the matching
-flags to `idml-inspect`. Re-baseline at least 2 of the noisy
+flags to `paged-inspect`. Re-baseline at least 2 of the noisy
 LetterSpacing packs (newspaper, business-magazine-template) against
 a known body story / specific page so the metric shows real wrap
 signal.
@@ -138,7 +138,7 @@ let shrink_add = (ls_shrink_pt / 24.0).clamp(0.0, 0.25);
 clamping. AVG_CHARS_PER_WORD goes away — it was an accidental
 amplification factor.
 
-**Files:** `crates/idml-renderer/src/pipeline.rs::apply_paragraph_compose_options`.
+**Files:** `crates/paged-renderer/src/pipeline.rs::apply_paragraph_compose_options`.
 **Effort:** S (1-2 hours; existing unit tests + harness gate cover
 the change).
 
@@ -186,7 +186,7 @@ Each round: tweak → `corpus/generated/diff.sh` → `breaks-gate.sh`
 → merge or revert. Loosening a threshold to chase a passing run
 is a regression in disguise (CLAUDE.md rule).
 
-**Files:** `crates/idml-renderer/src/pipeline.rs::apply_paragraph_compose_options`,
+**Files:** `crates/paged-renderer/src/pipeline.rs::apply_paragraph_compose_options`,
 `corpus/envato/break-thresholds.json` (re-baseline if metric
 shifts).
 **Effort:** S-M per round (1-2 hours including gate verification).

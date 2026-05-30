@@ -4,7 +4,7 @@
 // run is in flight. Pointed at file:// works (the embedded `<meta
 // http-equiv="refresh">` reloads the page every few seconds). Per-
 // pack thumbnails are loaded via relative paths from
-// `/tmp/idml-canvas-fidelity/<pack>/`.
+// `/tmp/paged-canvas-fidelity/<pack>/`.
 
 import { writeFileSync, existsSync } from "node:fs";
 import { resolve, relative, basename } from "node:path";

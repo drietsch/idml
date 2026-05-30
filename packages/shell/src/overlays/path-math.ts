@@ -1,5 +1,5 @@
 // Track J — pure-TS path geometry helpers for the path-edit
-// overlay. Mirrors `crates/idml-mutate/src/path_math.rs` so the
+// overlay. Mirrors `crates/paged-mutate/src/path_math.rs` so the
 // click→t→split pipeline can run main-thread without a wasm
 // boundary call. The math is tiny (six lerps + a 30-sample
 // closest-point search); duplicating beats a worker round-trip

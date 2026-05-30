@@ -48,19 +48,19 @@ through the gradient interpolator.
 
 ### 1a. Streaming JPEG for oversized payloads
 
-- Add a `streaming-jpeg` feature on `idml-renderer` that swaps in the
+- Add a `streaming-jpeg` feature on `paged-renderer` that swaps in the
   `jpeg-decoder` crate (already an `image` transitive dep) directly.
   Standard `image::load_from_memory` materialises the whole payload
   into RGBA8 before returning; for the 35MB annual-report-template
   cover that means a 280MB allocation. `jpeg-decoder::Decoder::new`
   + `decode_into` lets us stream row-by-row into a downsampled buffer.
-- Path: `crates/idml-renderer/src/pipeline.rs::decode_image_bytes`.
+- Path: `crates/paged-renderer/src/pipeline.rs::decode_image_bytes`.
   Add a `decode_image_bytes_with_target_max(bytes, max_px)` variant
   that downsamples to `max_px` pixels on either dimension.
 - Wire it in `resolve_image_id` so `DecodeFailed` cases retry once
   with a downsample.
 
-**Files:** `crates/idml-renderer/src/pipeline.rs` (~+150 lines).
+**Files:** `crates/paged-renderer/src/pipeline.rs` (~+150 lines).
 **Test:** small synthetic IDML with a 4000×4000 JPEG; assert it
 decodes via the new path.
 **Effort:** S+ (2 days).
@@ -68,15 +68,15 @@ decodes via the new path.
 ### 1b. Embedded ICC profile threading
 
 - `jpeg-decoder` exposes `decode_with_color_profile` returning the
-  embedded ICC bytes. Pipe them through `idml_color::IccTransform`
+  embedded ICC bytes. Pipe them through `paged_color::IccTransform`
   alongside the document-level CMYK profile.
 - For RGB JPEGs that carry no profile, assume sRGB IEC61966-2.1
   (already the document default).
 - For CMYK JPEGs, route the per-pixel CMYK → sRGB through the
   embedded profile rather than the doc default.
 
-**Files:** `crates/idml-color/src/lib.rs` (add per-image ICC variant),
-`crates/idml-renderer/src/pipeline.rs::decode_image_bytes`.
+**Files:** `crates/paged-color/src/lib.rs` (add per-image ICC variant),
+`crates/paged-renderer/src/pipeline.rs::decode_image_bytes`.
 **Test:** synthetic CMYK JPEG with embedded "Coated FOGRA39" profile;
 assert decoded pixel matches a known-good reference per-channel.
 **Effort:** M (3-4 days).
@@ -90,7 +90,7 @@ process-CMYK swatch and another is a Pantone spot — current code
 falls back to sRGB-linear, which is duller than InDesign's
 preview-CMYK behaviour.
 
-**Files:** `crates/idml-renderer/src/pipeline.rs::color_id_to_paint_with_list_dir`.
+**Files:** `crates/paged-renderer/src/pipeline.rs::color_id_to_paint_with_list_dir`.
 **Effort:** S (1 day if 1b lands first; can borrow its CMYK→sRGB path).
 
 ### Expected corpus impact
@@ -142,7 +142,7 @@ to validate.
   via `pdftotext -layout` + `pdftoppm`-based geometry probing.
 
 **Files:** new `corpus/envato/breaks-extract.py`, modifications to
-`crates/idml-renderer/src/bin/inspect.rs` (add `--emit-breaks`).
+`crates/paged-renderer/src/bin/inspect.rs` (add `--emit-breaks`).
 **Effort:** M (4-5 days). The reference-side extraction is the bulk
 because `pdftotext` doesn't surface line geometry directly — needs
 per-line bounding-box reconstruction.
@@ -207,7 +207,7 @@ frames.
 
 ### 3a. Layout reservation
 
-- Extend `idml-text::layout::StyledRun` with optional
+- Extend `paged-text::layout::StyledRun` with optional
   `anchored_inline: Option<AnchoredInline>` carrying the frame's
   width / height / baseline-offset.
 - In `compose_paragraph` / `layout_runs`, treat each anchored frame
@@ -216,7 +216,7 @@ frames.
 - Output a per-frame anchor-position (page_idx, x, y) the renderer
   consumes on the post-emit pass.
 
-**Files:** `crates/idml-text/src/layout.rs`, `crates/idml-text/src/compose.rs`.
+**Files:** `crates/paged-text/src/layout.rs`, `crates/paged-text/src/compose.rs`.
 **Effort:** M-L (5-7 days). Touches both the breaker and the
 post-break glyph positioning.
 
@@ -230,7 +230,7 @@ post-break glyph positioning.
 - Honour `<AnchoredObjectSetting>` modes: `Inline`, `AboveLine`,
   `Custom` (with `AnchorPoint`, `AnchorXOffset`, `AnchorYOffset`).
 
-**Files:** `crates/idml-renderer/src/pipeline.rs`.
+**Files:** `crates/paged-renderer/src/pipeline.rs`.
 **Effort:** M (4-5 days).
 
 ### 3c. Tests + regression coverage
@@ -267,10 +267,10 @@ wide stroke that visually reads as a pattern. The parser reads
 
 - Parse custom `<StrokeStyle>` definitions from `Resources/Styles.xml`
   (the IDML serialises dash arrays + caps explicitly).
-- Map to `idml_compose::Stroke`'s dash field.
+- Map to `paged_compose::Stroke`'s dash field.
 - Render via tiny-skia's `Stroke.dash` (already supported).
 
-**Files:** `crates/idml-parse/src/styles.rs`, `crates/idml-renderer/src/pipeline.rs::stroke_for`.
+**Files:** `crates/paged-parse/src/styles.rs`, `crates/paged-renderer/src/pipeline.rs::stroke_for`.
 **Effort:** S (2-3 days).
 
 ### 4b. `<PastedSmoothShade>` gradient mesh — *deferred, no corpus impact*
@@ -290,9 +290,9 @@ gradient mesh serialisation) would be ~M effort with no
 measurable corpus delta until an IDML actually references one as
 a paint. Reopen if/when that happens.
 
-**Files (when revisited):** `crates/idml-parse/src/graphic.rs`,
-`crates/idml-renderer/src/pipeline.rs`, possibly
-`crates/idml-gpu/src/cpu.rs`.
+**Files (when revisited):** `crates/paged-parse/src/graphic.rs`,
+`crates/paged-renderer/src/pipeline.rs`, possibly
+`crates/paged-gpu/src/cpu.rs`.
 
 ### 4c. Q-08 radial-on-polygon gradient
 
@@ -301,7 +301,7 @@ gradients on polygon paths. Radial gradients have a different
 tiny-skia API (`Radial` vs `Linear`); the agent left this as a
 follow-up.
 
-**Files:** `crates/idml-renderer/src/module/fill_paint.rs::rebase_gradient_to_bbox`.
+**Files:** `crates/paged-renderer/src/module/fill_paint.rs::rebase_gradient_to_bbox`.
 **Effort:** S (1-2 days).
 
 ### 4d. Q-09 ParagraphBorder per-corner radii
@@ -311,8 +311,8 @@ The cycle-2 Q-09 ParagraphBorder agent intentionally skipped
 With Q-16's `rounded_rect_path_per_corner` already in place, this is
 a thin extension.
 
-**Files:** `crates/idml-parse/src/styles.rs` (ParagraphBorder struct +
-parse), `crates/idml-renderer/src/pipeline.rs` (border emit uses
+**Files:** `crates/paged-parse/src/styles.rs` (ParagraphBorder struct +
+parse), `crates/paged-renderer/src/pipeline.rs` (border emit uses
 per-corner radii).
 **Effort:** S (1-2 days).
 
@@ -336,9 +336,9 @@ The plan's sketch (parse `<Condition Visible="…">` into a table;
 filter spread / story runs by their `AppliedConditions` against
 the visible set) still applies.
 
-**Files (when revisited):** `crates/idml-parse/src/designmap.rs`,
-`crates/idml-parse/src/story.rs`,
-`crates/idml-renderer/src/pipeline.rs`.
+**Files (when revisited):** `crates/paged-parse/src/designmap.rs`,
+`crates/paged-parse/src/story.rs`,
+`crates/paged-renderer/src/pipeline.rs`.
 
 ### 5b. Cross-references — *deferred, no corpus impact*
 
@@ -355,16 +355,16 @@ The plan's sketch (parse `<CrossReferenceSource>` + format-token
 substitution like `<pageNumber/>` / `<chapter/>`) still applies
 when a real IDML uses one.
 
-**Files (when revisited):** `crates/idml-parse/src/story.rs`,
-`crates/idml-scene/src/lib.rs` (cross-ref resolver),
-`crates/idml-renderer/src/pipeline.rs`.
+**Files (when revisited):** `crates/paged-parse/src/story.rs`,
+`crates/paged-scene/src/lib.rs` (cross-ref resolver),
+`crates/paged-renderer/src/pipeline.rs`.
 
 ### 5c. Hidden cross-references + index entries
 
 `<HiddenText>` and `<Index>` entries are page-flow-affecting but
 non-rendering. Currently treated as visible runs.
 
-**Files:** `crates/idml-parse/src/story.rs`.
+**Files:** `crates/paged-parse/src/story.rs`.
 **Effort:** S (1-2 days).
 
 ---

@@ -7,7 +7,7 @@ Cycle 4 built the harness. Cycle 5 wired body-text packs through it
 ## Round 1: `AVG_CHARS_PER_WORD` 5.0 → 4.7
 
 The constant feeds the letter-spacing → per-word stretch budget at
-`crates/idml-renderer/src/pipeline.rs::apply_paragraph_compose_options`:
+`crates/paged-renderer/src/pipeline.rs::apply_paragraph_compose_options`:
 
 ```rust
 const AVG_CHARS_PER_WORD: f32 = 4.7;

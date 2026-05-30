@@ -78,7 +78,7 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    exclude: ["idml_canvas_wasm"],
+    exclude: ["paged_canvas_wasm"],
   },
   worker: {
     format: "es",

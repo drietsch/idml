@@ -7,7 +7,7 @@ before declaring the harness usable. Status at cycle-4 end:
 
 | Sub-track | Status |
 |---|---|
-| 2a — `idml-inspect --emit-breaks` (candidate side) | ✅ landed |
+| 2a — `paged-inspect --emit-breaks` (candidate side) | ✅ landed |
 | 2b — `breaks-extract.py` (reference side) | ✅ landed |
 | 2c — `breaks-compare.py` + `break-thresholds.json` gate | ✅ landed |
 | 2d — Q-20 calibration rounds | ⏸ deferred — needs body-text packs |
@@ -24,10 +24,10 @@ first_byte, last_byte, baseline_y_pt, width_pt
 ```
 
 byte offsets are paragraph-local; coords are in pt
-(divided back from idml_text's 1/64-pt internal units). Records are
+(divided back from paged_text's 1/64-pt internal units). Records are
 collected on `StoryEmitter`'s new `breaks` field and drained into
 `BuiltDocument::breaks` at each emitter completion site. The new
-`--emit-breaks PATH` flag on `idml-inspect` writes one JSON object
+`--emit-breaks PATH` flag on `paged-inspect` writes one JSON object
 per line to PATH.
 
 ## 2b — Reference side
@@ -94,7 +94,7 @@ deferred — tuning `apply_paragraph_compose_options`'s stretch floor
 + letter-spacing budget — needs *signal* to converge against. The
 text / text-advanced fixtures don't set custom `MinimumWordSpacing` /
 `MinimumLetterSpacing` / `GlyphScaling`, so the Q-20 branches at
-`crates/idml-renderer/src/pipeline.rs:10357,10381` never fire on
+`crates/paged-renderer/src/pipeline.rs:10357,10381` never fire on
 them. Calibration must run against Envato body-text packs where
 those attributes are non-default — magazine,
 modern-architecture-portfolio-template, newspaper, etc.
@@ -113,10 +113,10 @@ defaults still win until calibration narrows them.
 ## Files added
 
 ```
-crates/idml-renderer/src/pipeline.rs   (+~50 lines: BreakRecord type,
+crates/paged-renderer/src/pipeline.rs   (+~50 lines: BreakRecord type,
                                          StoryEmitter Vec, line-loop push,
                                          BuiltDocument::breaks field)
-crates/idml-renderer/src/bin/inspect.rs  (+--emit-breaks flag, JSONL write)
+crates/paged-renderer/src/bin/inspect.rs  (+--emit-breaks flag, JSONL write)
 corpus/envato/breaks-extract.py        (new — reference-side extractor)
 corpus/envato/breaks-compare.py        (new — diff metric)
 corpus/envato/break-thresholds.json    (new — per-fixture gate config)

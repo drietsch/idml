@@ -20,7 +20,7 @@ import type { PageId } from "@paged-media/client";
 
 /**
  * Wasm-side bindings the renderer needs. Subset of the
- * `CanvasWorker` wasm-bindgen surface from `crates/idml-canvas-wasm`.
+ * `CanvasWorker` wasm-bindgen surface from `crates/paged-canvas-wasm`.
  * Declared as an interface so this module doesn't depend on the
  * generated wasm types at import time (the worker imports them
  * separately).

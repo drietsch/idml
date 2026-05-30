@@ -30,7 +30,7 @@ Baseline reference is cycle-5 final (`5cd2025`). Plan companion:
 
 `PipelineOptions::break_story_filter` + `break_page_range` plus
 matching `--break-story-id` / `--break-page-range` CLI flags on
-`idml-inspect`. `StoryEmitter::break_filter_passes` checked at
+`paged-inspect`. `StoryEmitter::break_filter_passes` checked at
 both BreakRecord push sites (body + table cell paths).
 `break-thresholds.json` fixtures now accept optional `story_id` /
 `page_range` fields.

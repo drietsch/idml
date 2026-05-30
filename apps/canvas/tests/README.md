@@ -8,7 +8,7 @@ reference PDFs from `corpus/envato/`.
 
 ```bash
 # from apps/canvas/
-npm run wasm                        # rebuild idml-canvas-wasm if needed
+npm run wasm                        # rebuild paged-canvas-wasm if needed
 npm run fonts:list                  # show declared fonts per pack (read-only)
 npm run fonts:resolve               # download free fonts to corpus/fonts/.cache/
 npm run test:fidelity               # gate every non-skip pack
@@ -26,14 +26,14 @@ FIDELITY_PACKS=ancient-building-magazine,brochure npm run test:fidelity
 BACKEND=gpu npm run test:fidelity
 ```
 
-Output lands in `/tmp/idml-canvas-fidelity/<pack>/`:
+Output lands in `/tmp/paged-canvas-fidelity/<pack>/`:
 
 - `cand-NNN.png` — canvas snapshot for page N
 - `ref-NNN.png`  — `pdftoppm`-rasterised reference PDF page N
 - `heat-NNN.png` — ΔE heatmap (peak red ≈ ΔE 5)
 - `pack.json`    — per-page mean ΔE / p99 ΔE / SSIM + worst-of-pack
 
-`/tmp/idml-canvas-fidelity/results.json` rolls every pack into one
+`/tmp/paged-canvas-fidelity/results.json` rolls every pack into one
 file for downstream analysis. `corpus/envato/canvas-fidelity-thresholds.json`
 is the gate spec — captured by `npm run test:fidelity:capture`.
 
@@ -42,7 +42,7 @@ is the gate spec — captured by `npm run test:fidelity:capture`.
 | Var                 | Default                          | Meaning                                                                       |
 | ------------------- | -------------------------------- | ----------------------------------------------------------------------------- |
 | `FIDELITY_DPI`      | `144`                            | Resolution. Mirrors `corpus/envato/test.sh`'s `IDML_ENVATO_DPI`.              |
-| `FIDELITY_OUT`      | `/tmp/idml-canvas-fidelity`      | Output root.                                                                  |
+| `FIDELITY_OUT`      | `/tmp/paged-canvas-fidelity`      | Output root.                                                                  |
 | `FIDELITY_PACKS`    | (all non-skip)                   | Comma- or space-separated pack-name subset.                                   |
 | `FIDELITY_MODE`     | `gate`                           | `gate` fails gated packs on threshold violation; `capture` writes baseline JSON; `advisory` logs only. |
 | `BACKEND`           | `cpu`                            | `gpu` routes per-page renders through the Vello WebGPU readback path. Forces headed Chromium + `--enable-unsafe-webgpu --use-vulkan` flags. Falls back to CPU if the adapter request fails. |
@@ -62,7 +62,7 @@ is the gate spec — captured by `npm run test:fidelity:capture`.
 - `tests/fidelity/png-align.ts` — pads PNGs to a common bounding
   box when `pdftoppm`'s pt-rounded output differs by ≤ 8 px from the
   canvas's fractional-pt snapshot.
-- `tests/fidelity/diff.ts` — shells out to `target/release/idml-diff`.
+- `tests/fidelity/diff.ts` — shells out to `target/release/paged-diff`.
 - `tests/fidelity/fonts.ts` — parses per-pack
   `corpus/envato/overrides/<pack>/fonts.sh`. Source of truth for
   family → TTF substitution (mirrored to the canvas via the wasm
@@ -81,8 +81,8 @@ is the gate spec — captured by `npm run test:fidelity:capture`.
 
 The wasm worker accumulates a font registry across `registerFont`
 calls; `loadDocument` builds a `BytesResolver` from the registry +
-the default font and hands it to `idml_renderer::PipelineOptions`.
-Mirrors `idml-inspect --font-family "Family=path"` and `--default-font`.
+the default font and hands it to `paged_renderer::PipelineOptions`.
+Mirrors `paged-inspect --font-family "Family=path"` and `--default-font`.
 
 ## Known gaps
 
@@ -97,7 +97,7 @@ Mirrors `idml-inspect --font-family "Family=path"` and `--default-font`.
 
 ## Relation to the native gate
 
-`corpus/envato/test.sh` exercises the native renderer (`idml-inspect`
+`corpus/envato/test.sh` exercises the native renderer (`paged-inspect`
 CLI) against the same PDFs. The canvas suite exercises the
 `apps/canvas` worker + wasm path. They share the corpus, the
 overrides, and the diff binary but not the renderer driver, so each

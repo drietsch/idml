@@ -72,7 +72,7 @@ culprit and the regression is *expected* until we license Proximity.
 `compose::compose_paragraph` emits a single `tracing::debug!`
 record on the first call per process when a hyphenator is
 configured, advising of the divergence. The log target is
-`idml_text::compose`. We don't log per-paragraph (too noisy) or
+`paged_text::compose`. We don't log per-paragraph (too noisy) or
 per-word (orders of magnitude too noisy).
 
 ## Future work

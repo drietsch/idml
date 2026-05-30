@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Track 2c: A/B-harness break-decision diff metric.
 
-Loads a candidate-side break JSONL (produced by `idml-inspect
+Loads a candidate-side break JSONL (produced by `paged-inspect
 --emit-breaks`) and a reference-side break JSONL (produced by
 `breaks-extract.py`), then scores per-page divergence on three axes:
 

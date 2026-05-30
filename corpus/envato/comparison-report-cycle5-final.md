@@ -122,7 +122,7 @@ In rough priority order:
 
 1. **Harness sensitivity** — three pieces, all 1-2 days each:
    - `--emit-breaks --story-id <id>` / `--page-range A:B` on
-     `idml-inspect` so callers can isolate a single body paragraph.
+     `paged-inspect` so callers can isolate a single body paragraph.
    - `breaks-compare.py` strict-pair mode: only count baseline-drift
      and word-match contributions on pairs where first/last words
      match. Surfaces real wrap-decision shifts inside structural

@@ -3,7 +3,7 @@
 // absolute TTF on disk plus its IDML family / style key.
 //
 // This is the substitution path: it mirrors what `corpus/envato/test.sh`
-// hands to `idml-inspect --font-family ...`. The Playwright suite
+// hands to `paged-inspect --font-family ...`. The Playwright suite
 // loads these bytes via the wasm `registerFont` method so the canvas
 // renders against the exact same fonts the reference PDF was exported
 // with. Without this step the renderer's default-font fallback would

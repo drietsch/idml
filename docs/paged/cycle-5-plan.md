@@ -70,7 +70,7 @@ becomes meaningful.
 ### 1a. Add `source_text` to `BreakRecord`
 
 - Extend the `BreakRecord` struct in
-  `crates/idml-renderer/src/pipeline.rs` with `pub source_text:
+  `crates/paged-renderer/src/pipeline.rs` with `pub source_text:
   String`. Populate from each laid-out line's byte_range against
   the paragraph's resolved text. The text lives on `StyledRun`s
   threaded through `layout_runs`; the breaker already keeps the
@@ -78,7 +78,7 @@ becomes meaningful.
 - Gate the allocation on `collect_breaks` — production renders
   pay zero cost.
 
-**Files:** `crates/idml-renderer/src/pipeline.rs`.
+**Files:** `crates/paged-renderer/src/pipeline.rs`.
 **Effort:** S (2-3 hours).
 
 ### 1b. Update `breaks-compare.py` to do real word matching
@@ -126,7 +126,7 @@ above) can be pinned in `break-thresholds.json`.
 
 - `breaks-gate.sh` sources `corpus/envato/overrides/<pack>/fonts.sh`
   (falling back to `_default`) to populate `FONT_FLAGS` and
-  `DEFAULT_FONT`, then invokes `idml-inspect` with those flags +
+  `DEFAULT_FONT`, then invokes `paged-inspect` with those flags +
   `--emit-breaks`. Mirrors `corpus/envato/test.sh`'s existing
   font-sub flow.
 
@@ -159,7 +159,7 @@ break decisions on packs that have real signal.
 **Goal:** cycle 3 deferred this. Cycle 4 built the harness. Cycle 5
 finally tunes `apply_paragraph_compose_options`'s knobs.
 
-Calibration knobs (from `crates/idml-renderer/src/pipeline.rs:10316`):
+Calibration knobs (from `crates/paged-renderer/src/pipeline.rs:10316`):
 
 - **`stretch_ratio.max(0.1)`** floor (line 10348). Q-15 introduced
   this to prevent zero-stretch deadlock. Larger floor → more
@@ -175,7 +175,7 @@ Calibration knobs (from `crates/idml-renderer/src/pipeline.rs:10316`):
 
 Bump from 5.0 to 4.7 (matches English-language average).
 
-**Files:** `crates/idml-renderer/src/pipeline.rs::apply_paragraph_compose_options`.
+**Files:** `crates/paged-renderer/src/pipeline.rs::apply_paragraph_compose_options`.
 **Effort:** S (1-2 hours including gate verification).
 
 ### 3b. Round 2 — stretch-floor tightening (conditional)

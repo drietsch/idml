@@ -6,8 +6,8 @@
       "pdf": "Sample-3.pdf",
       "pages": 5,
       "passing": 0,
-      "diff_dir": "/tmp/idml-diff-Sample-3",
-      "report": "/tmp/idml-diff-Sample-3/report.json"
+      "diff_dir": "/tmp/paged-diff-Sample-3",
+      "report": "/tmp/paged-diff-Sample-3/report.json"
     },
     {
       "name": "line-sheet",
@@ -15,8 +15,8 @@
       "pdf": "line-sheet.pdf",
       "pages": 7,
       "passing": 0,
-      "diff_dir": "/tmp/idml-diff-line-sheet",
-      "report": "/tmp/idml-diff-line-sheet/report.json"
+      "diff_dir": "/tmp/paged-diff-line-sheet",
+      "report": "/tmp/paged-diff-line-sheet/report.json"
     },
     {
       "name": "manual-sample",
@@ -24,8 +24,8 @@
       "pdf": "manual-sample.pdf",
       "pages": 9,
       "passing": 0,
-      "diff_dir": "/tmp/idml-diff-manual-sample",
-      "report": "/tmp/idml-diff-manual-sample/report.json"
+      "diff_dir": "/tmp/paged-diff-manual-sample",
+      "report": "/tmp/paged-diff-manual-sample/report.json"
     },
     {
       "name": "sample",
@@ -33,8 +33,8 @@
       "pdf": "sample.pdf",
       "pages": 48,
       "passing": 0,
-      "diff_dir": "/tmp/idml-diff-sample",
-      "report": "/tmp/idml-diff-sample/report.json"
+      "diff_dir": "/tmp/paged-diff-sample",
+      "report": "/tmp/paged-diff-sample/report.json"
     },
     {
       "name": "sample-3",
@@ -42,8 +42,8 @@
       "pdf": "sample-3.pdf",
       "pages": 5,
       "passing": 0,
-      "diff_dir": "/tmp/idml-diff-sample-3",
-      "report": "/tmp/idml-diff-sample-3/report.json"
+      "diff_dir": "/tmp/paged-diff-sample-3",
+      "report": "/tmp/paged-diff-sample-3/report.json"
     }
   ]
 }

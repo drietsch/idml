@@ -137,7 +137,7 @@ test.describe("Phase 3 — Character panel (declarative composition)", () => {
       if (typeof c.setContentSelection !== "function") return false;
       // Passing a placeholder id is fine — the worker rejects it
       // gracefully (the script-side bridge already proves this in
-      // crates/idml-script/tests/script_basics.rs).
+      // crates/paged-script/tests/script_basics.rs).
       c.setContentSelection({ storyId: "Story/__test__", start: 0, end: 3 });
       // Clear so it doesn't leak into the next test.
       c.setContentSelection(null);

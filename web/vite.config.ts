@@ -8,7 +8,7 @@ import { resolve } from "node:path";
 //   /samples/<file>        → ../corpus/samples/<file> with fallback to
 //                            ../corpus/generated/<file> (so a generated
 //                            sample's IDML/PDF resolve transparently)
-//   /diff/<sample>/<file>  → /tmp/idml-diff-<sample>/<file>
+//   /diff/<sample>/<file>  → /tmp/paged-diff-<sample>/<file>
 //                            (per-sample artifact dirs)
 //
 // Implemented as a tiny middleware so we don't need symlinks under
@@ -120,9 +120,9 @@ function mergeManifests(): { samples: unknown[] } {
 }
 
 /**
- * `/diff/<sample>/<file>` → `/tmp/idml-diff-<sample>/<file>` per the
+ * `/diff/<sample>/<file>` → `/tmp/paged-diff-<sample>/<file>` per the
  * harness's per-sample artifact convention. Falls back to the legacy
- * single shared `/tmp/idml-diff/` when the URL has no sample segment
+ * single shared `/tmp/paged-diff/` when the URL has no sample segment
  * (kept so the original Sample-3 workflow still works without a
  * sample-specific override).
  */
@@ -143,10 +143,10 @@ function diffRoute(): Plugin {
           // Per-sample form: /diff/<sample>/<file>
           const sample = rel.slice(0, slash);
           const file = rel.slice(slash + 1);
-          abs = `/tmp/idml-diff-${sample}/${file}`;
+          abs = `/tmp/paged-diff-${sample}/${file}`;
         } else {
           // Legacy form: /diff/<file>
-          abs = `/tmp/idml-diff/${rel}`;
+          abs = `/tmp/paged-diff/${rel}`;
         }
         if (!fileExists(abs)) return next();
         return serveFile(res, abs);
@@ -166,7 +166,7 @@ export default defineConfig({
     // The wasm-bindgen JS loader imports the .wasm via
     // `new URL('./*_bg.wasm', import.meta.url)`. Vite resolves that
     // natively so no extra plugin is needed here.
-    exclude: ["idml_wasm"],
+    exclude: ["paged_sdk"],
   },
   worker: {
     format: "es",

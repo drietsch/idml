@@ -1,12 +1,12 @@
 # Cycle 4 Track 4 — ICC branch coverage
 
 Telemetry sweep to confirm the cycle-3 Track 1b path
-(`crates/idml-renderer/src/pipeline.rs::cmyk32_to_rgba`) actually
+(`crates/paged-renderer/src/pipeline.rs::cmyk32_to_rgba`) actually
 fires on the Q-03 newspaper / magazine packs that motivated it.
 
 ## Wiring
 
-- Added `tracing::debug!(target: "idml_renderer::icc", …)` at the
+- Added `tracing::debug!(target: "paged_renderer::icc", …)` at the
   three branch points inside `cmyk32_to_rgba`:
   - **success**: "CMYK JPEG decoded via embedded ICC profile" +
     `profile_bytes` + width/height
@@ -14,9 +14,9 @@ fires on the Q-03 newspaper / magazine packs that motivated it.
     naive multiplicative"
   - the two `tracing::warn!` calls for transform-rejected / wrong-shape
     outputs were already in place from cycle 3.
-- Added `--trace-icc` flag on `idml-inspect`. Installs a
+- Added `--trace-icc` flag on `paged-inspect`. Installs a
   `tracing-subscriber` fmt layer filtered to
-  `idml_renderer::icc=debug`, writes to stderr.
+  `paged_renderer::icc=debug`, writes to stderr.
 
 ## Q-03 sweep
 

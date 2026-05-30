@@ -1,4 +1,4 @@
-// Shell-out wrapper around `idml-diff` (crates/idml-fidelity).
+// Shell-out wrapper around `paged-diff` (crates/paged-fidelity).
 //
 // We re-use the existing Rust diff implementation rather than
 // porting ΔE2000 + SSIM to TypeScript: one diff engine across both
@@ -6,7 +6,7 @@
 // keeps results comparable.
 //
 // The binary is built once via `cargo build --release --bin
-// idml-diff` and then re-used per call.
+// paged-diff` and then re-used per call.
 
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync } from "node:fs";
@@ -23,7 +23,7 @@ export interface DiffMetrics {
   passes: boolean;
 }
 
-const DIFF_BIN = resolve(REPO_ROOT, "target", "release", "idml-diff");
+const DIFF_BIN = resolve(REPO_ROOT, "target", "release", "paged-diff");
 
 let built = false;
 function ensureBuilt(): void {
@@ -34,7 +34,7 @@ function ensureBuilt(): void {
   }
   execFileSync(
     "cargo",
-    ["build", "--release", "-p", "idml-fidelity", "--bin", "idml-diff"],
+    ["build", "--release", "-p", "paged-fidelity", "--bin", "paged-diff"],
     { cwd: REPO_ROOT, stdio: "inherit" },
   );
   built = true;
@@ -56,7 +56,7 @@ export function diffPng(
   ensureBuilt();
   // pdftoppm vs canvas snapshot can disagree by ≤1 px in either
   // dimension when the PDF MediaBox is rounded to whole points.
-  // Pad with white before diffing so idml-diff's strict equal-size
+  // Pad with white before diffing so paged-diff's strict equal-size
   // check is satisfied.
   const aligned = alignPngPair(referencePng, candidatePng);
   const args: string[] = ["--json", aligned.refPath, aligned.candPath];
@@ -68,16 +68,16 @@ export function diffPng(
   // Exit code 0 = pass, 1 = fail per CLI contract. Either way JSON
   // lands on stdout when --json is set.
   if (res.status === null) {
-    throw new Error(`idml-diff did not exit cleanly: ${res.error ?? "?"}`);
+    throw new Error(`paged-diff did not exit cleanly: ${res.error ?? "?"}`);
   }
   if (res.status !== 0 && res.status !== 1) {
     throw new Error(
-      `idml-diff exit ${res.status}: stderr=${res.stderr ?? ""}`,
+      `paged-diff exit ${res.status}: stderr=${res.stderr ?? ""}`,
     );
   }
   const line = res.stdout.trim();
   if (!line) {
-    throw new Error(`idml-diff produced no stdout (stderr=${res.stderr ?? ""})`);
+    throw new Error(`paged-diff produced no stdout (stderr=${res.stderr ?? ""})`);
   }
   const parsed = JSON.parse(line) as {
     mean_de: number;

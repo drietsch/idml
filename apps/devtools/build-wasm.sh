@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# apps/devtools/build-wasm.sh — build idml-introspect-wasm for the
+# apps/devtools/build-wasm.sh — build paged-introspect-wasm for the
 # inspector UI.
 #
 # Outputs to apps/devtools/src/wasm/.
@@ -30,18 +30,18 @@ fi
 
 mkdir -p "$OUT_DIR"
 
-echo "==> cargo build --release --target wasm32-unknown-unknown -p idml-introspect-wasm"
+echo "==> cargo build --release --target wasm32-unknown-unknown -p paged-introspect-wasm"
 RUSTFLAGS="-C opt-level=z -C codegen-units=1" \
-    cargo build --release --target wasm32-unknown-unknown -p idml-introspect-wasm
+    cargo build --release --target wasm32-unknown-unknown -p paged-introspect-wasm
 
-echo "==> wasm-bindgen --target web (idml_introspect_wasm)"
-wasm-bindgen "$TARGET_DIR/idml_introspect_wasm.wasm" --target web --out-dir "$OUT_DIR"
+echo "==> wasm-bindgen --target web (paged_introspect_wasm)"
+wasm-bindgen "$TARGET_DIR/paged_introspect_wasm.wasm" --target web --out-dir "$OUT_DIR"
 
 if command -v wasm-opt >/dev/null; then
-    echo "==> wasm-opt -Oz (idml_introspect_wasm)"
-    wasm-opt -Oz "$OUT_DIR/idml_introspect_wasm_bg.wasm" \
-        -o "$OUT_DIR/idml_introspect_wasm_bg.wasm.opt"
-    mv "$OUT_DIR/idml_introspect_wasm_bg.wasm.opt" "$OUT_DIR/idml_introspect_wasm_bg.wasm"
+    echo "==> wasm-opt -Oz (paged_introspect_wasm)"
+    wasm-opt -Oz "$OUT_DIR/paged_introspect_wasm_bg.wasm" \
+        -o "$OUT_DIR/paged_introspect_wasm_bg.wasm.opt"
+    mv "$OUT_DIR/paged_introspect_wasm_bg.wasm.opt" "$OUT_DIR/paged_introspect_wasm_bg.wasm"
 else
     echo "note: wasm-opt not found; skipping size pass (brew install binaryen)"
 fi

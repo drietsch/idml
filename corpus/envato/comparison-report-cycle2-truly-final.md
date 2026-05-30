@@ -111,8 +111,8 @@ f9e4e11 Q-03: decode inline <Image><Contents> base64 CDATA payloads
 3e1e3d9 envato: cycle 2 findings — clean / moderate / rough tiers
 fb7c5b1 docs: archive cycle-1 docs to docs/old/; introduce docs/paged/ architecture set
 18189da devtools: add Radix UI + lucide-react deps; regenerate WASM bindings
-8213c58 idml-introspect: track idml-mutate's PropertyPath / Value rename
-87875f6 idml-mutate: split into operation / apply / invert / history / notify / error modules
+8213c58 paged-introspect: track paged-mutate's PropertyPath / Value rename
+87875f6 paged-mutate: split into operation / apply / invert / history / notify / error modules
 36bf0cf envato: cycle 2 comparison report
 39cffa3 Q-11 follow-up: route lifted Polygon geometry through path emit
 0ae733e Q-21: pin character-style FillColor precedence over paragraph-style

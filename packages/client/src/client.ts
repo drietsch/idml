@@ -530,7 +530,7 @@ export class CanvasClient {
    * Register a font in the worker's family resolver. Persists across
    * loadDocument calls; the renderer's `BytesResolver` will route any
    * `AppliedFont` matching `family` (+ optional `style`) to these
-   * bytes. Mirrors `idml-inspect --font-family "Family=path"`.
+   * bytes. Mirrors `paged-inspect --font-family "Family=path"`.
    */
   async registerFont(
     family: string,

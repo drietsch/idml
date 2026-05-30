@@ -17,7 +17,7 @@ The canvas is conceived as a long-lived investment. Its design horizon is the ed
 
 The architecture rests on three commitments. First, **strict separation of concerns** between the document model, the render pipeline, and the UI shell, communicating only through typed message channels. Second, a **four-tier incremental pipeline** (content, layout, resolution, output) where each tier consumes upstream facts and produces facts for the next, with dependency-tracked recomputation so that mutations affect only the minimum necessary subset of derived state. Third, **content-space addressing** throughout the editor surface, so that selection, hit-testing, and mutation are independent of zoom or display resolution.
 
-The renderer backend is already in place as Vello-on-WebGPU compiled through `idml-wasm`. This document concerns everything above it: how documents are modeled in JavaScript, how layout is made incremental, how cross-page artifacts are resolved, how the viewport is presented and navigated, how editor mutations propagate, and how the whole system stays fast at scale.
+The renderer backend is already in place as Vello-on-WebGPU compiled through `paged-sdk`. This document concerns everything above it: how documents are modeled in JavaScript, how layout is made incremental, how cross-page artifacts are resolved, how the viewport is presented and navigated, how editor mutations propagate, and how the whole system stays fast at scale.
 
 ---
 
@@ -35,7 +35,7 @@ The canvas must serve as the foundation for the inspector. Hit-testing must retu
 
 ### 2.2 Non-goals
 
-This concept does not define the backend renderer itself. The renderer is the existing Rust pipeline through `idml-parse`, `idml-scene`, `idml-text`, `idml-compose`, and `idml-gpu`, with Vello as the GPU rasterizer. The concept defines the contract between that renderer and everything above it.
+This concept does not define the backend renderer itself. The renderer is the existing Rust pipeline through `paged-parse`, `paged-scene`, `paged-text`, `paged-compose`, and `paged-gpu`, with Vello as the GPU rasterizer. The concept defines the contract between that renderer and everything above it.
 
 This concept does not define the IDML feature roadmap of the renderer (e.g., when drop shadows, gradients, OpenType features, or CJK composition land). Those are tracked in `idea.md`. The canvas architecture must accommodate features as they arrive without structural change.
 
@@ -124,7 +124,7 @@ The content tier is the canonical representation of the document. It is what get
 
 **Frames** are presentation surfaces with geometric extent. A frame has an ID, a bounding shape (rectangle, polygon, or path), a transform, and a position on a specific page. Frames are organized into **chains**: an ordered list of frames that together hold one story. Most stories occupy a single frame; threaded text stories occupy multiple frames, often across multiple pages. The frame chain is the binding between the story (content) and the spread (presentation).
 
-The `frame-for-story index` in the current `idml-scene` is the inverse mapping: given a story ID, which frame chain holds it. This index is already present and is the foundation for every cross-frame operation.
+The `frame-for-story index` in the current `paged-scene` is the inverse mapping: given a story ID, which frame chain holds it. This index is already present and is the foundation for every cross-frame operation.
 
 **Anchors** are named positions within stories that other content can reference. Every paragraph with a paragraph style marked as a "heading style" automatically produces an anchor. Every footnote marker produces an anchor (the body-side anchor of the footnote). Cross-reference targets, index entries, and bookmarks produce anchors. The anchor table maps anchor ID to `{story_id, paragraph_index, run_index, character_offset_within_run}`. Anchor positions are content-stable: they move with the content they're attached to, not with the layout.
 
@@ -148,7 +148,7 @@ Fields have a stable identity (an ID) and a target (typically an anchor ID or a 
 
 The layout tier consumes a story and its frame chain and produces a laid-out story: a sequence of paragraphs, each with a sequence of lines, each with a list of positioned glyph clusters and the frame they belong to. Layout also produces frame-level facts: which frames are full, which are partially filled, where the story ends.
 
-**Composition algorithm.** Layout uses Knuth-Plass optimal paragraph composition as already implemented in `idml-text`. The composer is extended in two ways for the canvas.
+**Composition algorithm.** Layout uses Knuth-Plass optimal paragraph composition as already implemented in `paged-text`. The composer is extended in two ways for the canvas.
 
 First, **frame chain awareness**. The composer processes paragraphs sequentially. As it fills a frame, it checks the frame's remaining height; when a line would overflow, it considers the page break and the next frame in the chain. Page break decisions are co-decided with footnote placement (see below) and with `keep-with-next` and `widow-orphan` constraints.
 
@@ -317,7 +317,7 @@ Each mutation has a unique ID and a sequence number. The worker acknowledges wit
 
 **Example A: User types one character into a body paragraph in chapter 5.**
 
-1. *Main thread (synchronous, this frame).* The character is captured by the keystroke handler. The main thread already knows the active paragraph's style attributes and metrics (from a cached layout query for the current selection). It runs a synchronous Knuth-Plass pass over the active paragraph only, using a lightweight composer running in the main thread (a stripped subset of `idml-text`). It patches the active page's display list locally and submits a redraw of the active tile. The user sees the character within 16 ms.
+1. *Main thread (synchronous, this frame).* The character is captured by the keystroke handler. The main thread already knows the active paragraph's style attributes and metrics (from a cached layout query for the current selection). It runs a synchronous Knuth-Plass pass over the active paragraph only, using a lightweight composer running in the main thread (a stripped subset of `paged-text`). It patches the active page's display list locally and submits a redraw of the active tile. The user sees the character within 16 ms.
 
 2. *Main → worker.* Mutation message dispatched: `InsertText(body_story_id, offset, "X")`.
 
@@ -572,11 +572,11 @@ This section is the gating list. Each criterion has a definition-of-done that ca
 
 **AC-V-4: LOD coverage.** Every page in the document is always renderable at some quality level instantly (snapshot tier never evicted). Measurement: random navigation to 50 pages in a 500-page document; every navigation produces a visible page within 50 ms.
 
-**AC-V-5: Rendering correctness.** Pixel-faithful rendering matches the existing renderer's `idml-diff` criteria (mean ΔE ≤ 1.0, p99 ΔE ≤ 2.5, SSIM ≥ 0.99) on the seed corpus. Measurement: automated test using `idml-fidelity`.
+**AC-V-5: Rendering correctness.** Pixel-faithful rendering matches the existing renderer's `paged-diff` criteria (mean ΔE ≤ 1.0, p99 ΔE ≤ 2.5, SSIM ≥ 0.99) on the seed corpus. Measurement: automated test using `paged-fidelity`.
 
 **AC-V-6: Spatial index correctness.** Hit-testing any document-space point returns the correct frame and (for text content) the correct story and offset on a corpus of 50 test documents with known geometry. Measurement: automated test.
 
-**AC-V-7: Threading isolation.** The main thread performs no WebGPU calls and no glyph layout. Measurement: instrumented main-thread profile during a 30-second pan-zoom session shows zero GPU calls and zero `idml-text` invocations.
+**AC-V-7: Threading isolation.** The main thread performs no WebGPU calls and no glyph layout. Measurement: instrumented main-thread profile during a 30-second pan-zoom session shows zero GPU calls and zero `paged-text` invocations.
 
 **AC-V-8: Camera latency.** Camera updates propagate from the main thread to the worker's render loop within one frame (16 ms). Measurement: instrumented latency from input event to canvas paint.
 
@@ -678,7 +678,7 @@ These are decisions deferred to implementation but flagged here for explicit res
 
 **OQ-3: Master page edits.** Editing a master page propagates to every page using that master. Is the propagation modeled as a salsa input change (clean) or as a bulk invalidation (faster but less principled)?
 
-**OQ-4: Synchronous main-thread composer.** The fast-path for single-character typing requires a stripped composer on the main thread. How much of `idml-text` does this composer share? Options: link `idml-text` into both the main thread WASM and the worker WASM (simple but doubles wasm size), or extract a minimal "single paragraph composer" crate (cleaner but adds maintenance burden).
+**OQ-4: Synchronous main-thread composer.** The fast-path for single-character typing requires a stripped composer on the main thread. How much of `paged-text` does this composer share? Options: link `paged-text` into both the main thread WASM and the worker WASM (simple but doubles wasm size), or extract a minimal "single paragraph composer" crate (cleaner but adds maintenance burden).
 
 **OQ-5: Tile sizing strategy.** Live tile size affects cache granularity and GPU draw efficiency. Fixed-size tiles (e.g., 256×256) are simple. Page-aligned tiles (one tile per page) are simpler still but waste memory for partially-visible pages. Pick during Phase 1.
 
@@ -708,7 +708,7 @@ These are decisions deferred to implementation but flagged here for explicit res
 
 **Frame chain.** An ordered list of frames that together hold one story. Threaded text occupies a chain.
 
-**Knuth-Plass.** The optimal paragraph composition algorithm used by `idml-text`.
+**Knuth-Plass.** The optimal paragraph composition algorithm used by `paged-text`.
 
 **LOD cache.** The three-tier cache (snapshot, mid-resolution bitmap, live tiles) that drives the viewport.
 
