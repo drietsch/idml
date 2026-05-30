@@ -106,6 +106,7 @@ test.describe("Inspector P1 — property panel", () => {
         "appliedObjectStyle",
         "frameBounds",
         "frameFillColor",
+        "frameInsetSpacing",
         "frameOpacity",
         "frameStrokeColor",
         "frameStrokeWeight",
