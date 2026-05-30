@@ -29,6 +29,7 @@ import { CanvasPanel } from "./panels/canvas-panel";
 import { CharacterPanel } from "./panels/character-panel";
 import { CharacterStylesPanel } from "./panels/character-styles-panel";
 import { InfoPanel } from "./panels/info-panel";
+import { EffectsPanel } from "./panels/effects-panel";
 import { FrameFittingPanel } from "./panels/frame-fitting-panel";
 import { GradientsPanel } from "./panels/gradients-panel";
 import { ObjectStylesPanel } from "./panels/object-styles-panel";
@@ -252,6 +253,17 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     id: "verso.frame-fitting",
     title: "Frame Fitting",
     component: FrameFittingPanel,
+    defaultDock: "right",
+    defaultGroup: "properties",
+  },
+  {
+    // SDK Phase 5 (named sweep) — Effects (v1 stub). Drop-shadow
+    // enabled toggle only; the apply layer materialises a default
+    // DropShadowSetting on true. Per-field editors (color,
+    // offset, blur) land when their PropertyPaths ship.
+    id: "verso.effects",
+    title: "Effects",
+    component: EffectsPanel,
     defaultDock: "right",
     defaultGroup: "properties",
   },
