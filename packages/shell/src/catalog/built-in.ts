@@ -22,16 +22,15 @@ export const VERSO_INPUT_BOUNDS = "verso.input.bounds";
 export const VERSO_LAYOUT_SECTION = "verso.layout.section";
 export const VERSO_LABEL = "verso.label";
 
-// Leaf binding declarations describe what *type* of value the leaf
-// renders/commits, not a specific scope/path. The actual binding
-// at render time comes from the composition node's `bindings`
-// dict; this declaration is for the catalog audit surface (and
-// the future ContributionFinder palette). Each leaf accepts any
-// path whose `Value` variant matches its declared type — e.g.
-// LengthLeaf consumes any Value::Length regardless of whether the
-// composition binds it to `characterFontSize`, `frameStrokeWeight`,
-// `frameOpacity`, etc.
-const ANY_SCOPE = "*" as const;
+// Leaf binding declarations describe the leaf's *write surface* —
+// the audit-only declaration that this primitive emits a typed
+// `selectionProperty:*` commit regardless of which specific
+// `PropertyPath` the composition wires it to. The actual binding
+// at render time comes from the composition node's `bindings` dict
+// (still constrained by the §11.5 binding ceiling: literal + ref +
+// coerce). Each primitive declares a `selectionProperty:*` reads +
+// writes pair — the audit surface confirms the leaf is on the
+// supported wire, without committing to a specific path.
 
 const ENTRIES: CatalogEntry[] = [
   {
@@ -39,8 +38,8 @@ const ENTRIES: CatalogEntry[] = [
     kind: "leaf",
     props: { label: "string" },
     bindings: {
-      reads: [{ scope: ANY_SCOPE, ref: "Value::Length" }],
-      writes: [{ scope: ANY_SCOPE, ref: "Value::Length" }],
+      reads: ["selectionProperty:*"],
+      writes: ["selectionProperty:*"],
     },
     leaf: LengthLeaf,
   },
@@ -49,8 +48,8 @@ const ENTRIES: CatalogEntry[] = [
     kind: "leaf",
     props: { label: "string" },
     bindings: {
-      reads: [{ scope: ANY_SCOPE, ref: "Value::ColorRef" }],
-      writes: [{ scope: ANY_SCOPE, ref: "Value::ColorRef" }],
+      reads: ["selectionProperty:*"],
+      writes: ["selectionProperty:*"],
     },
     leaf: ColorSwatchLeaf,
   },
@@ -59,8 +58,8 @@ const ENTRIES: CatalogEntry[] = [
     kind: "leaf",
     props: { label: "string" },
     bindings: {
-      reads: [{ scope: ANY_SCOPE, ref: "Value::Length" }],
-      writes: [{ scope: ANY_SCOPE, ref: "Value::Length" }],
+      reads: ["selectionProperty:*"],
+      writes: ["selectionProperty:*"],
     },
     leaf: NumericScrubLeaf,
   },
@@ -69,8 +68,8 @@ const ENTRIES: CatalogEntry[] = [
     kind: "leaf",
     props: { label: "string" },
     bindings: {
-      reads: [{ scope: ANY_SCOPE, ref: "Value::Bounds" }],
-      writes: [{ scope: ANY_SCOPE, ref: "Value::Bounds" }],
+      reads: ["selectionProperty:*"],
+      writes: ["selectionProperty:*"],
     },
     leaf: BoundsLeaf,
   },

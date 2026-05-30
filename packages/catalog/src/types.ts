@@ -55,22 +55,106 @@ export interface BindingDeclaration {
   writes: WriteSpec[];
 }
 
-export interface ReadSpec {
-  /** `"*"` declares a leaf that accepts any scope (its primitive
-   *  type is what binds compositions to it, not its scope). */
-  scope: "element" | "content" | "document" | "camera" | "*";
-  /** A `PropertyPath` for element / content scope; a coarse-grained
-   *  string ("spreads", "stories") for document scope; the literal
-   *  "camera" for camera scope; or a `Value::*` type name when
-   *  `scope` is `"*"` (declares "this leaf renders any value of
-   *  this Value variant"). */
-  ref: PropertyPath | string;
-}
+/**
+ * SDK Phase 5 — finite, curated enumeration of every document
+ * collection a panel may read. Per `panel-catalog-and-sdk-extension.md`
+ * §5.1 (Decision D1). The set is closed: a `documentCollection:`
+ * read referencing a name not in this union is a tsc error, and
+ * the future A2UI adapter rejects external compositions referencing
+ * unknown collections.
+ *
+ * Not every entry has a backing model accessor yet — the wire +
+ * type surface lands here as the binding ceiling; the per-collection
+ * Rust accessors fill in as Phase-5 panels need them. Unknown-
+ * collection reads at runtime return an empty array with a console
+ * warning, not a throw.
+ */
+export type CollectionName =
+  | "swatches"
+  | "gradients"
+  | "colorGroups"
+  | "paragraphStyles"
+  | "characterStyles"
+  | "objectStyles"
+  | "cellStyles"
+  | "tableStyles"
+  | "layers"
+  | "spreads"
+  | "pages"
+  | "masterPages"
+  | "links"
+  | "articles"
+  | "hyperlinks"
+  | "bookmarks"
+  | "crossReferences"
+  | "conditions"
+  | "conditionSets"
+  | "fonts"
+  | "indexTopics";
 
-export interface WriteSpec {
-  scope: "element" | "content" | "document" | "camera" | "selection" | "*";
-  ref: PropertyPath | string;
-}
+/**
+ * SDK Phase 5 — finite document-meta keys. Powers the Info panel,
+ * status bar, and any chrome that reflects whole-document state.
+ * Distinct from `documentCollection` (which is plural) — these are
+ * scalar reads of singleton document state.
+ */
+export type DocumentMetaKey =
+  | "pageCount"
+  | "activePage"
+  | "units"
+  | "colorMode"
+  | "documentName"
+  | "dirty";
+
+/**
+ * SDK Phase 5 — read declaration in `BindingDeclaration.reads`. The
+ * typed string-template-literal form per
+ * `panel-catalog-and-sdk-extension.md` §5.7. Comprises:
+ *   - `selectionProperty:<path>` — the existing element/content
+ *     property reads; `<path>` is a `PropertyPath` discriminant or
+ *     the wildcard `"*"` (audit declaration for primitive leaves
+ *     that handle any path).
+ *   - `documentCollection:<name>` — the new D1 read kind. `<name>`
+ *     is a closed `CollectionName`.
+ *   - `documentMeta:<key>` — scalar document-state reads.
+ *   - bare tags `"selection"`, `"contentSelection"`, `"camera"`,
+ *     `"document"` — coarse-grained whole-handle reads.
+ */
+export type ReadSpec =
+  | `selectionProperty:${string}`
+  | `documentCollection:${CollectionName}`
+  | `documentMeta:${DocumentMetaKey}`
+  | "selection"
+  | "contentSelection"
+  | "camera"
+  | "document";
+
+/**
+ * SDK Phase 5 — write declaration in `BindingDeclaration.writes`.
+ * `selectionProperty:<path>` is the only binding-emittable kind
+ * (the §11.5 ceiling: every binding writes through ONE typed
+ * property path, including the apply-an-entity paths
+ * `appliedParagraphStyle` / `appliedCharacterStyle` / etc.).
+ *
+ * `"geometry"` and `"collection"` are AUDIT-ONLY tags: an expert
+ * leaf's `*.bindings.ts` declares them when its commits go through
+ * `verso.mutate(Operation::AlignObjects{…})` (geometry) or
+ * `verso.mutate(Operation::CreateSwatch{…})` (collection
+ * mutation). A composition cannot emit them — only expert leaves —
+ * and a lint follow-up enforces that every panel declaring these
+ * is an expert leaf with a `.bindings.ts` sibling.
+ *
+ * `"selection"` and `"camera"` mark expert leaves that write to
+ * application state (Pages drives camera; Tools writes activeTool;
+ * Align rewrites selection). They are mutation-of-state, not
+ * mutation-of-document.
+ */
+export type WriteSpec =
+  | `selectionProperty:${string}`
+  | "selection"
+  | "camera"
+  | "geometry"
+  | "collection";
 
 // ---------------------------------------------------------------- entries
 
