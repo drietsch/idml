@@ -28,6 +28,7 @@ import { APP_KEYBINDINGS, APP_MENU_ITEMS, buildAppCommands } from "./app-command
 import { CanvasPanel } from "./panels/canvas-panel";
 import { CharacterPanel } from "./panels/character-panel";
 import { CharacterStylesPanel } from "./panels/character-styles-panel";
+import { InfoPanel } from "./panels/info-panel";
 import { ObjectStylesPanel } from "./panels/object-styles-panel";
 import { ObjectTransformPanel } from "./panels/object-transform-panel";
 import { ParagraphPanel } from "./panels/paragraph-panel";
@@ -183,6 +184,16 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     id: "verso.layers",
     title: "Layers",
     component: LayersPanel,
+    defaultDock: "right",
+    defaultGroup: "inspector",
+  },
+  {
+    // SDK Phase 5 (v1 sweep) — read-only document info. Expert
+    // leaf wrapping `useDocumentMeta()`. Per the
+    // `panel-catalog-and-sdk-extension.md` §6 Tier 5 + §5.6.
+    id: "verso.info",
+    title: "Info",
+    component: InfoPanel,
     defaultDock: "right",
     defaultGroup: "inspector",
   },

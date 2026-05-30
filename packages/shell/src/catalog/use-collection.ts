@@ -60,7 +60,8 @@ export function useCollection<T>(name: CollectionName): T[] | null {
       if (
         msg.kind === "mutationApplied" ||
         msg.kind === "undoApplied" ||
-        msg.kind === "redoApplied"
+        msg.kind === "redoApplied" ||
+        msg.kind === "documentLoaded"
       ) {
         refetch();
       }
@@ -107,7 +108,8 @@ export function useDocumentMeta(): DocumentMeta | null {
       if (
         msg.kind === "mutationApplied" ||
         msg.kind === "undoApplied" ||
-        msg.kind === "redoApplied"
+        msg.kind === "redoApplied" ||
+        msg.kind === "documentLoaded"
       ) {
         refetch();
       }
