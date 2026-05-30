@@ -619,6 +619,19 @@ export interface DocumentMeta {
 }
 
 /**
+ * SDK Phase 5 (v1 sweep) — one object style\'s summary. Backs
+ * `documentCollection:objectStyles` per `panel-catalog-and-sdk-
+ * extension.md` §5.1; consumed by the Object Styles panel via
+ * the `collection-select` primitive to drive an
+ * `appliedObjectStyle` write on the selected frame.
+ */
+export interface ObjectStyleSummary {
+    selfId: string;
+    name: string;
+    basedOn: string | null;
+}
+
+/**
  * Stable identifier for a scene-graph node. The string payload is the
  * IDML `Self` attribute (e.g. `\"TextFrame/u14\"`) — stable for the
  * lifetime of the document. Operations reference nodes by ID, never

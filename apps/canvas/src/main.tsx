@@ -28,6 +28,7 @@ import { APP_KEYBINDINGS, APP_MENU_ITEMS, buildAppCommands } from "./app-command
 import { CanvasPanel } from "./panels/canvas-panel";
 import { CharacterPanel } from "./panels/character-panel";
 import { CharacterStylesPanel } from "./panels/character-styles-panel";
+import { ObjectStylesPanel } from "./panels/object-styles-panel";
 import { ObjectTransformPanel } from "./panels/object-transform-panel";
 import { ParagraphPanel } from "./panels/paragraph-panel";
 import { ParagraphStylesPanel } from "./panels/paragraph-styles-panel";
@@ -145,6 +146,17 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     id: "verso.character-styles",
     title: "Character Styles",
     component: CharacterStylesPanel,
+    defaultDock: "right",
+    defaultGroup: "styles",
+  },
+  {
+    // SDK Phase 5 (v1 sweep) — Object Styles. Element-scope
+    // binding to appliedObjectStyle (uses the apply arm shipped
+    // with Track A's Task G). collectionName: "objectStyles"
+    // routes through the new model accessor.
+    id: "verso.object-styles",
+    title: "Object Styles",
+    component: ObjectStylesPanel,
     defaultDock: "right",
     defaultGroup: "styles",
   },
