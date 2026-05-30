@@ -29,6 +29,7 @@ import { CanvasPanel } from "./panels/canvas-panel";
 import { CharacterPanel } from "./panels/character-panel";
 import { CharacterStylesPanel } from "./panels/character-styles-panel";
 import { InfoPanel } from "./panels/info-panel";
+import { GradientsPanel } from "./panels/gradients-panel";
 import { ObjectStylesPanel } from "./panels/object-styles-panel";
 import { ObjectTransformPanel } from "./panels/object-transform-panel";
 import { SwatchesPanel } from "./panels/swatches-panel";
@@ -172,6 +173,18 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     id: "verso.swatches",
     title: "Swatches",
     component: SwatchesPanel,
+    defaultDock: "right",
+    defaultGroup: "styles",
+  },
+  {
+    // SDK Phase 5 (v1 sweep) — Gradients. Direct twin of Swatches
+    // but reading documentCollection:gradients. Both gradients
+    // and swatches commit through the same FrameFillColor apply
+    // arm (Value::ColorRef payload carrying either a Swatch or
+    // Gradient self_id).
+    id: "verso.gradients",
+    title: "Gradients",
+    component: GradientsPanel,
     defaultDock: "right",
     defaultGroup: "styles",
   },
