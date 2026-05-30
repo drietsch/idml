@@ -29,6 +29,7 @@ import { CanvasPanel } from "./panels/canvas-panel";
 import { CharacterPanel } from "./panels/character-panel";
 import { CharacterStylesPanel } from "./panels/character-styles-panel";
 import { InfoPanel } from "./panels/info-panel";
+import { FrameFittingPanel } from "./panels/frame-fitting-panel";
 import { GradientsPanel } from "./panels/gradients-panel";
 import { ObjectStylesPanel } from "./panels/object-styles-panel";
 import { ObjectTransformPanel } from "./panels/object-transform-panel";
@@ -228,6 +229,17 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     id: "verso.text-wrap",
     title: "Text Wrap",
     component: TextWrapPanel,
+    defaultDock: "right",
+    defaultGroup: "properties",
+  },
+  {
+    // SDK Phase 5 (v1 sweep) — Frame Fitting. Rectangle-only.
+    // Two rows on the shared Option<FrameFittingOption> field
+    // (type toggle-group + crops bounds). Apply arms preserve
+    // the unset half.
+    id: "verso.frame-fitting",
+    title: "Frame Fitting",
+    component: FrameFittingPanel,
     defaultDock: "right",
     defaultGroup: "properties",
   },
