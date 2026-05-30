@@ -103,6 +103,7 @@ test.describe("Inspector P1 — property panel", () => {
     const paths = props.entries.map((e) => e.path).sort();
     expect(paths).toEqual(
       [
+        "appliedObjectStyle",
         "frameBounds",
         "frameFillColor",
         "frameOpacity",

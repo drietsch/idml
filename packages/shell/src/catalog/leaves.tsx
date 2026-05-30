@@ -189,13 +189,30 @@ interface CollectionRow {
   name: string;
 }
 
-function unwrapTextValue(v: Value | null): {
+/** Reads a Value as either Text or ColorRef payload (the two
+ *  string-id-carrying Value variants). Returns the unwrapped
+ *  string + the originating variant so the commit path emits the
+ *  matching shape on write. */
+function unwrapIdValue(v: Value | null): {
   resolved: boolean;
-  text: string;
+  id: string;
+  /** Source variant — informs which Value variant onCommit emits.
+   *  Defaults to "text" for the "no-binding" case so the
+   *  collection-select still works without explicit valueType. */
+  source: "text" | "colorRef";
 } {
-  if (v == null) return { resolved: false, text: "" };
-  if (v.type !== "text") return { resolved: false, text: "" };
-  return { resolved: true, text: (v.value as string) ?? "" };
+  if (v == null) return { resolved: false, id: "", source: "text" };
+  if (v.type === "text") {
+    return { resolved: true, id: (v.value as string) ?? "", source: "text" };
+  }
+  if (v.type === "colorRef") {
+    return {
+      resolved: true,
+      id: (v.value as string | null) ?? "",
+      source: "colorRef",
+    };
+  }
+  return { resolved: false, id: "", source: "text" };
 }
 
 /**
@@ -204,11 +221,17 @@ function unwrapTextValue(v: Value | null): {
  * (the row label), fetches the live array via `useCollection`,
  * renders a `<select>` whose options are the collection's
  * `selfId` + `name` pairs, plus a leading `[None]` entry for
- * clearing the override. On change → `onCommit({ type: "text",
- * value: selfId })`. The selected option mirrors the bound
- * `Value::Text(selfId)` from the apply-an-entity write path.
+ * clearing the override.
  *
- * Mixed / no-selection / non-text-variant binding → em-dash
+ * On change → `onCommit({ type: <valueType>, value: selfId })`.
+ * `valueType` defaults to `"text"` (the original applied-entity
+ * shape used by Paragraph / Character / Object Styles); the
+ * Swatches + Gradients panels pass `valueType: "colorRef"` so the
+ * commit emits a `Value::ColorRef`. The bound binding's
+ * `path` decides which apply arm consumes the commit, and the
+ * panel author picks the `valueType` to match.
+ *
+ * Mixed / no-selection / non-text-or-colorRef binding → em-dash
  * placeholder (existing leaf convention).
  */
 export function CollectionSelectLeaf({
@@ -221,6 +244,8 @@ export function CollectionSelectLeaf({
     typeof props.collectionName === "string"
       ? (props.collectionName as CollectionName)
       : null;
+  const valueType: "text" | "colorRef" =
+    props.valueType === "colorRef" ? "colorRef" : "text";
   // Hook must run unconditionally; pass a safe fallback when the
   // composition doesn't declare a `collectionName`. The follow-up
   // branch below renders the error placeholder.
@@ -236,7 +261,7 @@ export function CollectionSelectLeaf({
       </LeafRow>
     );
   }
-  const { resolved, text } = unwrapTextValue(value);
+  const { resolved, id } = unwrapIdValue(value);
   if (items === null) {
     return (
       <LeafRow label={label}>
@@ -249,11 +274,21 @@ export function CollectionSelectLeaf({
     <LeafRow label={label}>
       <select
         className="w-full text-xs px-1 py-0.5 border border-input rounded bg-background"
-        value={resolved ? text : ""}
+        value={resolved ? id : ""}
         data-mixed={showMixed ? "true" : "false"}
         data-collection={collectionName}
+        data-value-type={valueType}
         onChange={(e) => {
-          onCommit?.({ type: "text", value: e.target.value } as Value);
+          const next = e.target.value;
+          if (valueType === "colorRef") {
+            // Empty string maps to "no fill" — Value::ColorRef(None).
+            onCommit?.({
+              type: "colorRef",
+              value: next === "" ? null : next,
+            } as Value);
+          } else {
+            onCommit?.({ type: "text", value: next } as Value);
+          }
         }}
       >
         <option value="">[None]</option>

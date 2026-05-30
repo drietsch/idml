@@ -31,6 +31,7 @@ import { CharacterStylesPanel } from "./panels/character-styles-panel";
 import { InfoPanel } from "./panels/info-panel";
 import { ObjectStylesPanel } from "./panels/object-styles-panel";
 import { ObjectTransformPanel } from "./panels/object-transform-panel";
+import { SwatchesPanel } from "./panels/swatches-panel";
 import { ParagraphPanel } from "./panels/paragraph-panel";
 import { ParagraphStylesPanel } from "./panels/paragraph-styles-panel";
 import { StrokePanel } from "./panels/stroke-panel";
@@ -158,6 +159,19 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     id: "verso.object-styles",
     title: "Object Styles",
     component: ObjectStylesPanel,
+    defaultDock: "right",
+    defaultGroup: "styles",
+  },
+  {
+    // SDK Phase 5 (named sweep) — Swatches. Validates the
+    // `valueType: "colorRef"` extension to
+    // VERSO_INPUT_COLLECTION_SELECT — same primitive that drives
+    // Paragraph / Character / Object Styles, now writing a
+    // Value::ColorRef payload. Element-scope binding to
+    // frameFillColor.
+    id: "verso.swatches",
+    title: "Swatches",
+    component: SwatchesPanel,
     defaultDock: "right",
     defaultGroup: "styles",
   },
