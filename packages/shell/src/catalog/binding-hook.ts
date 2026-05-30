@@ -107,11 +107,13 @@ export function useBindings(
 // ----------------------------------------------------------------
 
 /** The address each binding reads from / writes to. Element-scope
- *  bindings resolve to the (single) selected ElementId; content-
- *  scope to a `StoryRange` derived from the content selection.
- *  Literal bindings have no address. */
+ *  bindings resolve to the selected ElementIds (array — multi-select
+ *  supported; the binding hook fetches all of them and collapses to
+ *  Some(uniform) or null (mixed) per the §5.6 "mixed" sentinel).
+ *  Content-scope to a `StoryRange` derived from the content
+ *  selection. Literal bindings have no address. */
 type Address =
-  | { kind: "element"; id: ElementId }
+  | { kind: "element"; ids: ElementId[] }
   | { kind: "content"; id: ElementId }
   | { kind: "literal"; value: unknown }
   | null;
@@ -130,11 +132,14 @@ function computeAddresses(
     // selectionProperty
     const scope = binding.scope ?? "element";
     if (scope === "element") {
-      if (elementSelection.length !== 1) {
+      if (elementSelection.length === 0) {
         out[name] = null;
         continue;
       }
-      out[name] = { kind: "element", id: elementSelection[0] };
+      // Multi-element selection: keep the full array; the resolver
+      // fetches snapshots for each and collapses values per binding
+      // path. Single-element is just the degenerate case.
+      out[name] = { kind: "element", ids: elementSelection };
     } else {
       // content
       if (!contentSelection) {
@@ -161,14 +166,15 @@ function dedupeAddresses(addresses: Record<string, Address>): ElementId[] {
   const seen = new Map<string, ElementId>();
   for (const addr of Object.values(addresses)) {
     if (!addr || addr.kind === "literal") continue;
-    seen.set(addrKey(addr), addr.id);
+    if (addr.kind === "element") {
+      for (const id of addr.ids) {
+        seen.set(JSON.stringify(id), id);
+      }
+    } else {
+      seen.set(JSON.stringify(addr.id), addr.id);
+    }
   }
   return Array.from(seen.values());
-}
-
-function addrKey(addr: { id: ElementId }): string {
-  // Stable JSON shape so identical addresses dedupe.
-  return JSON.stringify(addr.id);
 }
 
 function addressesJson(addresses: Record<string, Address>): string {
@@ -189,23 +195,64 @@ function buildResolved(
       continue;
     }
     if (addr.kind === "literal") {
-      // Literal bindings just carry their value through as the
-      // resolved shape. They're not writable — onCommit stays
-      // undefined.
-      out[name] = {
-        value: addr.value as Value,
-      };
+      out[name] = { value: addr.value as Value };
       continue;
     }
     const sb = binding as SelectionPropertyBinding;
-    const props = snapshot.get(addrKey(addr));
-    const entry = props?.entries.find((e) => e.path === sb.path);
-    out[name] = {
-      value: entry?.value ?? null,
-      onCommit: makeOnCommit(client, addr.id, sb.path),
-    };
+    if (addr.kind === "element") {
+      // Multi-element resolution + the "mixed" sentinel
+      // (panel-catalog-and-sdk-extension.md §5.6): fetch each id's
+      // snapshot, collect the values for this binding's path,
+      // collapse via uniformity. Any disagreement → null (the
+      // catalog leaves render this as em-dash). Empty → null.
+      const values: Array<Value | null> = addr.ids.map((id) => {
+        const props = snapshot.get(JSON.stringify(id));
+        return props?.entries.find((e) => e.path === sb.path)?.value ?? null;
+      });
+      const collapsed = collapseValues(values);
+      // Write fan-out: commit to every selected id. The apply
+      // layer treats the writes as a Batch implicitly (each id
+      // gets its own SetProperty); a future polish can wrap them
+      // in an explicit Operation::Batch for one undo entry.
+      out[name] = {
+        value: collapsed,
+        onCommit: makeOnCommitMany(client, addr.ids, sb.path),
+      };
+    } else {
+      // content scope — single StoryRange address
+      const props = snapshot.get(JSON.stringify(addr.id));
+      const entry = props?.entries.find((e) => e.path === sb.path);
+      out[name] = {
+        value: entry?.value ?? null,
+        onCommit: makeOnCommit(client, addr.id, sb.path),
+      };
+    }
   }
   return out;
+}
+
+/** Collapse a list of `Value | null` to a single representative or
+ *  null (= "mixed"). All-null = null. All equal = that value. */
+function collapseValues(values: Array<Value | null>): Value | null {
+  if (values.length === 0) return null;
+  const first = values[0];
+  if (first === null) {
+    // Mixed if any non-null exists; otherwise consistently null.
+    return values.every((v) => v === null) ? null : null;
+  }
+  for (const v of values.slice(1)) {
+    if (v === null) return null;
+    if (!sameValue(first, v)) return null;
+  }
+  return first;
+}
+
+function sameValue(a: Value, b: Value): boolean {
+  if (a.type !== b.type) return false;
+  // Comparing primitive payloads via JSON stringify is cheap +
+  // covers Length / ColorRef / Bounds / Transform / Bool / Text;
+  // the wire shape is structurally simple.
+  return JSON.stringify(a.value) === JSON.stringify(b.value);
 }
 
 function makeOnCommit(
@@ -218,5 +265,24 @@ function makeOnCommit(
       op: "setElementProperty",
       args: { elementId: id, path: path as never, value: next },
     });
+  };
+}
+
+/** Multi-target write — fan one Value out to every selected id.
+ *  Each id receives its own SetProperty mutation. Future polish:
+ *  wrap in an Operation::Batch so a single undo restores the
+ *  whole multi-write. For now the user undoes once per id. */
+function makeOnCommitMany(
+  client: CanvasClient,
+  ids: ElementId[],
+  path: string,
+): (next: Value) => void {
+  return (next) => {
+    for (const id of ids) {
+      void client.mutate({
+        op: "setElementProperty",
+        args: { elementId: id, path: path as never, value: next },
+      });
+    }
   };
 }

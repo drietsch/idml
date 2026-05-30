@@ -135,4 +135,47 @@ test.describe("Phase 3 — element-scope declarative panels", () => {
       page.locator('[data-object-transform-panel="ready"] input'),
     ).toHaveCount(5);
   });
+
+  test("AC-OBJECT-3 — multi-selection with differing bounds shows mixed", async ({
+    page,
+  }) => {
+    // Select two frames with different bounds — Bounds should
+    // collapse to mixed (em-dash), Opacity should also be mixed
+    // unless they happen to share the value.
+    await page.evaluate(async () => {
+      const c = (
+        globalThis as unknown as {
+          __canvas: {
+            client: {
+              setElementSelection: (
+                ids: { kind: string; id: string }[],
+                mode: string,
+              ) => Promise<{ kind: string; id: string }[]>;
+            };
+            setElementSelection: (ids: { kind: string; id: string }[]) => void;
+          };
+        }
+      ).__canvas;
+      const ids = await c.client.setElementSelection(
+        [
+          { kind: "textFrame", id: "ua365e1" },
+          { kind: "rectangle", id: "ueccee2" },
+        ],
+        "replace",
+      );
+      c.setElementSelection(ids);
+    });
+    await activateTab(page, "Object");
+    // The two frames have different bounds → Bounds field is mixed
+    // → em-dash. Opacity may or may not be mixed depending on
+    // fixture; assert at least 1 mixed appears (Bounds).
+    await expect
+      .poll(
+        async () =>
+          await page
+            .locator('[data-object-transform-panel="ready"] [data-mixed]')
+            .count(),
+      )
+      .toBeGreaterThanOrEqual(1);
+  });
 });
