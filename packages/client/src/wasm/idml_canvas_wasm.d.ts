@@ -481,6 +481,42 @@ export interface AppliedOperation {
 }
 
 /**
+ * SDK Phase 3 — one character style\'s summary. Same shape as
+ * `ParagraphStyleSummary`; separate type so a future SwatchPicker
+ * composition can disambiguate styles in its options source.
+ */
+export interface CharacterStyleSummary {
+    selfId: string;
+    name: string;
+    basedOn: string | null;
+}
+
+/**
+ * SDK Phase 3 — one gradient swatch\'s summary. `kind` is the
+ * IDML `Type` attribute — `\"linear\"` / `\"radial\"` — so a picker
+ * composition can icon-badge linear vs radial.
+ */
+export interface GradientSummary {
+    selfId: string;
+    name: string;
+    kind: string;
+}
+
+/**
+ * SDK Phase 3 — one paragraph style\'s identity + display name +
+ * based-on link. Surfaced by `CanvasModel::paragraph_styles()`
+ * (and `verso.paragraphStyles()`) so collection-backed Style
+ * panels can render the hierarchy without re-parsing styles.xml.
+ * The `based_on` field is the parent style\'s `selfId` (the cascade
+ * root); `None` means this is a top-level style.
+ */
+export interface ParagraphStyleSummary {
+    selfId: string;
+    name: string;
+    basedOn: string | null;
+}
+
+/**
  * SDK Phase 3 — one story\'s identity + total character length.
  * Surfaced by `CanvasModel::stories()` and the `verso.stories()`
  * script host function so consumers can pick valid character
