@@ -40,6 +40,7 @@ import { ObjectStylesPanel } from "./panels/object-styles-panel";
 import { ObjectTransformPanel } from "./panels/object-transform-panel";
 import { AlignPanel } from "./panels/align-panel";
 import { AttributesPanel } from "./panels/attributes-panel";
+import { ControlPanel } from "./panels/control-panel";
 import { PropertiesPanel } from "./panels/properties-panel";
 import { PathfinderPanel } from "./panels/pathfinder-panel";
 import { CellStylesPanel } from "./panels/cell-styles-panel";
@@ -433,6 +434,17 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     component: PropertiesPanel,
     defaultDock: "right",
     defaultGroup: "properties",
+  },
+  {
+    // SDK Phase 5 (v1 sweep) — Control bar. Horizontal-strip
+    // variant of Properties (same compositions, scrollable row
+    // layout). Per `panel-catalog-and-sdk-extension.md` §6
+    // Tier 6.
+    id: "verso.control",
+    title: "Control",
+    component: ControlPanel,
+    defaultDock: "bottom",
+    defaultGroup: "chrome",
   },
   {
     id: "verso.repl",
