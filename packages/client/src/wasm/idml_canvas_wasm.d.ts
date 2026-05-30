@@ -70,7 +70,7 @@ export type NodeSpec = { kind: "textFrame"; self_id: string; bounds: [number, nu
 /**
  * Discriminated payload of a `WorkerToMain` message.
  */
-export type WorkerToMainKind = { kind: "ready"; payload: { protocol: ProtocolVersion } } | { kind: "documentLoaded"; payload: DocumentHandle } | { kind: "loadFailed"; payload: { error: LoadError } } | { kind: "mutationFailed"; payload: { error: WorkerError } } | { kind: "displayListReady"; payload: { pageId: PageId; lod: LodTier; commands: number; layoutGeneration: number; numberingGeneration: number } } | { kind: "hitResult"; payload: HitResult } | { kind: "pagesDirty"; payload: { pageIds: PageId[] } } | { kind: "storyDirty"; payload: { storyId: string } } | { kind: "warning"; payload: { kind: string; details: string } } | { kind: "stats"; payload: DocumentStats } | { kind: "snapshotReady"; payload: SnapshotPng } | { kind: "snapshotFailed"; payload: { error: SnapshotError } } | { kind: "mutationApplied"; payload: { clientSeq: number; appliedSeq: number; pageIds: PageId[]; cacheStats: LayoutCacheStats } } | { kind: "selectionGeometry"; payload: { rects: SelectionRect[] } } | { kind: "caretGeometry"; payload: { caret: CaretGeometry | null } } | { kind: "undoApplied"; payload: { undoneSeq: number; appliedSeq: number; pageIds: PageId[]; cacheStats: LayoutCacheStats } } | { kind: "redoApplied"; payload: { redoneSeq: number; appliedSeq: number; pageIds: PageId[]; cacheStats: LayoutCacheStats } } | { kind: "fontRegistered"; payload: { family: string } } | { kind: "fontRegistryCleared" } | { kind: "elementSelectionApplied"; payload: { ids: ElementId[] } } | { kind: "marqueeHits"; payload: { ids: ElementId[] } } | { kind: "elementGeometry"; payload: { items: ElementGeometryItem[] } } | { kind: "groupLeaves"; payload: { ids: ElementId[] } } | { kind: "pathAnchors"; payload: { result: PathAnchorsResult | null } } | { kind: "layers"; payload: { items: LayerSummary[] } } | { kind: "elementProperties"; payload: { result: ElementProperties | null } } | { kind: "sceneTree"; payload: { roots: SceneTreeNode[] } } | { kind: "scriptResult"; payload: { output: string[]; error: string | null } } | { kind: "gestureBegun"; payload: { handle: GestureHandle } } | { kind: "gestureUpdated"; payload: { handle: GestureHandle; pageIds: PageId[]; snapLines?: SnapLine[] } } | { kind: "gestureCommitted"; payload: { handle: GestureHandle; appliedSeq: number; pageIds: PageId[]; cacheStats: LayoutCacheStats } } | { kind: "gestureCancelled"; payload: { handle: GestureHandle; pageIds: PageId[] } } | { kind: "gestureFailed"; payload: { error: GestureFailure } } | { kind: "attachReady"; payload: { gpuActive: boolean; sceneCacheBudget: number } } | { kind: "gestureSnapLines"; payload: { snapLines: SnapLine[] } } | { kind: "resolutionDone"; payload: ResolutionResult };
+export type WorkerToMainKind = { kind: "ready"; payload: { protocol: ProtocolVersion } } | { kind: "documentLoaded"; payload: DocumentHandle } | { kind: "loadFailed"; payload: { error: LoadError } } | { kind: "mutationFailed"; payload: { error: WorkerError } } | { kind: "displayListReady"; payload: { pageId: PageId; lod: LodTier; commands: number; layoutGeneration: number; numberingGeneration: number } } | { kind: "hitResult"; payload: HitResult } | { kind: "pagesDirty"; payload: { pageIds: PageId[] } } | { kind: "storyDirty"; payload: { storyId: string } } | { kind: "warning"; payload: { kind: string; details: string } } | { kind: "stats"; payload: DocumentStats } | { kind: "snapshotReady"; payload: SnapshotPng } | { kind: "snapshotFailed"; payload: { error: SnapshotError } } | { kind: "mutationApplied"; payload: { clientSeq: number; appliedSeq: number; pageIds: PageId[]; cacheStats: LayoutCacheStats } } | { kind: "selectionGeometry"; payload: { rects: SelectionRect[] } } | { kind: "caretGeometry"; payload: { caret: CaretGeometry | null } } | { kind: "undoApplied"; payload: { undoneSeq: number; appliedSeq: number; pageIds: PageId[]; cacheStats: LayoutCacheStats } } | { kind: "redoApplied"; payload: { redoneSeq: number; appliedSeq: number; pageIds: PageId[]; cacheStats: LayoutCacheStats } } | { kind: "fontRegistered"; payload: { family: string } } | { kind: "fontRegistryCleared" } | { kind: "elementSelectionApplied"; payload: { ids: ElementId[] } } | { kind: "marqueeHits"; payload: { ids: ElementId[] } } | { kind: "elementGeometry"; payload: { items: ElementGeometryItem[] } } | { kind: "groupLeaves"; payload: { ids: ElementId[] } } | { kind: "pathAnchors"; payload: { result: PathAnchorsResult | null } } | { kind: "layers"; payload: { items: LayerSummary[] } } | { kind: "collectionReply"; payload: { name: CollectionName; items: any } } | { kind: "documentMetaReply"; payload: { meta: DocumentMeta } } | { kind: "elementProperties"; payload: { result: ElementProperties | null } } | { kind: "sceneTree"; payload: { roots: SceneTreeNode[] } } | { kind: "scriptResult"; payload: { output: string[]; error: string | null } } | { kind: "gestureBegun"; payload: { handle: GestureHandle } } | { kind: "gestureUpdated"; payload: { handle: GestureHandle; pageIds: PageId[]; snapLines?: SnapLine[] } } | { kind: "gestureCommitted"; payload: { handle: GestureHandle; appliedSeq: number; pageIds: PageId[]; cacheStats: LayoutCacheStats } } | { kind: "gestureCancelled"; payload: { handle: GestureHandle; pageIds: PageId[] } } | { kind: "gestureFailed"; payload: { error: GestureFailure } } | { kind: "attachReady"; payload: { gpuActive: boolean; sceneCacheBudget: number } } | { kind: "gestureSnapLines"; payload: { snapLines: SnapLine[] } } | { kind: "resolutionDone"; payload: ResolutionResult };
 
 /**
  * Element address the user can select OR a `SetElementProperty`
@@ -563,6 +563,62 @@ export interface SwatchSummary {
 }
 
 /**
+ * SDK Phase 5 (D1) — closed enumeration of every document
+ * collection a panel may bind against. Per
+ * `panel-catalog-and-sdk-extension.md` §5.1. The Rust enum and the
+ * TS `CollectionName` union (in `packages/catalog/src/types.ts`)
+ * stay in lockstep; tsify emits a string-tag enum at the boundary
+ * so consumers can pass names verbatim.
+ *
+ * Not every variant has a backing model accessor yet — the wire
+ * surface lands here as the §5 binding ceiling, and the per-
+ * collection accessors fill in as panels need them. The
+ * `CanvasModel::collection(name)` dispatcher returns an empty
+ * `serde_json::Value::Array` for unimplemented entries, surfacing
+ * a runtime warning rather than a panic.
+ */
+export type CollectionName = "swatches" | "gradients" | "colorGroups" | "paragraphStyles" | "characterStyles" | "objectStyles" | "cellStyles" | "tableStyles" | "layers" | "spreads" | "pages" | "masterPages" | "links" | "articles" | "hyperlinks" | "bookmarks" | "crossReferences" | "conditions" | "conditionSets" | "fonts" | "indexTopics";
+
+/**
+ * SDK Phase 5 (D1) — singleton document-level state. Per
+ * `panel-catalog-and-sdk-extension.md` §5.6. Powers the Info panel,
+ * status bar, and any chrome that reflects whole-document state
+ * (vs. selection state). Scalar reads of singleton properties; the
+ * six fields cover the v1 panel needs.
+ *
+ * `dirty` mirrors the Project\'s \"has uncommitted edits since the
+ * last save\" flag (always `false` at v1 since there\'s no
+ * save/export path through the worker yet — the flag exists so
+ * the Info panel and tab title can react when one lands).
+ */
+export interface DocumentMeta {
+    pageCount: number;
+    activePage: PageId | null;
+    /**
+     * User-facing measurement unit — `\"pt\"` / `\"px\"` / `\"in\"` /
+     * `\"mm\"` / `\"cm\"` / `\"pica\"` etc. Empty when the IDML doesn\'t
+     * declare a default and the renderer hasn\'t established one.
+     */
+    units: string;
+    /**
+     * IDML\'s document colour mode — `\"cmyk\"` / `\"rgb\"`. Empty when
+     * the source doesn\'t declare it.
+     */
+    colorMode: string;
+    /**
+     * Human-readable document name. Often the source `.idml`
+     * filename minus extension; empty for synthetic / in-memory
+     * documents.
+     */
+    documentName: string;
+    /**
+     * `true` when the worker has applied a mutation since
+     * `LoadDocument`. Reset on save/export when that path lands.
+     */
+    dirty: boolean;
+}
+
+/**
  * Stable identifier for a scene-graph node. The string payload is the
  * IDML `Self` attribute (e.g. `\"TextFrame/u14\"`) — stable for the
  * lifetime of the document. Operations reference nodes by ID, never
@@ -656,7 +712,7 @@ export type Operation = { kind: "SetProperty"; node: NodeId; path: PropertyPath;
  * variants so e.g. `cmyk_icc_profile` becomes `cmykIccProfile` on
  * the wire — the TS protocol mirror locks the camelCase contract.
  */
-export type MainToWorkerKind = { kind: "hello" } | { kind: "loadDocument"; payload: { bytes: number[]; font?: number[] | null; cmykIccProfile?: number[] | null } } | { kind: "registerFont"; payload: { family: string; style?: string | null; bytes: number[] } } | { kind: "clearFontRegistry" } | { kind: "mutate"; payload: Mutation } | { kind: "requestPage"; payload: { pageId: PageId; lod: LodTier } } | { kind: "hitTest"; payload: { pageId: PageId; docPoint: [number, number]; filter: HitFilter } } | { kind: "requestSnapshot"; payload: { pageId: PageId; targetWidthPx: number; dpi?: number | null } } | { kind: "setSelection"; payload: { selection: ContentSelection | null } } | { kind: "requestSelectionGeometry"; payload: { selection: ContentSelection } } | { kind: "requestCaretGeometry"; payload: { selection: ContentSelection } } | { kind: "undo" } | { kind: "redo" } | { kind: "setElementSelection"; payload: { ids: ElementId[]; mode: SelectionMode } } | { kind: "requestMarqueeHits"; payload: { pageId: PageId; rect: [number, number, number, number] } } | { kind: "requestElementGeometry"; payload: { ids: ElementId[] } } | { kind: "requestGroupLeaves"; payload: { groupId: string } } | { kind: "requestPathAnchors"; payload: { id: ElementId } } | { kind: "requestLayers" } | { kind: "executeScript"; payload: { source: string } } | { kind: "requestElementProperties"; payload: { id: ElementId } } | { kind: "requestSceneTree" } | { kind: "beginGesture"; payload: { nodes: ElementId[]; gesture: GestureType; anchor?: GestureAnchor | null; cameraScale?: number | null } } | { kind: "updateGesture"; payload: { handle: GestureHandle; delta: [number, number]; modifiers: GestureModifiers } } | { kind: "commitGesture"; payload: { handle: GestureHandle } } | { kind: "cancelGesture"; payload: { handle: GestureHandle } };
+export type MainToWorkerKind = { kind: "hello" } | { kind: "loadDocument"; payload: { bytes: number[]; font?: number[] | null; cmykIccProfile?: number[] | null } } | { kind: "registerFont"; payload: { family: string; style?: string | null; bytes: number[] } } | { kind: "clearFontRegistry" } | { kind: "mutate"; payload: Mutation } | { kind: "requestPage"; payload: { pageId: PageId; lod: LodTier } } | { kind: "hitTest"; payload: { pageId: PageId; docPoint: [number, number]; filter: HitFilter } } | { kind: "requestSnapshot"; payload: { pageId: PageId; targetWidthPx: number; dpi?: number | null } } | { kind: "setSelection"; payload: { selection: ContentSelection | null } } | { kind: "requestSelectionGeometry"; payload: { selection: ContentSelection } } | { kind: "requestCaretGeometry"; payload: { selection: ContentSelection } } | { kind: "undo" } | { kind: "redo" } | { kind: "setElementSelection"; payload: { ids: ElementId[]; mode: SelectionMode } } | { kind: "requestMarqueeHits"; payload: { pageId: PageId; rect: [number, number, number, number] } } | { kind: "requestElementGeometry"; payload: { ids: ElementId[] } } | { kind: "requestGroupLeaves"; payload: { groupId: string } } | { kind: "requestPathAnchors"; payload: { id: ElementId } } | { kind: "requestLayers" } | { kind: "requestCollection"; payload: { name: CollectionName } } | { kind: "requestDocumentMeta" } | { kind: "executeScript"; payload: { source: string } } | { kind: "requestElementProperties"; payload: { id: ElementId } } | { kind: "requestSceneTree" } | { kind: "beginGesture"; payload: { nodes: ElementId[]; gesture: GestureType; anchor?: GestureAnchor | null; cameraScale?: number | null } } | { kind: "updateGesture"; payload: { handle: GestureHandle; delta: [number, number]; modifiers: GestureModifiers } } | { kind: "commitGesture"; payload: { handle: GestureHandle } } | { kind: "cancelGesture"; payload: { handle: GestureHandle } };
 
 /**
  * Track J — wire-shape mirror of `idml_parse::PathAnchor`. The
@@ -748,7 +804,7 @@ export type Value = { type: "bounds"; value: [number, number, number, number] } 
  * (`\"fill.color\"`) — so JS callers don\'t need to learn the Rust
  * enum shape.
  */
-export type PropertyPath = "frameBounds" | "frameFillColor" | "frameStrokeColor" | "frameStrokeWeight" | "frameOpacity" | "frameTransform" | "imageContentTransform" | "framePathPoint" | "pathPointInsert" | "pathPointRemove" | "pathPointCurveType" | "layerVisible" | "layerLocked" | "layerPrintable" | "layerName" | "characterFontSize" | "characterLeading" | "characterTracking" | "characterFillColor" | "paragraphSpaceBefore" | "paragraphSpaceAfter" | "paragraphFirstLineIndent" | "appliedParagraphStyle" | "appliedCharacterStyle";
+export type PropertyPath = "frameBounds" | "frameFillColor" | "frameStrokeColor" | "frameStrokeWeight" | "frameOpacity" | "frameTransform" | "imageContentTransform" | "framePathPoint" | "pathPointInsert" | "pathPointRemove" | "pathPointCurveType" | "layerVisible" | "layerLocked" | "layerPrintable" | "layerName" | "characterFontSize" | "characterLeading" | "characterTracking" | "characterFillColor" | "paragraphSpaceBefore" | "paragraphSpaceAfter" | "paragraphFirstLineIndent" | "appliedParagraphStyle" | "appliedCharacterStyle" | "appliedObjectStyle" | "appliedCellStyle" | "appliedTableStyle" | "appliedConditions";
 
 /**
  * Typed worker-side error for non-load operations. Mutations,
