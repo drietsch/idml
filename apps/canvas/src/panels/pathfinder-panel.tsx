@@ -30,23 +30,23 @@ const BUTTONS: Array<{
   hint: string;
   v1: boolean;
 }> = [
-  { kind: "union", label: "Union", hint: "Combine paths (Union)", v1: true },
-  {
-    kind: "subtract",
-    label: "Subtract",
-    hint: "Subtract — Bezier CSG pending v2",
-    v1: false,
-  },
+  { kind: "union", label: "Union", hint: "Combine paths (Union, BBox)", v1: true },
   {
     kind: "intersect",
     label: "Intersect",
-    hint: "Intersect — Bezier CSG pending v2",
+    hint: "Intersect paths (BBox)",
+    v1: true,
+  },
+  {
+    kind: "subtract",
+    label: "Subtract",
+    hint: "Subtract — needs Bezier CSG (v2)",
     v1: false,
   },
   {
     kind: "exclude",
     label: "Exclude",
-    hint: "Exclude — Bezier CSG pending v2",
+    hint: "Exclude — needs Bezier CSG (v2)",
     v1: false,
   },
 ];
@@ -58,7 +58,7 @@ export function PathfinderPanel() {
 
   async function run(kind: PathfinderKind) {
     if (!enabled) return;
-    if (kind !== "union") {
+    if (kind !== "union" && kind !== "intersect") {
       // v2 op — UI is disabled but guard the apply path too.
       return;
     }
@@ -78,19 +78,40 @@ export function PathfinderPanel() {
       }
     }
     if (entries.length < 2) return;
-    // 2. Compute the union BBox.
-    let top = Number.POSITIVE_INFINITY;
-    let left = Number.POSITIVE_INFINITY;
-    let bottom = Number.NEGATIVE_INFINITY;
-    let right = Number.NEGATIVE_INFINITY;
-    for (const { bounds } of entries) {
-      if (bounds[0] < top) top = bounds[0];
-      if (bounds[1] < left) left = bounds[1];
-      if (bounds[2] > bottom) bottom = bounds[2];
-      if (bounds[3] > right) right = bounds[3];
+    // 2. Compute the result BBox per kind.
+    let resultBounds: [number, number, number, number];
+    if (kind === "union") {
+      let top = Number.POSITIVE_INFINITY;
+      let left = Number.POSITIVE_INFINITY;
+      let bottom = Number.NEGATIVE_INFINITY;
+      let right = Number.NEGATIVE_INFINITY;
+      for (const { bounds } of entries) {
+        if (bounds[0] < top) top = bounds[0];
+        if (bounds[1] < left) left = bounds[1];
+        if (bounds[2] > bottom) bottom = bounds[2];
+        if (bounds[3] > right) right = bounds[3];
+      }
+      resultBounds = [top, left, bottom, right];
+    } else {
+      // intersect — intersection BBox; empty if zero-overlap.
+      let top = Number.NEGATIVE_INFINITY;
+      let left = Number.NEGATIVE_INFINITY;
+      let bottom = Number.POSITIVE_INFINITY;
+      let right = Number.POSITIVE_INFINITY;
+      for (const { bounds } of entries) {
+        if (bounds[0] > top) top = bounds[0];
+        if (bounds[1] > left) left = bounds[1];
+        if (bounds[2] < bottom) bottom = bounds[2];
+        if (bounds[3] < right) right = bounds[3];
+      }
+      // Empty intersection: collapse to no-op (don't destroy
+      // anything silently — the user can re-try with overlapping
+      // frames).
+      if (top >= bottom || left >= right) return;
+      resultBounds = [top, left, bottom, right];
     }
     // 3. Build a Batch — first SetElementProperty(kept, bounds,
-    //    unionBbox), then RemoveNode for every other frame.
+    //    resultBbox), then RemoveNode for every other frame.
     const kept = entries[0];
     const ops: Array<unknown> = [];
     ops.push({
@@ -98,7 +119,7 @@ export function PathfinderPanel() {
       args: {
         elementId: kept.id,
         path: "frameBounds",
-        value: { type: "bounds", value: [top, left, bottom, right] },
+        value: { type: "bounds", value: resultBounds },
       },
     });
     for (let i = 1; i < entries.length; i++) {
