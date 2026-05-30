@@ -142,12 +142,23 @@ test.describe("Phase 5 — Paragraph Styles panel", () => {
 
       // Commit through the same apply arm the catalog-bound
       // select would: a SetElementProperty mutation against the
-      // StoryRange.
-      await dbg.client.executeScript(
+      // StoryRange. Assert the apply succeeded — a false return
+      // means the type encoder picked the wrong Value variant for
+      // the string payload (the bug Track A's apply-path-aware
+      // js_value_to_wire fixed).
+      const setResult = await dbg.client.executeScript(
         `verso.set("storyRange:${range.storyId}@${range.start}..${range.end}",
                    "appliedParagraphStyle",
                    ${JSON.stringify(target.selfId)});`,
       );
+      if (setResult.error) {
+        throw new Error(`verso.set errored: ${setResult.error}`);
+      }
+      if (setResult.output[0]?.trim() !== "true") {
+        throw new Error(
+          `verso.set returned ${setResult.output[0]}; expected "true"`,
+        );
+      }
       await new Promise((r) => setTimeout(r, 50));
 
       // Round-trip: inspect the same range; the

@@ -27,6 +27,7 @@ import { CanvasClient } from "@verso/client";
 import { APP_KEYBINDINGS, APP_MENU_ITEMS, buildAppCommands } from "./app-commands";
 import { CanvasPanel } from "./panels/canvas-panel";
 import { CharacterPanel } from "./panels/character-panel";
+import { CharacterStylesPanel } from "./panels/character-styles-panel";
 import { ObjectTransformPanel } from "./panels/object-transform-panel";
 import { ParagraphPanel } from "./panels/paragraph-panel";
 import { ParagraphStylesPanel } from "./panels/paragraph-styles-panel";
@@ -132,6 +133,18 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     id: "verso.paragraph-styles",
     title: "Paragraph Styles",
     component: ParagraphStylesPanel,
+    defaultDock: "right",
+    defaultGroup: "styles",
+  },
+  {
+    // SDK Phase 5 — Character Styles. Direct twin of
+    // Paragraph Styles using the same VERSO_INPUT_COLLECTION_SELECT
+    // primitive with collectionName: "characterStyles" + a
+    // content-scope binding to appliedCharacterStyle. Validates
+    // the §9 ≥2-panels rule for the new primitive.
+    id: "verso.character-styles",
+    title: "Character Styles",
+    component: CharacterStylesPanel,
     defaultDock: "right",
     defaultGroup: "styles",
   },
