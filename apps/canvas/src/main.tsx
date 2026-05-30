@@ -29,6 +29,7 @@ import { CanvasPanel } from "./panels/canvas-panel";
 import { CharacterPanel } from "./panels/character-panel";
 import { ObjectTransformPanel } from "./panels/object-transform-panel";
 import { ParagraphPanel } from "./panels/paragraph-panel";
+import { ParagraphStylesPanel } from "./panels/paragraph-styles-panel";
 import { StrokePanel } from "./panels/stroke-panel";
 import { InspectorPanel } from "./panels/inspector-panel";
 import { LayersPanel } from "./panels/layers-panel";
@@ -122,6 +123,17 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     component: ParagraphPanel,
     defaultDock: "right",
     defaultGroup: "properties",
+  },
+  {
+    // SDK Phase 5 — Paragraph Styles list (expert leaf, hybrid
+    // candidate). Reads documentCollection:paragraphStyles;
+    // applies via appliedParagraphStyle write. Per the
+    // panel-catalog doc §5.3 + §5.5.
+    id: "verso.paragraph-styles",
+    title: "Paragraph Styles",
+    component: ParagraphStylesPanel,
+    defaultDock: "right",
+    defaultGroup: "styles",
   },
   {
     // SDK Phase 3 — Stroke panel as a declarative composition.
