@@ -28,6 +28,8 @@ import { APP_KEYBINDINGS, APP_MENU_ITEMS, buildAppCommands } from "./app-command
 import { CanvasPanel } from "./panels/canvas-panel";
 import { CharacterPanel } from "./panels/character-panel";
 import { CharacterStylesPanel } from "./panels/character-styles-panel";
+import { ColorGroupsPanel } from "./panels/color-groups-panel";
+import { ConditionSetsPanel } from "./panels/condition-sets-panel";
 import { ConditionsPanel } from "./panels/conditions-panel";
 import { InfoPanel } from "./panels/info-panel";
 import { LinksPanel } from "./panels/links-panel";
@@ -137,6 +139,20 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     component: ConditionsPanel,
     defaultDock: "left",
     defaultGroup: "structure",
+  },
+  {
+    id: "verso.condition-sets",
+    title: "Condition Sets",
+    component: ConditionSetsPanel,
+    defaultDock: "left",
+    defaultGroup: "structure",
+  },
+  {
+    id: "verso.color-groups",
+    title: "Color Groups",
+    component: ColorGroupsPanel,
+    defaultDock: "right",
+    defaultGroup: "styles",
   },
   // ── SDK Phase 5 (v1 sweep) — Wave 1 structural-collection
   // panels. Each is a read-only list backed by the matching

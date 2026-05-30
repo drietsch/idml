@@ -619,6 +619,21 @@ export interface DocumentMeta {
 }
 
 /**
+ * SDK Phase 5 (v1 sweep) — one `<ColorGroup>` definition. Backs
+ * `documentCollection:colorGroups` per §5.1. A user-defined
+ * grouping of `Color` self_ids the document organises its
+ * palette into.
+ */
+export interface ColorGroupSummary {
+    selfId: string;
+    name: string;
+    /**
+     * Member color/swatch self_ids the group wraps.
+     */
+    members: string[];
+}
+
+/**
  * SDK Phase 5 (v1 sweep) — one `<Condition>` definition. Backs
  * `documentCollection:conditions` per `panel-catalog-and-sdk-
  * extension.md` §5.1. The Conditions panel renders this for
@@ -637,6 +652,21 @@ export interface ConditionSummary {
      * `\"Underline\"` / `\"Highlight\"` / `\"None\"` (or empty).
      */
     indicatorMethod: string;
+}
+
+/**
+ * SDK Phase 5 (v1 sweep) — one `<ConditionSet>` definition. Backs
+ * `documentCollection:conditionSets` per §5.1. Each entry is a
+ * named grouping of Condition self_ids; the editor\'s Conditions
+ * panel can use this to toggle a set as a unit (v2 affordance).
+ */
+export interface ConditionSetSummary {
+    selfId: string;
+    name: string;
+    /**
+     * Member Condition self_ids the set wraps.
+     */
+    conditions: string[];
 }
 
 /**

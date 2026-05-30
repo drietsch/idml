@@ -53,6 +53,8 @@ export type {
   LayerSummary,
   LayoutCacheStats,
   CellStyleSummary,
+  ColorGroupSummary,
+  ConditionSetSummary,
   ConditionSummary,
   FontSummary,
   LinkSummary,
