@@ -36,6 +36,12 @@ import { FrameFittingPanel } from "./panels/frame-fitting-panel";
 import { GradientsPanel } from "./panels/gradients-panel";
 import { ObjectStylesPanel } from "./panels/object-styles-panel";
 import { ObjectTransformPanel } from "./panels/object-transform-panel";
+import { CellStylesPanel } from "./panels/cell-styles-panel";
+import { FontsPanel } from "./panels/fonts-panel";
+import { MasterPagesPanel } from "./panels/master-pages-panel";
+import { PagesListPanel } from "./panels/pages-list-panel";
+import { SpreadsPanel } from "./panels/spreads-panel";
+import { TableStylesPanel } from "./panels/table-styles-panel";
 import { SwatchesPanel } from "./panels/swatches-panel";
 import { TextFrameOptionsPanel } from "./panels/text-frame-options-panel";
 import { TextWrapPanel } from "./panels/text-wrap-panel";
@@ -124,6 +130,51 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     id: "verso.conditions",
     title: "Conditions",
     component: ConditionsPanel,
+    defaultDock: "left",
+    defaultGroup: "structure",
+  },
+  // ── SDK Phase 5 (v1 sweep) — Wave 1 structural-collection
+  // panels. Each is a read-only list backed by the matching
+  // documentCollection accessor.
+  {
+    id: "verso.pages-list",
+    title: "Pages (list)",
+    component: PagesListPanel,
+    defaultDock: "left",
+    defaultGroup: "structure",
+  },
+  {
+    id: "verso.spreads",
+    title: "Spreads",
+    component: SpreadsPanel,
+    defaultDock: "left",
+    defaultGroup: "structure",
+  },
+  {
+    id: "verso.master-pages",
+    title: "Master Pages",
+    component: MasterPagesPanel,
+    defaultDock: "left",
+    defaultGroup: "structure",
+  },
+  {
+    id: "verso.cell-styles",
+    title: "Cell Styles",
+    component: CellStylesPanel,
+    defaultDock: "right",
+    defaultGroup: "styles",
+  },
+  {
+    id: "verso.table-styles",
+    title: "Table Styles",
+    component: TableStylesPanel,
+    defaultDock: "right",
+    defaultGroup: "styles",
+  },
+  {
+    id: "verso.fonts",
+    title: "Fonts",
+    component: FontsPanel,
     defaultDock: "left",
     defaultGroup: "structure",
   },

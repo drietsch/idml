@@ -640,6 +640,51 @@ export interface ConditionSummary {
 }
 
 /**
+ * SDK Phase 5 (v1 sweep) — one cell-style summary. Backs
+ * `documentCollection:cellStyles`. Apply-an-entity via
+ * `AppliedCellStyle` is wire-shape-only (UnsupportedProperty
+ * until the Table NodeId surface lands); the panel can still
+ * list defined styles today.
+ */
+export interface CellStyleSummary {
+    selfId: string;
+    name: string;
+    basedOn: string | null;
+}
+
+/**
+ * SDK Phase 5 (v1 sweep) — one font family/style entry derived
+ * from the document\'s content. The parse layer doesn\'t carry a
+ * font registry — fonts are referenced from runs + paragraph
+ * styles. The accessor walks them and dedups; the result is the
+ * set of typefaces *used* by the document.
+ */
+export interface FontSummary {
+    /**
+     * Family name (`\"Open Sans\"`, `\"Helvetica Neue\"`, …). Used as
+     * the row react-key.
+     */
+    family: string;
+    /**
+     * Number of runs/styles that reference this family. Surfaces
+     * \"this font is used N times\" without a full audit pass.
+     */
+    referenceCount: number;
+}
+
+/**
+ * SDK Phase 5 (v1 sweep) — one master-spread summary. Backs
+ * `documentCollection:masterPages`. Documents typically ship 1–3
+ * master spreads (A-Master, B-Master, …) that pages reference
+ * via `AppliedMaster`.
+ */
+export interface MasterPageSummary {
+    selfId: string;
+    label: string;
+    pageCount: number;
+}
+
+/**
  * SDK Phase 5 (v1 sweep) — one object style\'s summary. Backs
  * `documentCollection:objectStyles` per `panel-catalog-and-sdk-
  * extension.md` §5.1; consumed by the Object Styles panel via
@@ -650,6 +695,28 @@ export interface ObjectStyleSummary {
     selfId: string;
     name: string;
     basedOn: string | null;
+}
+
+/**
+ * SDK Phase 5 (v1 sweep) — one page summary. Backs
+ * `documentCollection:pages`. Mirrors `DocumentHandle.page_ids`
+ * + `page_sizes_pt` so a Pages-as-collection panel can render a
+ * thumbnail/label list. The Navigator (existing legacy panel)
+ * uses the same data through a different surface.
+ */
+export interface PageSummary {
+    /**
+     * Stable id (matches `PageId` everywhere else).
+     */
+    selfId: string;
+    /**
+     * 1-based index — what the user types in \"Go to page #\".
+     */
+    index: number;
+    /**
+     * `[width, height]` in points.
+     */
+    sizePt: [number, number];
 }
 
 /**
@@ -669,6 +736,29 @@ export interface LinkSummary {
     hostSelfId: string;
     hostKind: string;
     uri: string;
+}
+
+/**
+ * SDK Phase 5 (v1 sweep) — one spread summary. Backs
+ * `documentCollection:spreads`. `pageCount` is the number of
+ * `<Page>` children in the spread; `label` is the spread\'s
+ * `Self` id (or filename when missing).
+ */
+export interface SpreadSummary {
+    selfId: string;
+    label: string;
+    pageCount: number;
+}
+
+/**
+ * SDK Phase 5 (v1 sweep) — one table-style summary. Backs
+ * `documentCollection:tableStyles`. Same shape + apply-an-entity
+ * pattern as `CellStyleSummary`.
+ */
+export interface TableStyleSummary {
+    selfId: string;
+    name: string;
+    basedOn: string | null;
 }
 
 /**
