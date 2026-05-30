@@ -13,6 +13,7 @@ import {
   LayoutSectionLeaf,
   LengthLeaf,
   NumericScrubLeaf,
+  ToggleGroupLeaf,
 } from "./leaves";
 
 /** Stable catalog ids the rest of the codebase references. */
@@ -21,6 +22,7 @@ export const VERSO_INPUT_COLOR_SWATCH = "verso.input.color-swatch";
 export const VERSO_INPUT_NUMERIC_SCRUB = "verso.input.numeric-scrub";
 export const VERSO_INPUT_BOUNDS = "verso.input.bounds";
 export const VERSO_INPUT_COLLECTION_SELECT = "verso.input.collection-select";
+export const VERSO_INPUT_TOGGLE_GROUP = "verso.input.toggle-group";
 export const VERSO_LAYOUT_SECTION = "verso.layout.section";
 export const VERSO_LABEL = "verso.label";
 
@@ -95,6 +97,22 @@ const ENTRIES: CatalogEntry[] = [
       writes: ["selectionProperty:*"],
     },
     leaf: CollectionSelectLeaf,
+  },
+  {
+    // SDK Phase 5 (v1 sweep) — segmented multi-state toggle.
+    // Reads a `Value::Text` enum string; commits the picked
+    // option's `value` as a Text payload. Per
+    // `panel-catalog-and-sdk-extension.md` §9. First users in
+    // v1: Paragraph alignment (justification) + Stroke end-cap
+    // (≥2 panels rule).
+    id: VERSO_INPUT_TOGGLE_GROUP,
+    kind: "leaf",
+    props: { label: "string", options: "JsonValue" },
+    bindings: {
+      reads: ["selectionProperty:*"],
+      writes: ["selectionProperty:*"],
+    },
+    leaf: ToggleGroupLeaf,
   },
   {
     id: VERSO_LAYOUT_SECTION,

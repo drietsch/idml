@@ -310,6 +310,94 @@ export function CollectionSelectLeaf({
   );
 }
 
+/** Option row for `ToggleGroupLeaf`. `value` is the wire payload
+ *  (e.g. `"LeftAlign"`); `label` is the user-facing button label
+ *  (often a single letter or icon stand-in for v1). */
+interface ToggleGroupOption {
+  value: string;
+  label: string;
+}
+
+/**
+ * SDK Phase 5 (v1 sweep) — segmented multi-state toggle. Binds
+ * to a `Value::Text` carrying an IDML enum string. Props:
+ *   - `label` — row label.
+ *   - `options: ToggleGroupOption[]` — the segment definitions;
+ *     `value` is the wire payload, `label` is the displayed
+ *     text. Required.
+ *
+ * On change → `onCommit({ type: "text", value: option.value })`.
+ * The active segment renders with a stronger background; the
+ * em-dash (mixed) state shows when the bound value is `null`.
+ *
+ * Per `panel-catalog-and-sdk-extension.md` §9, this primitive
+ * shows up across multiple panels (Paragraph alignment, Stroke
+ * cap/join, Object flip). The first two land in the same commit
+ * to satisfy the ≥2-panels rule before the primitive lands.
+ */
+export function ToggleGroupLeaf({ value, onCommit, props }: LeafProps) {
+  const label = labelFromProps(props);
+  const optionsRaw = Array.isArray(props.options) ? props.options : null;
+  const options: ToggleGroupOption[] = optionsRaw
+    ? (optionsRaw as ToggleGroupOption[]).filter(
+        (o): o is ToggleGroupOption =>
+          !!o &&
+          typeof o === "object" &&
+          typeof (o as ToggleGroupOption).value === "string" &&
+          typeof (o as ToggleGroupOption).label === "string",
+      )
+    : [];
+  const { resolved, text } = unwrapTextValueForToggle(value);
+  // Follow the LengthLeaf / ColorSwatchLeaf convention: when the
+  // binding doesn't resolve (no selection / mixed / wrong variant),
+  // render the em-dash placeholder span with `data-mixed`. The
+  // toggle buttons only show when there's a resolved value to
+  // reflect; the user must establish a selection first.
+  if (!resolved) {
+    return (
+      <LeafRow label={label}>
+        <span className="text-xs text-muted-foreground" data-mixed>
+          —
+        </span>
+      </LeafRow>
+    );
+  }
+  return (
+    <LeafRow label={label}>
+      <div className="flex gap-0.5" role="group" data-toggle-group>
+        {options.map((opt) => {
+          const active = text === opt.value;
+          return (
+            <button
+              type="button"
+              key={opt.value}
+              data-option-value={opt.value}
+              data-active={active ? "true" : "false"}
+              className={`text-xs px-2 py-0.5 border border-input rounded ${
+                active ? "bg-muted/80" : "bg-background"
+              }`}
+              onClick={() => {
+                onCommit?.({ type: "text", value: opt.value } as Value);
+              }}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+    </LeafRow>
+  );
+}
+
+function unwrapTextValueForToggle(v: Value | null): {
+  resolved: boolean;
+  text: string;
+} {
+  if (v == null) return { resolved: false, text: "" };
+  if (v.type !== "text") return { resolved: false, text: "" };
+  return { resolved: true, text: (v.value as string) ?? "" };
+}
+
 /** Plain label (literal text). */
 export function LabelLeaf({ props }: LeafProps) {
   const text = typeof props.text === "string" ? props.text : "";

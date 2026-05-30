@@ -11,6 +11,7 @@ import type { CompositionNode } from "@verso/catalog";
 import {
   VERSO_INPUT_COLOR_SWATCH,
   VERSO_INPUT_LENGTH,
+  VERSO_INPUT_TOGGLE_GROUP,
   VERSO_LAYOUT_SECTION,
 } from "@verso/shell";
 
@@ -38,6 +39,29 @@ export const strokeComposition: CompositionNode = {
           kind: "selectionProperty",
           scope: "element",
           path: "frameStrokeColor",
+        },
+      },
+    },
+    {
+      // SDK Phase 5 (v1 sweep) — end-cap toggle-group. Three
+      // IDML enum values; Rectangle / Oval / Polygon /
+      // GraphicLine carry the field, TextFrame does not (the
+      // apply arm returns UnsupportedProperty when wired to a
+      // text frame).
+      catalogId: VERSO_INPUT_TOGGLE_GROUP,
+      props: {
+        label: "End cap",
+        options: [
+          { value: "ButtEndCap", label: "—" },
+          { value: "RoundEndCap", label: "○" },
+          { value: "ProjectingEndCap", label: "□" },
+        ],
+      },
+      bindings: {
+        value: {
+          kind: "selectionProperty",
+          scope: "element",
+          path: "frameStrokeEndCap",
         },
       },
     },

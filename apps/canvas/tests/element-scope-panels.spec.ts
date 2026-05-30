@@ -77,9 +77,10 @@ test.describe("Phase 3 — element-scope declarative panels", () => {
     await expect(
       page.locator('[data-stroke-panel="ready"] [data-section="Stroke"]'),
     ).toBeVisible();
-    // 2 fields: Weight + Color. Both em-dash with no selection.
+    // 3 fields: Weight + Color + End cap (toggle-group). All show
+    // em-dash with no selection.
     const mixed = page.locator('[data-stroke-panel="ready"] [data-mixed]');
-    await expect(mixed).toHaveCount(2);
+    await expect(mixed).toHaveCount(3);
   });
 
   test("AC-STROKE-2 — selecting a frame populates the Stroke panel fields", async ({
@@ -87,16 +88,16 @@ test.describe("Phase 3 — element-scope declarative panels", () => {
   }) => {
     await selectFrame(page, TEXT_FRAME_ID);
     await activateTab(page, "Stroke");
-    // After selection, the em-dash placeholders disappear because
-    // the binding hook resolves real values. There should still be
-    // 2 leaf rows but no more placeholders.
+    // After selecting a TextFrame, Weight + Color resolve (no
+    // em-dash). The End cap row stays em-dash because TextFrame
+    // doesn't carry the `end_cap` field at the parse layer
+    // (Rectangle / Oval / Polygon / GraphicLine do). One honest
+    // placeholder — the Stroke panel reflects the kind-specific
+    // surface rather than pretending the field is universal.
     await expect(
       page.locator('[data-stroke-panel="ready"] [data-mixed]'),
-    ).toHaveCount(0);
-    // The Weight field is a LengthInput — its display value lives
-    // inside the input. The Color field is a ColorPicker swatch.
-    // We don't check exact values here (fixture-dependent); just
-    // assert the leaf rows resolve.
+    ).toHaveCount(1);
+    // Weight is a LengthInput; the input is visible.
     await expect(
       page.locator('[data-stroke-panel="ready"] input').first(),
     ).toBeVisible();

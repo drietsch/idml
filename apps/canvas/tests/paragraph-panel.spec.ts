@@ -36,9 +36,10 @@ test.describe("Phase 3 — Paragraph panel (declarative composition)", () => {
   test("AC-PARA-2 — fields render em-dash placeholder when no content selection", async ({
     page,
   }) => {
-    // 3 fields × em-dash = 3 placeholders.
+    // 4 fields × em-dash = 4 placeholders (alignment toggle-group
+    // + space-before + space-after + first-line-indent).
     const mixed = page.locator('[data-paragraph-panel="ready"] [data-mixed]');
-    await expect(mixed).toHaveCount(3);
+    await expect(mixed).toHaveCount(4);
   });
 
   test("AC-PARA-3 — content selection over a real story populates Paragraph fields", async ({
