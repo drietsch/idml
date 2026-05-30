@@ -7,6 +7,7 @@ import type { CatalogEntry, CatalogRegistry } from "@verso/catalog";
 
 import {
   BoundsLeaf,
+  CollectionSelectLeaf,
   ColorSwatchLeaf,
   LabelLeaf,
   LayoutSectionLeaf,
@@ -19,6 +20,7 @@ export const VERSO_INPUT_LENGTH = "verso.input.length";
 export const VERSO_INPUT_COLOR_SWATCH = "verso.input.color-swatch";
 export const VERSO_INPUT_NUMERIC_SCRUB = "verso.input.numeric-scrub";
 export const VERSO_INPUT_BOUNDS = "verso.input.bounds";
+export const VERSO_INPUT_COLLECTION_SELECT = "verso.input.collection-select";
 export const VERSO_LAYOUT_SECTION = "verso.layout.section";
 export const VERSO_LABEL = "verso.label";
 
@@ -72,6 +74,27 @@ const ENTRIES: CatalogEntry[] = [
       writes: ["selectionProperty:*"],
     },
     leaf: BoundsLeaf,
+  },
+  {
+    // SDK Phase 5 (D7) — apply-an-entity selector. Reads its row
+    // list from any named document collection per
+    // `panel-catalog-and-sdk-extension.md` §9 + §11.5. The
+    // composition node parameterises `collectionName`; the leaf's
+    // bindings declaration is a generic
+    // `documentCollection:swatches` placeholder for audit purposes
+    // (every composition that uses this primitive declares its
+    // *specific* collection via the prop). The write goes through
+    // `selectionProperty:*` — the composition binds the leaf's
+    // `value` to whichever applied-entity path (e.g.
+    // `appliedParagraphStyle`).
+    id: VERSO_INPUT_COLLECTION_SELECT,
+    kind: "leaf",
+    props: { label: "string", collectionName: "string" },
+    bindings: {
+      reads: ["selectionProperty:*", "documentCollection:swatches"],
+      writes: ["selectionProperty:*"],
+    },
+    leaf: CollectionSelectLeaf,
   },
   {
     id: VERSO_LAYOUT_SECTION,

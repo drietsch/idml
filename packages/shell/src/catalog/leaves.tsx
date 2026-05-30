@@ -7,8 +7,10 @@
 // design-system widgets in @verso/ui do the heavy lifting.
 
 import type { LeafProps } from "@verso/catalog";
-import type { Value } from "@verso/client";
+import type { CollectionName, Value } from "@verso/client";
 import { BoundsInput, LengthInput, ColorPicker, NumberInput } from "@verso/ui";
+
+import { useCollection } from "./use-collection";
 
 // ---------------------------------------------------------------- helpers
 
@@ -173,6 +175,102 @@ export function BoundsLeaf({ value, onCommit, props }: LeafProps) {
           onCommit?.({ type: "bounds", value: next } as Value);
         }}
       />
+    </LeafRow>
+  );
+}
+
+/** Generic summary shape expected from every named document
+ *  collection. `selfId` is the IDML `Self` id (used as the commit
+ *  payload + react-key); `name` is the human-readable label.
+ *  Additional collection-specific fields (e.g. swatch `kind`) are
+ *  passed through but the v1 leaf doesn't render them. */
+interface CollectionRow {
+  selfId: string;
+  name: string;
+}
+
+function unwrapTextValue(v: Value | null): {
+  resolved: boolean;
+  text: string;
+} {
+  if (v == null) return { resolved: false, text: "" };
+  if (v.type !== "text") return { resolved: false, text: "" };
+  return { resolved: true, text: (v.value as string) ?? "" };
+}
+
+/**
+ * SDK Phase 5 (D7) — apply-an-entity selector. Reads
+ * `props.collectionName` (a `CollectionName`) + `props.label`
+ * (the row label), fetches the live array via `useCollection`,
+ * renders a `<select>` whose options are the collection's
+ * `selfId` + `name` pairs, plus a leading `[None]` entry for
+ * clearing the override. On change → `onCommit({ type: "text",
+ * value: selfId })`. The selected option mirrors the bound
+ * `Value::Text(selfId)` from the apply-an-entity write path.
+ *
+ * Mixed / no-selection / non-text-variant binding → em-dash
+ * placeholder (existing leaf convention).
+ */
+export function CollectionSelectLeaf({
+  value,
+  onCommit,
+  props,
+}: LeafProps) {
+  const label = labelFromProps(props);
+  const collectionName =
+    typeof props.collectionName === "string"
+      ? (props.collectionName as CollectionName)
+      : null;
+  // Hook must run unconditionally; pass a safe fallback when the
+  // composition doesn't declare a `collectionName`. The follow-up
+  // branch below renders the error placeholder.
+  const items = useCollection<CollectionRow>(
+    (collectionName ?? "swatches") as CollectionName,
+  );
+  if (collectionName === null) {
+    return (
+      <LeafRow label={label}>
+        <span className="text-xs text-destructive">
+          missing collectionName prop
+        </span>
+      </LeafRow>
+    );
+  }
+  const { resolved, text } = unwrapTextValue(value);
+  if (items === null) {
+    return (
+      <LeafRow label={label}>
+        <span className="text-xs text-muted-foreground">loading…</span>
+      </LeafRow>
+    );
+  }
+  const showMixed = !resolved && value === null;
+  return (
+    <LeafRow label={label}>
+      <select
+        className="w-full text-xs px-1 py-0.5 border border-input rounded bg-background"
+        value={resolved ? text : ""}
+        data-mixed={showMixed ? "true" : "false"}
+        data-collection={collectionName}
+        onChange={(e) => {
+          onCommit?.({ type: "text", value: e.target.value } as Value);
+        }}
+      >
+        <option value="">[None]</option>
+        {items.map((row) => (
+          <option key={row.selfId} value={row.selfId}>
+            {row.name}
+          </option>
+        ))}
+        {/* "mixed" sentinel exposes the placeholder so the binding
+            hook's multi-element collapse can show an em-dash without
+            the select arbitrarily picking the first row. */}
+        {showMixed ? (
+          <option value="__mixed__" disabled>
+            —
+          </option>
+        ) : null}
+      </select>
     </LeafRow>
   );
 }
