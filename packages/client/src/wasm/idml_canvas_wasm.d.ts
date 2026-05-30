@@ -505,6 +505,28 @@ export interface StorySummary {
 }
 
 /**
+ * SDK Phase 3 — one swatch\'s identity + display name + kind.
+ * Surfaced by `CanvasModel::swatches()` and the `verso.swatches()`
+ * host fn so collection-backed panels (Swatches, the color picker
+ * dropdown, the Character/Stroke fill-color enum-select) can
+ * enumerate the document\'s colour palette without re-parsing the
+ * graphic resource.
+ *
+ * `kind` is the IDML colour-model discriminant — `\"process\"` for
+ * CMYK/RGB/Lab process colours, `\"spot\"` for named-ink swatches
+ * (PANTONE etc.), `\"mixedInk\"` / `\"mixedInkGroup\"` for those
+ * composites, and the literal labels `\"none\"` / `\"paper\"` /
+ * `\"black\"` / `\"registration\"` for the four special swatches
+ * IDML treats as built-ins. Renderers use this to badge the
+ * swatch grid.
+ */
+export interface SwatchSummary {
+    selfId: string;
+    name: string;
+    kind: string;
+}
+
+/**
  * Stable identifier for a scene-graph node. The string payload is the
  * IDML `Self` attribute (e.g. `\"TextFrame/u14\"`) — stable for the
  * lifetime of the document. Operations reference nodes by ID, never
