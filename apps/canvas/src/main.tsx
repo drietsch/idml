@@ -28,6 +28,7 @@ import { APP_KEYBINDINGS, APP_MENU_ITEMS, buildAppCommands } from "./app-command
 import { CanvasPanel } from "./panels/canvas-panel";
 import { CharacterPanel } from "./panels/character-panel";
 import { ObjectTransformPanel } from "./panels/object-transform-panel";
+import { ParagraphPanel } from "./panels/paragraph-panel";
 import { StrokePanel } from "./panels/stroke-panel";
 import { InspectorPanel } from "./panels/inspector-panel";
 import { LayersPanel } from "./panels/layers-panel";
@@ -110,6 +111,15 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     id: "verso.character",
     title: "Character",
     component: CharacterPanel,
+    defaultDock: "right",
+    defaultGroup: "properties",
+  },
+  {
+    // SDK Phase 3 — Paragraph panel. Content-scope bindings;
+    // apply layer rounds the range to whole paragraphs.
+    id: "verso.paragraph",
+    title: "Paragraph",
+    component: ParagraphPanel,
     defaultDock: "right",
     defaultGroup: "properties",
   },
