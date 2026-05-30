@@ -37,6 +37,7 @@ import { GradientsPanel } from "./panels/gradients-panel";
 import { ObjectStylesPanel } from "./panels/object-styles-panel";
 import { ObjectTransformPanel } from "./panels/object-transform-panel";
 import { AlignPanel } from "./panels/align-panel";
+import { PathfinderPanel } from "./panels/pathfinder-panel";
 import { CellStylesPanel } from "./panels/cell-styles-panel";
 import { FontsPanel } from "./panels/fonts-panel";
 import { MasterPagesPanel } from "./panels/master-pages-panel";
@@ -187,6 +188,16 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     id: "verso.align",
     title: "Align",
     component: AlignPanel,
+    defaultDock: "right",
+    defaultGroup: "properties",
+  },
+  {
+    // SDK Phase 5 (v1 sweep) — Pathfinder. v1 ships Union via
+    // BBox math; Subtract / Intersect / Exclude buttons exist
+    // but are disabled (need Bezier CSG, v2).
+    id: "verso.pathfinder",
+    title: "Pathfinder",
+    component: PathfinderPanel,
     defaultDock: "right",
     defaultGroup: "properties",
   },
