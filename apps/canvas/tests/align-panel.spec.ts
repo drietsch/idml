@@ -20,12 +20,13 @@ test.describe("Phase 5 — Align panel", () => {
     await page.getByText("Align", { exact: true }).first().click();
   });
 
-  test("AC-ALIGN-1 — panel mounts; six buttons disabled without 2+ selection", async ({
+  test("AC-ALIGN-1 — panel mounts; 6 align + 2 distribute buttons; hints when no selection", async ({
     page,
   }) => {
     await expect(page.locator('[data-align-panel="ready"]')).toBeVisible();
     const buttons = page.locator('[data-align-panel="ready"] button[data-align-kind]');
-    await expect(buttons).toHaveCount(6);
+    // 6 align + 2 distribute = 8.
+    await expect(buttons).toHaveCount(8);
     // Hint visible with empty selection.
     await expect(
       page.locator('[data-align-panel="ready"] [data-align-hint]'),
@@ -114,6 +115,134 @@ test.describe("Phase 5 — Align panel", () => {
     // selection).
     expect(aftermath.length).toBe(2);
     expect(Math.abs(aftermath[0] - aftermath[1])).toBeLessThan(0.01);
+  });
+
+  test("AC-DIST-1 — distribute-h spaces middle frames evenly between extremes", async ({
+    page,
+  }) => {
+    const result = await page.evaluate(async () => {
+      type DebugCanvas = {
+        client?: {
+          executeScript(src: string): Promise<{
+            output: string[];
+            error: string | null;
+          }>;
+          elementProperties(id: unknown): Promise<{
+            entries: Array<{
+              path: string;
+              value: { type: string; value: number[] } | null;
+            }>;
+          } | null>;
+          mutate(op: unknown): Promise<unknown>;
+        };
+        setElementSelection?(ids: unknown[], mode: string): void;
+      };
+      const dbg = (window as unknown as { __canvas?: DebugCanvas }).__canvas;
+      if (!dbg?.client) throw new Error("no client");
+
+      // Need ≥3 TextFrames; the geometry-groups fixture ships
+      // enough for this. Set explicit non-uniform bounds first so
+      // the distribute math has something to do.
+      const treeJson = await dbg.client
+        .executeScript("verso.tree()")
+        .then((r) => r.output[0] ?? "[]");
+      type Node = {
+        id?: { kind: string; id: string } | null;
+        children?: Node[];
+      };
+      const ids: Array<{ kind: string; id: string }> = [];
+      const walk = (nodes: Node[] | undefined) => {
+        if (!nodes) return;
+        for (const n of nodes) {
+          if (n.id && n.id.kind === "textFrame") ids.push(n.id);
+          walk(n.children);
+        }
+      };
+      walk(JSON.parse(treeJson) as Node[]);
+      if (ids.length < 3) return null;
+      const trio = ids.slice(0, 3);
+
+      // Force known initial positions: first at x=0, last at
+      // x=300, middle squeezed to x=50 — distribute-h should
+      // move the middle to x=150 (the average).
+      await dbg.client.mutate({
+        op: "batch",
+        args: {
+          ops: [
+            {
+              op: "setElementProperty",
+              args: {
+                elementId: trio[0],
+                path: "frameBounds",
+                value: { type: "bounds", value: [0, 0, 50, 50] },
+              },
+            },
+            {
+              op: "setElementProperty",
+              args: {
+                elementId: trio[1],
+                path: "frameBounds",
+                value: { type: "bounds", value: [0, 50, 50, 100] },
+              },
+            },
+            {
+              op: "setElementProperty",
+              args: {
+                elementId: trio[2],
+                path: "frameBounds",
+                value: { type: "bounds", value: [0, 300, 50, 350] },
+              },
+            },
+          ],
+        },
+      });
+      await new Promise((r) => setTimeout(r, 50));
+
+      dbg.setElementSelection?.(trio, "replace");
+      await new Promise((r) => setTimeout(r, 80));
+      return JSON.stringify(trio);
+    });
+
+    if (result === null) {
+      test.skip(true, "fixture has < 3 TextFrames");
+      return;
+    }
+
+    await page
+      .locator('[data-align-panel="ready"] [data-align-kind="distributeH"]')
+      .click();
+    await page.waitForTimeout(150);
+
+    const aftermath = await page.evaluate(async (trioJson) => {
+      type DebugCanvas = {
+        client?: {
+          elementProperties(id: unknown): Promise<{
+            entries: Array<{
+              path: string;
+              value: { type: string; value: number[] } | null;
+            }>;
+          } | null>;
+        };
+      };
+      const dbg = (window as unknown as { __canvas?: DebugCanvas }).__canvas;
+      if (!dbg?.client) throw new Error("no client");
+      const trio = JSON.parse(trioJson) as Array<{ kind: string; id: string }>;
+      const centers: number[] = [];
+      for (const id of trio) {
+        const props = await dbg.client.elementProperties(id);
+        const v = props?.entries.find((e) => e.path === "frameBounds")
+          ?.value?.value;
+        if (v) centers.push((v[1] + v[3]) / 2);
+      }
+      return centers;
+    }, result);
+
+    // First + last unchanged. Middle should be at the midpoint
+    // of the first + last centers.
+    expect(aftermath.length).toBe(3);
+    const sortedCenters = aftermath.slice().sort((a, b) => a - b);
+    const expectedMid = (sortedCenters[0] + sortedCenters[2]) / 2;
+    expect(Math.abs(sortedCenters[1] - expectedMid)).toBeLessThan(0.5);
   });
 
   test("AC-ALIGN-3 — multi-target align is one undo entry (Mutation::Batch)", async ({

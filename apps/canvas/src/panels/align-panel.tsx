@@ -27,15 +27,22 @@ type AlignKind =
   | "right"
   | "top"
   | "centerV"
-  | "bottom";
+  | "bottom"
+  | "distributeH"
+  | "distributeV";
 
-const BUTTONS: Array<{ kind: AlignKind; label: string; hint: string }> = [
+const ALIGN_BUTTONS: Array<{ kind: AlignKind; label: string; hint: string }> = [
   { kind: "left", label: "L", hint: "Align Left" },
   { kind: "centerH", label: "C", hint: "Center Horizontally" },
   { kind: "right", label: "R", hint: "Align Right" },
   { kind: "top", label: "T", hint: "Align Top" },
   { kind: "centerV", label: "M", hint: "Center Vertically" },
   { kind: "bottom", label: "B", hint: "Align Bottom" },
+];
+
+const DISTRIBUTE_BUTTONS: Array<{ kind: AlignKind; label: string; hint: string }> = [
+  { kind: "distributeH", label: "↔", hint: "Distribute Horizontally" },
+  { kind: "distributeV", label: "↕", hint: "Distribute Vertically" },
 ];
 
 export function AlignPanel() {
@@ -87,52 +94,99 @@ export function AlignPanel() {
         value: { type: "bounds"; value: [number, number, number, number] };
       };
     }> = [];
-    for (const { id, bounds } of entries) {
-      const [top, left, bottom, right] = bounds;
-      const w = right - left;
-      const h = bottom - top;
-      let nTop = top;
-      let nLeft = left;
-      switch (kind) {
-        case "left":
-          nLeft = minLeft;
-          break;
-        case "right":
-          nLeft = maxRight - w;
-          break;
-        case "centerH":
-          nLeft = (minLeft + maxRight - w) / 2;
-          break;
-        case "top":
-          nTop = minTop;
-          break;
-        case "bottom":
-          nTop = maxBottom - h;
-          break;
-        case "centerV":
-          nTop = (minTop + maxBottom - h) / 2;
-          break;
-      }
-      const nBottom = nTop + h;
-      const nRight = nLeft + w;
-      // No-op if unchanged — keep the batch lean.
-      if (
-        Math.abs(nTop - top) < 1e-3 &&
-        Math.abs(nLeft - left) < 1e-3
-      ) {
-        continue;
-      }
-      children.push({
-        op: "setElementProperty",
-        args: {
-          elementId: id,
-          path: "frameBounds",
-          value: {
-            type: "bounds",
-            value: [nTop, nLeft, nBottom, nRight],
+
+    // Distribute paths have their own routine (sort + interleave).
+    // The alignment kinds compute per-frame independently.
+    if (kind === "distributeH" || kind === "distributeV") {
+      // Need ≥3 frames to distribute meaningfully (2 frames already
+      // sit at the extremes).
+      if (entries.length < 3) return;
+      // Sort by center on the relevant axis.
+      const axis = kind === "distributeH" ? "h" : "v";
+      const center = (b: [number, number, number, number]) =>
+        axis === "h" ? (b[1] + b[3]) / 2 : (b[0] + b[2]) / 2;
+      const sorted = entries.slice().sort((a, b) => center(a.bounds) - center(b.bounds));
+      const firstC = center(sorted[0].bounds);
+      const lastC = center(sorted[sorted.length - 1].bounds);
+      const step = (lastC - firstC) / (sorted.length - 1);
+      for (let i = 1; i < sorted.length - 1; i++) {
+        const { id, bounds } = sorted[i];
+        const [top, left, bottom, right] = bounds;
+        const w = right - left;
+        const h = bottom - top;
+        const targetCenter = firstC + step * i;
+        let nTop = top;
+        let nLeft = left;
+        if (axis === "h") {
+          nLeft = targetCenter - w / 2;
+        } else {
+          nTop = targetCenter - h / 2;
+        }
+        if (
+          Math.abs(nTop - top) < 1e-3 &&
+          Math.abs(nLeft - left) < 1e-3
+        ) {
+          continue;
+        }
+        children.push({
+          op: "setElementProperty",
+          args: {
+            elementId: id,
+            path: "frameBounds",
+            value: {
+              type: "bounds",
+              value: [nTop, nLeft, nTop + h, nLeft + w],
+            },
           },
-        },
-      });
+        });
+      }
+    } else {
+      for (const { id, bounds } of entries) {
+        const [top, left, bottom, right] = bounds;
+        const w = right - left;
+        const h = bottom - top;
+        let nTop = top;
+        let nLeft = left;
+        switch (kind) {
+          case "left":
+            nLeft = minLeft;
+            break;
+          case "right":
+            nLeft = maxRight - w;
+            break;
+          case "centerH":
+            nLeft = (minLeft + maxRight - w) / 2;
+            break;
+          case "top":
+            nTop = minTop;
+            break;
+          case "bottom":
+            nTop = maxBottom - h;
+            break;
+          case "centerV":
+            nTop = (minTop + maxBottom - h) / 2;
+            break;
+        }
+        const nBottom = nTop + h;
+        const nRight = nLeft + w;
+        if (
+          Math.abs(nTop - top) < 1e-3 &&
+          Math.abs(nLeft - left) < 1e-3
+        ) {
+          continue;
+        }
+        children.push({
+          op: "setElementProperty",
+          args: {
+            elementId: id,
+            path: "frameBounds",
+            value: {
+              type: "bounds",
+              value: [nTop, nLeft, nBottom, nRight],
+            },
+          },
+        });
+      }
     }
     if (children.length === 0) return;
     // 4. Dispatch as a single Mutation::Batch — one undo entry
@@ -143,18 +197,39 @@ export function AlignPanel() {
     });
   }
 
+  const distributeEnabled = elementSelection.length >= 3;
   return (
     <div className="p-3 flex flex-col gap-2" data-align-panel="ready">
       <div className="text-xs text-muted-foreground uppercase">
         Align
       </div>
       <div className="grid grid-cols-3 gap-1" role="group" aria-label="Align">
-        {BUTTONS.map((btn) => (
+        {ALIGN_BUTTONS.map((btn) => (
           <button
             type="button"
             key={btn.kind}
             data-align-kind={btn.kind}
             disabled={!enabled}
+            title={btn.hint}
+            className="text-xs px-2 py-1 border border-input rounded bg-background hover:bg-muted/60 disabled:opacity-50"
+            onClick={() => {
+              void align(btn.kind);
+            }}
+          >
+            {btn.label}
+          </button>
+        ))}
+      </div>
+      <div className="text-xs text-muted-foreground uppercase pt-2 border-t border-input">
+        Distribute
+      </div>
+      <div className="grid grid-cols-2 gap-1" role="group" aria-label="Distribute">
+        {DISTRIBUTE_BUTTONS.map((btn) => (
+          <button
+            type="button"
+            key={btn.kind}
+            data-align-kind={btn.kind}
+            disabled={!distributeEnabled}
             title={btn.hint}
             className="text-xs px-2 py-1 border border-input rounded bg-background hover:bg-muted/60 disabled:opacity-50"
             onClick={() => {
@@ -173,6 +248,14 @@ export function AlignPanel() {
           Select 2 or more frames to align.
         </div>
       )}
+      {!distributeEnabled && enabled ? (
+        <div
+          className="text-xs text-muted-foreground"
+          data-distribute-hint
+        >
+          Select 3 or more frames to distribute.
+        </div>
+      ) : null}
     </div>
   );
 }
