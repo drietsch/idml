@@ -15,8 +15,10 @@
 import {
   PROTOCOL_VERSION,
   type CaretGeometry,
+  type CollectionName,
   type ContentSelection,
   type DocumentHandle,
+  type DocumentMeta,
   type ElementGeometryItem,
   type ElementId,
   type GestureAnchor,
@@ -273,6 +275,52 @@ export class CanvasClient {
       kind: "requestLayers",
     });
     if (reply.kind === "layers") return reply.payload.items;
+    throw new Error(`unexpected reply: ${reply.kind}`);
+  }
+
+  /**
+   * SDK Phase 5 (D1) — typed read of any document collection per
+   * `docs/verso/panel-catalog-and-sdk-extension.md` §5.1. Generic
+   * over the consumer's expected summary shape — e.g.
+   * `client.collection<SwatchSummary>("swatches")` or
+   * `client.collection<ParagraphStyleSummary>("paragraphStyles")`.
+   *
+   * The worker's `CollectionReply.items` is typed as `any` on the
+   * wire (one envelope handles every collection's typed shape), so
+   * the cast here is the deliberate boundary where the consumer
+   * commits to a specific `*Summary` type. tsc protects the
+   * `name` arg via the closed `CollectionName` union — typos fail
+   * at compile time, not at runtime.
+   *
+   * Empty array for unknown / unimplemented collections — never
+   * null, so consumer hooks can rely on the array invariant.
+   */
+  async collection<T>(name: CollectionName): Promise<readonly T[]> {
+    const reply = await this.send({
+      kind: "requestCollection",
+      payload: { name },
+    });
+    if (reply.kind === "collectionReply") {
+      const items = reply.payload.items;
+      if (Array.isArray(items)) return items as T[];
+      return [];
+    }
+    throw new Error(`unexpected reply: ${reply.kind}`);
+  }
+
+  /**
+   * SDK Phase 5 (D1) — singleton document-meta snapshot per
+   * `docs/verso/panel-catalog-and-sdk-extension.md` §5.6. The
+   * `documentMeta:<key>` ReadSpec form binds against fields of
+   * this object. Re-fetch on `mutationApplied` / `undoApplied` /
+   * `redoApplied` to keep the panel reactive — same snapshot-
+   * discipline pattern the existing `useBindings` uses.
+   */
+  async documentMeta(): Promise<DocumentMeta> {
+    const reply = await this.send({
+      kind: "requestDocumentMeta",
+    });
+    if (reply.kind === "documentMetaReply") return reply.payload.meta;
     throw new Error(`unexpected reply: ${reply.kind}`);
   }
 

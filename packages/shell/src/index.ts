@@ -205,6 +205,7 @@ export {
   CatalogRegistryProvider,
 } from "./catalog/render";
 export { useBindings, type ResolvedBinding } from "./catalog/binding-hook";
+export { useCollection, useDocumentMeta } from "./catalog/use-collection";
 export {
   registerBuiltInCatalogEntries,
   VERSO_INPUT_LENGTH,
