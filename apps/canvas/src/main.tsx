@@ -39,6 +39,7 @@ import { ObjectTransformPanel } from "./panels/object-transform-panel";
 import { AlignPanel } from "./panels/align-panel";
 import { PathfinderPanel } from "./panels/pathfinder-panel";
 import { CellStylesPanel } from "./panels/cell-styles-panel";
+import { ColorPanel } from "./panels/color-panel";
 import { FontsPanel } from "./panels/fonts-panel";
 import { MasterPagesPanel } from "./panels/master-pages-panel";
 import { PagesListPanel } from "./panels/pages-list-panel";
@@ -287,6 +288,17 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     id: "verso.swatches",
     title: "Swatches",
     component: SwatchesPanel,
+    defaultDock: "right",
+    defaultGroup: "styles",
+  },
+  {
+    // SDK Phase 5 (v1 sweep) — Color editor. Fill swatch picker
+    // + fill tint scrub. Complements Swatches (the palette
+    // browser) per `panel-catalog-and-sdk-extension.md` §6
+    // Tier 2b. CMYK/RGB sliders are v2.
+    id: "verso.color",
+    title: "Color",
+    component: ColorPanel,
     defaultDock: "right",
     defaultGroup: "styles",
   },
