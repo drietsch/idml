@@ -36,6 +36,7 @@ import { FrameFittingPanel } from "./panels/frame-fitting-panel";
 import { GradientsPanel } from "./panels/gradients-panel";
 import { ObjectStylesPanel } from "./panels/object-styles-panel";
 import { ObjectTransformPanel } from "./panels/object-transform-panel";
+import { AlignPanel } from "./panels/align-panel";
 import { CellStylesPanel } from "./panels/cell-styles-panel";
 import { FontsPanel } from "./panels/fonts-panel";
 import { MasterPagesPanel } from "./panels/master-pages-panel";
@@ -177,6 +178,17 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     component: FontsPanel,
     defaultDock: "left",
     defaultGroup: "structure",
+  },
+  {
+    // SDK Phase 5 (v1 sweep) — Align palette. Reads element
+    // selection + each frame's bounds, dispatches N SetProperty
+    // mutations to align. v1 limitation: each frame is its own
+    // undo entry (wire-level Batch lands as a follow-up).
+    id: "verso.align",
+    title: "Align",
+    component: AlignPanel,
+    defaultDock: "right",
+    defaultGroup: "properties",
   },
   {
     id: "verso.outline",
