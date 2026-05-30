@@ -28,7 +28,7 @@ export type ByteBuf = number[];
  * the worker rejects each variant with `WorkerError::NotImplemented`.
  * Phase 3 lights these up incrementally.
  */
-export type Mutation = { op: "insertText"; args: { storyId: string; offset: number; text: string } } | { op: "deleteRange"; args: { storyId: string; start: number; end: number } } | { op: "applyStyle"; args: { storyId: string; start: number; end: number; attributes: Value } } | { op: "insertField"; args: { storyId: string; offset: number; fieldKind: string } } | { op: "moveFrame"; args: { frameId: string; transform: [number, number, number, number, number, number] } } | { op: "resizeFrame"; args: { frameId: string; bounds: [number, number, number, number] } } | { op: "linkFrames"; args: { frameA: string; frameB: string } } | { op: "unlinkFrames"; args: { chainId: string; afterFrame: string } } | { op: "insertPage"; args: { afterPageId: PageId | null; masterId: string | null } } | { op: "deletePage"; args: { pageId: PageId } } | { op: "insertFrame"; args: { pageId: PageId; bounds: [number, number, number, number] } } | { op: "deleteFrame"; args: { frameId: string } } | { op: "pathPointInsert"; args: { elementId: ElementId; index: number; anchor: PathAnchorSpec; prevSubpathStarts?: number[] | null } } | { op: "pathPointRemove"; args: { elementId: ElementId; index: number } } | { op: "pathPointCurveType"; args: { elementId: ElementId; index: number; smooth: boolean } } | { op: "pathPointSet"; args: { elementId: ElementId; index: number; role: PathPointRole; position: [number, number] } } | { op: "batch"; args: { ops: Mutation[] } } | { op: "layerSetVisible"; args: { layerId: string; visible: boolean } } | { op: "layerSetLocked"; args: { layerId: string; locked: boolean } } | { op: "layerSetPrintable"; args: { layerId: string; printable: boolean } } | { op: "layerSetName"; args: { layerId: string; name: string } } | { op: "layerMove"; args: { layerId: string; newIndex: number } } | { op: "layerInsert"; args: { position: number; name: string } } | { op: "layerRemove"; args: { layerId: string } } | { op: "setElementProperty"; args: { elementId: ElementId; path: PropertyPath; value: Value } };
+export type Mutation = { op: "insertText"; args: { storyId: string; offset: number; text: string } } | { op: "deleteRange"; args: { storyId: string; start: number; end: number } } | { op: "applyStyle"; args: { storyId: string; start: number; end: number; attributes: Value } } | { op: "insertField"; args: { storyId: string; offset: number; fieldKind: string } } | { op: "moveFrame"; args: { frameId: string; transform: [number, number, number, number, number, number] } } | { op: "resizeFrame"; args: { frameId: string; bounds: [number, number, number, number] } } | { op: "linkFrames"; args: { frameA: string; frameB: string } } | { op: "unlinkFrames"; args: { chainId: string; afterFrame: string } } | { op: "insertPage"; args: { afterPageId: PageId | null; masterId: string | null } } | { op: "deletePage"; args: { pageId: PageId } } | { op: "insertFrame"; args: { pageId: PageId; bounds: [number, number, number, number] } } | { op: "deleteFrame"; args: { frameId: string } } | { op: "pathPointInsert"; args: { elementId: ElementId; index: number; anchor: PathAnchorSpec; prevSubpathStarts?: number[] | null } } | { op: "pathPointRemove"; args: { elementId: ElementId; index: number } } | { op: "pathPointCurveType"; args: { elementId: ElementId; index: number; smooth: boolean } } | { op: "pathPointSet"; args: { elementId: ElementId; index: number; role: PathPointRole; position: [number, number] } } | { op: "batch"; args: { ops: Mutation[] } } | { op: "layerSetVisible"; args: { layerId: string; visible: boolean } } | { op: "layerSetLocked"; args: { layerId: string; locked: boolean } } | { op: "layerSetPrintable"; args: { layerId: string; printable: boolean } } | { op: "layerSetName"; args: { layerId: string; name: string } } | { op: "layerMove"; args: { layerId: string; newIndex: number } } | { op: "layerInsert"; args: { position: number; name: string } } | { op: "layerRemove"; args: { layerId: string } } | { op: "setElementProperty"; args: { elementId: ElementId; path: PropertyPath; value: Value } } | { op: "pathfinderBoolean"; args: { kept: ElementId; others: ElementId[]; kind: PathfinderKind } };
 
 /**
  * Axis the snap line guides. `X` is a vertical guide (snaps the x
@@ -762,6 +762,14 @@ export interface TableStyleSummary {
 }
 
 /**
+ * SDK Phase 5 (v1 sweep) — wire enum for Pathfinder ops. Mirrors
+ * `pathfinder::PathfinderKind` (the internal enum used by the
+ * flo_curves layer) — kept separate so the apply layer doesn\'t
+ * leak `flo_curves` types onto the wire.
+ */
+export type PathfinderKind = "union" | "intersect" | "subtract" | "exclude";
+
+/**
  * Stable identifier for a scene-graph node. The string payload is the
  * IDML `Self` attribute (e.g. `\"TextFrame/u14\"`) — stable for the
  * lifetime of the document. Operations reference nodes by ID, never
@@ -846,7 +854,7 @@ export interface DocumentStats {
  * The canonical mutation primitive. Five variants, closed set,
  * extended only with deliberation.
  */
-export type Operation = { kind: "SetProperty"; node: NodeId; path: PropertyPath; value: Value } | { kind: "InsertNode"; parent: NodeId; position: number; node: NodeSpec } | { kind: "RemoveNode"; node: NodeId } | { kind: "MoveNode"; node: NodeId; new_parent: NodeId; position: number } | { kind: "Batch"; ops: Operation[] } | { kind: "MoveLayer"; layer_id: string; new_index: number } | { kind: "InsertLayer"; position: number; name: string; self_id?: string | null } | { kind: "RemoveLayer"; layer_id: string };
+export type Operation = { kind: "SetProperty"; node: NodeId; path: PropertyPath; value: Value } | { kind: "InsertNode"; parent: NodeId; position: number; node: NodeSpec } | { kind: "RemoveNode"; node: NodeId } | { kind: "MoveNode"; node: NodeId; new_parent: NodeId; position: number } | { kind: "Batch"; ops: Operation[] } | { kind: "MoveLayer"; layer_id: string; new_index: number } | { kind: "InsertLayer"; position: number; name: string; self_id?: string | null } | { kind: "RemoveLayer"; layer_id: string } | { kind: "PathfinderBoolean"; kept: NodeId; others: NodeId[]; opKind: PathfinderKind };
 
 /**
  * The discriminated payload of a `MainToWorker` message. Tagged so
@@ -937,7 +945,7 @@ export type LoadError = { kind: "parse"; message: string } | { kind: "scene"; me
  * of a specific kind; the apply layer\'s `TypeMismatch` error fires if
  * the variant doesn\'t match what the path expects.
  */
-export type Value = { type: "bounds"; value: [number, number, number, number] } | { type: "colorRef"; value: string | null } | { type: "length"; value: number | null } | { type: "transform"; value: [number, number, number, number, number, number] | null } | { type: "pathPoint"; value: { address: PathPointAddress; position: [number, number] } } | { type: "pathPointInsert"; value: { index: number; anchor: PathAnchorSpec; prevSubpathStarts?: number[] | null } } | { type: "pathPointRemove"; value: { index: number; prevSubpathStarts?: number[] | null } } | { type: "pathPointCurveType"; value: { index: number; smooth: boolean; prev?: PathAnchorSpec | null } } | { type: "bool"; value: boolean } | { type: "text"; value: string };
+export type Value = { type: "bounds"; value: [number, number, number, number] } | { type: "colorRef"; value: string | null } | { type: "length"; value: number | null } | { type: "transform"; value: [number, number, number, number, number, number] | null } | { type: "pathPoint"; value: { address: PathPointAddress; position: [number, number] } } | { type: "pathPointInsert"; value: { index: number; anchor: PathAnchorSpec; prevSubpathStarts?: number[] | null } } | { type: "pathPointRemove"; value: { index: number; prevSubpathStarts?: number[] | null } } | { type: "pathPointCurveType"; value: { index: number; smooth: boolean; prev?: PathAnchorSpec | null } } | { type: "bool"; value: boolean } | { type: "text"; value: string } | { type: "framePath"; value: { anchors: PathAnchorSpec[]; subpathStarts: number[] } };
 
 /**
  * Typed property path for `SetProperty` Ops. A closed enum (rather
@@ -947,7 +955,7 @@ export type Value = { type: "bounds"; value: [number, number, number, number] } 
  * (`\"fill.color\"`) — so JS callers don\'t need to learn the Rust
  * enum shape.
  */
-export type PropertyPath = "frameBounds" | "frameFillColor" | "frameStrokeColor" | "frameStrokeWeight" | "frameOpacity" | "frameTransform" | "imageContentTransform" | "framePathPoint" | "pathPointInsert" | "pathPointRemove" | "pathPointCurveType" | "layerVisible" | "layerLocked" | "layerPrintable" | "layerName" | "characterFontSize" | "characterLeading" | "characterTracking" | "characterFillColor" | "paragraphSpaceBefore" | "paragraphSpaceAfter" | "paragraphFirstLineIndent" | "appliedParagraphStyle" | "appliedCharacterStyle" | "appliedObjectStyle" | "appliedCellStyle" | "appliedTableStyle" | "frameDropShadow" | "frameFittingCrops" | "frameFittingType" | "frameTextWrapMode" | "frameTextWrapOffsets" | "paragraphJustification" | "frameStrokeEndCap" | "frameInsetSpacing" | "appliedConditions";
+export type PropertyPath = "frameBounds" | "frameFillColor" | "frameStrokeColor" | "frameStrokeWeight" | "frameOpacity" | "frameTransform" | "imageContentTransform" | "framePathPoint" | "pathPointInsert" | "pathPointRemove" | "pathPointCurveType" | "layerVisible" | "layerLocked" | "layerPrintable" | "layerName" | "characterFontSize" | "characterLeading" | "characterTracking" | "characterFillColor" | "paragraphSpaceBefore" | "paragraphSpaceAfter" | "paragraphFirstLineIndent" | "appliedParagraphStyle" | "appliedCharacterStyle" | "appliedObjectStyle" | "appliedCellStyle" | "appliedTableStyle" | "framePath" | "frameDropShadow" | "frameFittingCrops" | "frameFittingType" | "frameTextWrapMode" | "frameTextWrapOffsets" | "paragraphJustification" | "frameStrokeEndCap" | "frameInsetSpacing" | "appliedConditions";
 
 /**
  * Typed worker-side error for non-load operations. Mutations,

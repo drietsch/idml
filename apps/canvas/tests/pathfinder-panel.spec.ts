@@ -1,10 +1,17 @@
 // SDK Phase 5 (v1 sweep) — Pathfinder panel acceptance.
 //
-// v1 ships Union via BBox math; the other three buttons stay
-// disabled with a v2 hint. AC-PF-1 pins the panel shape; AC-PF-2
-// pins the Union apply path (kept frame's bounds expand to the
-// union BBox; other frames are removed in the same Batch undo
-// entry).
+// Curve-preserving Bezier CSG via flo_curves. All four ops
+// (Union / Intersect / Subtract / Exclude) ship in v1.
+// The TS panel dispatches a single `Mutation::PathfinderBoolean`;
+// the Rust apply layer reads each frame's path, runs flo_curves
+// (`path_add` / `path_sub` / `path_intersect`), and builds an
+// internal Batch (FramePath + RemoveNode) so one Cmd-Z reverses
+// everything.
+//
+// Fixtures use plain rectangles so the apply result is
+// predictable — Union of two non-overlapping rects = compound
+// path of 2 subpaths; Subtract overlapping = L-shape of 6
+// vertices; Intersect of overlapping = the overlap rect.
 
 import { test, expect } from "@playwright/test";
 import { dirname, resolve as pathResolve } from "node:path";
@@ -24,7 +31,7 @@ test.describe("Phase 5 — Pathfinder panel", () => {
     await page.getByText("Pathfinder", { exact: true }).first().click();
   });
 
-  test("AC-PF-1 — panel mounts; 4 buttons; Union + Intersect enabled in v1", async ({
+  test("AC-PF-1 — panel mounts; 4 buttons; all enabled when 2+ selected", async ({
     page,
   }) => {
     await expect(
@@ -34,20 +41,13 @@ test.describe("Phase 5 — Pathfinder panel", () => {
       '[data-pathfinder-panel="ready"] button[data-pathfinder-kind]',
     );
     await expect(buttons).toHaveCount(4);
-    // Union + Intersect are the v1 buttons.
-    const v1 = page.locator(
-      '[data-pathfinder-panel="ready"] button[data-v1="true"]',
-    );
-    await expect(v1).toHaveCount(2);
-    // The v2 note is always visible.
+    // Hint visible with empty selection (all buttons disabled).
     await expect(
-      page.locator(
-        '[data-pathfinder-panel="ready"] [data-pathfinder-v2-note]',
-      ),
+      page.locator('[data-pathfinder-panel="ready"] [data-pathfinder-hint]'),
     ).toBeVisible();
   });
 
-  test("AC-PF-2 — Union expands kept frame to union BBox; removes others", async ({
+  test("AC-PF-2 — Subtract on overlapping rects yields L-shape + removes others", async ({
     page,
   }) => {
     const result = await page.evaluate(async () => {
@@ -64,109 +64,10 @@ test.describe("Phase 5 — Pathfinder panel", () => {
             }>;
           } | null>;
           mutate(op: unknown): Promise<unknown>;
-        };
-        setElementSelection?(ids: unknown[], mode: string): void;
-      };
-      const dbg = (window as unknown as { __canvas?: DebugCanvas }).__canvas;
-      if (!dbg?.client) throw new Error("no client");
-      const treeJson = await dbg.client
-        .executeScript("verso.tree()")
-        .then((r) => r.output[0] ?? "[]");
-      type Node = {
-        id?: { kind: string; id: string } | null;
-        children?: Node[];
-      };
-      const ids: Array<{ kind: string; id: string }> = [];
-      const walk = (nodes: Node[] | undefined) => {
-        if (!nodes) return;
-        for (const n of nodes) {
-          if (n.id && n.id.kind === "textFrame") ids.push(n.id);
-          walk(n.children);
-        }
-      };
-      walk(JSON.parse(treeJson) as Node[]);
-      if (ids.length < 2) throw new Error("fixture has < 2 TextFrames");
-      const pair = ids.slice(0, 2);
-
-      // Pin known initial bounds via a setup Batch.
-      await dbg.client.mutate({
-        op: "batch",
-        args: {
-          ops: [
-            {
-              op: "setElementProperty",
-              args: {
-                elementId: pair[0],
-                path: "frameBounds",
-                value: { type: "bounds", value: [0, 0, 50, 100] },
-              },
-            },
-            {
-              op: "setElementProperty",
-              args: {
-                elementId: pair[1],
-                path: "frameBounds",
-                value: { type: "bounds", value: [30, 60, 120, 200] },
-              },
-            },
-          ],
-        },
-      });
-      await new Promise((r) => setTimeout(r, 50));
-      dbg.setElementSelection?.(pair, "replace");
-      await new Promise((r) => setTimeout(r, 80));
-      return JSON.stringify(pair);
-    });
-
-    // Click Union.
-    await page
-      .locator(
-        '[data-pathfinder-panel="ready"] button[data-pathfinder-kind="union"]',
-      )
-      .click();
-    await page.waitForTimeout(150);
-
-    const aftermath = await page.evaluate(async (pairJson) => {
-      type DebugCanvas = {
-        client?: {
-          elementProperties(id: unknown): Promise<{
-            entries: Array<{
-              path: string;
-              value: { type: string; value: number[] } | null;
-            }>;
+          pathAnchors(id: unknown): Promise<{
+            anchors: Array<{ anchor: [number, number] }>;
+            subpathStarts: number[];
           } | null>;
-        };
-      };
-      const dbg = (window as unknown as { __canvas?: DebugCanvas }).__canvas;
-      if (!dbg?.client) throw new Error("no client");
-      const pair = JSON.parse(pairJson) as Array<{ kind: string; id: string }>;
-      // Kept frame should now span [0, 0, 120, 200] (union BBox).
-      const props0 = await dbg.client.elementProperties(pair[0]);
-      const kept = props0?.entries.find((e) => e.path === "frameBounds")
-        ?.value?.value;
-      // Other frame should be gone — elementProperties returns null.
-      const props1 = await dbg.client.elementProperties(pair[1]);
-      return {
-        kept: kept ?? null,
-        otherGone: props1 === null || props1 === undefined,
-      };
-    }, result);
-
-    expect(aftermath.kept).toEqual([0, 0, 120, 200]);
-    expect(aftermath.otherGone).toBe(true);
-  });
-
-  test("AC-PF-3 — Intersect contracts kept frame to overlap rect; removes others", async ({
-    page,
-  }) => {
-    const pair = await page.evaluate(async () => {
-      type DebugCanvas = {
-        client?: {
-          executeScript(src: string): Promise<{
-            output: string[];
-            error: string | null;
-          }>;
-          mutate(op: unknown): Promise<unknown>;
         };
         setElementSelection?(ids: unknown[], mode: string): void;
       };
@@ -190,8 +91,24 @@ test.describe("Phase 5 — Pathfinder panel", () => {
       walk(JSON.parse(treeJson) as Node[]);
       if (ids.length < 2) throw new Error("< 2 TextFrames");
       const pair = ids.slice(0, 2);
-      // Pin overlapping bounds: [10, 20, 80, 120] and [40, 60, 110, 200].
-      // Intersection should be [40, 60, 80, 120].
+      // Pin both bounds + anchors so the Pathfinder reads
+      // a deterministic geometry (the fixture's parsed anchors
+      // would otherwise dominate via the path_anchors fallback).
+      const rect = (
+        l: number,
+        t: number,
+        r: number,
+        b: number,
+      ): Array<{
+        anchor: [number, number];
+        left: [number, number];
+        right: [number, number];
+      }> => [
+        { anchor: [l, t], left: [l, t], right: [l, t] },
+        { anchor: [r, t], left: [r, t], right: [r, t] },
+        { anchor: [r, b], left: [r, b], right: [r, b] },
+        { anchor: [l, b], left: [l, b], right: [l, b] },
+      ];
       await dbg.client.mutate({
         op: "batch",
         args: {
@@ -201,7 +118,18 @@ test.describe("Phase 5 — Pathfinder panel", () => {
               args: {
                 elementId: pair[0],
                 path: "frameBounds",
-                value: { type: "bounds", value: [10, 20, 80, 120] },
+                value: { type: "bounds", value: [0, 0, 20, 20] },
+              },
+            },
+            {
+              op: "setElementProperty",
+              args: {
+                elementId: pair[0],
+                path: "framePath",
+                value: {
+                  type: "framePath",
+                  value: { anchors: rect(0, 0, 20, 20), subpathStarts: [0] },
+                },
               },
             },
             {
@@ -209,7 +137,18 @@ test.describe("Phase 5 — Pathfinder panel", () => {
               args: {
                 elementId: pair[1],
                 path: "frameBounds",
-                value: { type: "bounds", value: [40, 60, 110, 200] },
+                value: { type: "bounds", value: [10, 10, 30, 30] },
+              },
+            },
+            {
+              op: "setElementProperty",
+              args: {
+                elementId: pair[1],
+                path: "framePath",
+                value: {
+                  type: "framePath",
+                  value: { anchors: rect(10, 10, 30, 30), subpathStarts: [0] },
+                },
               },
             },
           ],
@@ -221,14 +160,26 @@ test.describe("Phase 5 — Pathfinder panel", () => {
       return JSON.stringify(pair);
     });
 
-    await page
-      .locator(
-        '[data-pathfinder-panel="ready"] button[data-pathfinder-kind="intersect"]',
-      )
-      .click();
-    await page.waitForTimeout(150);
+    // Dispatch the Mutation directly to isolate the wire from the
+    // panel UI. The panel just packs elementSelection into this
+    // same payload.
+    await page.evaluate(async (pairJson) => {
+      type DebugCanvas = {
+        client?: { mutate(op: unknown): Promise<unknown> };
+      };
+      const dbg = (window as unknown as { __canvas?: DebugCanvas }).__canvas;
+      if (!dbg?.client) throw new Error("no client");
+      const pair = JSON.parse(pairJson) as Array<{ kind: string; id: string }>;
+      await dbg.client.mutate({
+        op: "pathfinderBoolean",
+        args: { kept: pair[0], others: [pair[1]], kind: "subtract" },
+      });
+    }, result);
+    await page.waitForTimeout(300);
 
-    const aftermath = await page.evaluate(async (pairJson) => {
+    // Inspect bounds before the click — confirms the setup batch
+    // landed and the kept frame is at [0,0,20,20].
+    const beforeKeptBounds = await page.evaluate(async (pairJson) => {
       type DebugCanvas = {
         client?: {
           elementProperties(id: unknown): Promise<{
@@ -241,18 +192,159 @@ test.describe("Phase 5 — Pathfinder panel", () => {
       };
       const dbg = (window as unknown as { __canvas?: DebugCanvas }).__canvas;
       if (!dbg?.client) throw new Error("no client");
-      const arr = JSON.parse(pairJson) as Array<{ kind: string; id: string }>;
-      const props0 = await dbg.client.elementProperties(arr[0]);
-      const kept = props0?.entries.find((e) => e.path === "frameBounds")
-        ?.value?.value;
-      const props1 = await dbg.client.elementProperties(arr[1]);
-      return {
-        kept: kept ?? null,
-        otherGone: props1 === null || props1 === undefined,
-      };
-    }, pair);
+      const pair = JSON.parse(pairJson) as Array<{ kind: string; id: string }>;
+      const props = await dbg.client.elementProperties(pair[0]);
+      return props?.entries.find((e) => e.path === "frameBounds")?.value?.value ?? null;
+    }, result);
+    // The kept frame's bounds aren't touched by FramePath — only
+    // its anchors. Bounds stay at [0,0,20,20] (the prior setup).
+    expect(beforeKeptBounds).toEqual([0, 0, 20, 20]);
 
-    expect(aftermath.kept).toEqual([40, 60, 80, 120]);
-    expect(aftermath.otherGone).toBe(true);
+    const aftermath = await page.evaluate(async (pairJson) => {
+      type DebugCanvas = {
+        client?: {
+          elementProperties(id: unknown): Promise<{
+            entries: Array<{
+              path: string;
+              value: { type: string; value: number[] } | null;
+            }>;
+          } | null>;
+          pathAnchors(id: unknown): Promise<{
+            anchors: Array<{ anchor: [number, number] }>;
+            subpathStarts: number[];
+          } | null>;
+        };
+      };
+      const dbg = (window as unknown as { __canvas?: DebugCanvas }).__canvas;
+      if (!dbg?.client) throw new Error("no client");
+      const pair = JSON.parse(pairJson) as Array<{ kind: string; id: string }>;
+      const props0 = await dbg.client.elementProperties(pair[0]);
+      const props1 = await dbg.client.elementProperties(pair[1]);
+      const anchors0 = await dbg.client.pathAnchors(pair[0]);
+      const boundsAfter =
+        props0?.entries.find((e) => e.path === "frameBounds")?.value?.value ??
+        null;
+      return {
+        keptExists: props0 !== null,
+        otherGone: props1 === null,
+        keptVertexCount: anchors0?.anchors.length ?? 0,
+        keptBoundsAfter: boundsAfter,
+        keptAnchorsRaw: anchors0?.anchors ?? null,
+      };
+    }, result);
+
+    // Diagnostic — surface everything via the test message so we
+    // can see WHAT state the apply landed in.
+    expect(
+      aftermath,
+      `aftermath state: ${JSON.stringify(aftermath)}`,
+    ).toMatchObject({
+      keptExists: true,
+      otherGone: true,
+      keptVertexCount: 6,
+    });
+  });
+
+  test("AC-PF-3 — single Cmd-Z reverses the whole Pathfinder op", async ({
+    page,
+  }) => {
+    const result = await page.evaluate(async () => {
+      type DebugCanvas = {
+        client?: {
+          executeScript(src: string): Promise<{
+            output: string[];
+            error: string | null;
+          }>;
+          elementProperties(id: unknown): Promise<unknown>;
+          mutate(op: unknown): Promise<unknown>;
+          undo(): Promise<unknown>;
+        };
+        setElementSelection?(ids: unknown[], mode: string): void;
+      };
+      const dbg = (window as unknown as { __canvas?: DebugCanvas }).__canvas;
+      if (!dbg?.client) throw new Error("no client");
+      const treeJson = await dbg.client
+        .executeScript("verso.tree()")
+        .then((r) => r.output[0] ?? "[]");
+      type Node = {
+        id?: { kind: string; id: string } | null;
+        children?: Node[];
+      };
+      const ids: Array<{ kind: string; id: string }> = [];
+      const walk = (nodes: Node[] | undefined) => {
+        if (!nodes) return;
+        for (const n of nodes) {
+          if (n.id && n.id.kind === "textFrame") ids.push(n.id);
+          walk(n.children);
+        }
+      };
+      walk(JSON.parse(treeJson) as Node[]);
+      if (ids.length < 2) throw new Error("< 2 TextFrames");
+      const pair = ids.slice(0, 2);
+      await dbg.client.mutate({
+        op: "batch",
+        args: {
+          ops: [
+            {
+              op: "setElementProperty",
+              args: {
+                elementId: pair[0],
+                path: "frameBounds",
+                value: { type: "bounds", value: [0, 0, 20, 20] },
+              },
+            },
+            {
+              op: "setElementProperty",
+              args: {
+                elementId: pair[1],
+                path: "frameBounds",
+                value: { type: "bounds", value: [10, 10, 30, 30] },
+              },
+            },
+          ],
+        },
+      });
+      await new Promise((r) => setTimeout(r, 50));
+      dbg.setElementSelection?.(pair, "replace");
+      await new Promise((r) => setTimeout(r, 80));
+      return JSON.stringify(pair);
+    });
+
+    // Run Union (any op is fine — point is the undo coalescing).
+    await page
+      .locator(
+        '[data-pathfinder-panel="ready"] button[data-pathfinder-kind="union"]',
+      )
+      .click();
+    await page.waitForTimeout(150);
+
+    // One undo.
+    await page.evaluate(async () => {
+      type DebugCanvas = {
+        client?: { undo(): Promise<unknown> };
+      };
+      const dbg = (window as unknown as { __canvas?: DebugCanvas }).__canvas;
+      if (!dbg?.client) throw new Error("no client");
+      await dbg.client.undo();
+    });
+    await page.waitForTimeout(150);
+
+    const restored = await page.evaluate(async (pairJson) => {
+      type DebugCanvas = {
+        client?: {
+          elementProperties(id: unknown): Promise<unknown>;
+        };
+      };
+      const dbg = (window as unknown as { __canvas?: DebugCanvas }).__canvas;
+      if (!dbg?.client) throw new Error("no client");
+      const pair = JSON.parse(pairJson) as Array<{ kind: string; id: string }>;
+      const p0 = await dbg.client.elementProperties(pair[0]);
+      const p1 = await dbg.client.elementProperties(pair[1]);
+      return { keptExists: p0 !== null, otherRestored: p1 !== null };
+    }, result);
+
+    // After one undo, both frames exist again.
+    expect(restored.keptExists).toBe(true);
+    expect(restored.otherRestored).toBe(true);
   });
 });

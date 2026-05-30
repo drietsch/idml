@@ -58,6 +58,7 @@ export type {
   LinkSummary,
   MasterPageSummary,
   PageSummary,
+  PathfinderKind,
   SpreadSummary,
   TableStyleSummary,
   ParagraphStyleSummary,
