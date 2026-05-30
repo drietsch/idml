@@ -29,6 +29,7 @@ import { CanvasPanel } from "./panels/canvas-panel";
 import { CharacterPanel } from "./panels/character-panel";
 import { CharacterStylesPanel } from "./panels/character-styles-panel";
 import { InfoPanel } from "./panels/info-panel";
+import { LinksPanel } from "./panels/links-panel";
 import { EffectsPanel } from "./panels/effects-panel";
 import { FrameFittingPanel } from "./panels/frame-fitting-panel";
 import { GradientsPanel } from "./panels/gradients-panel";
@@ -100,6 +101,17 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     id: "verso.tools",
     title: "Tools",
     component: ToolsPanel,
+    defaultDock: "left",
+    defaultGroup: "structure",
+  },
+  {
+    // SDK Phase 5 (named sweep) — Links list. Read-only expert
+    // leaf consuming useCollection<LinkSummary>("links"). Per-row
+    // relocate / update / break actions land with their
+    // Operations.
+    id: "verso.links",
+    title: "Links",
+    component: LinksPanel,
     defaultDock: "left",
     defaultGroup: "structure",
   },

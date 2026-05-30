@@ -632,6 +632,25 @@ export interface ObjectStyleSummary {
 }
 
 /**
+ * SDK Phase 5 (v1 sweep) — one placed-image link summary. Backs
+ * `documentCollection:links` per `panel-catalog-and-sdk-extension.md`
+ * §5.1. Each entry is a `(frame, image_link)` pair derived from
+ * the parse layer\'s `Rectangle::image_link` / `Oval::image_link` /
+ * `Polygon::image_link` fields. The Links panel renders this list
+ * for inspection; the per-link \"relocate\" / \"update\" actions land
+ * when those Operations ship.
+ *
+ * `host_kind` lets a future panel disambiguate \"this link sits on
+ * a Rectangle vs. an Oval\". `host_self_id` is the host frame\'s
+ * IDML `Self` id; the panel uses it as the row react-key.
+ */
+export interface LinkSummary {
+    hostSelfId: string;
+    hostKind: string;
+    uri: string;
+}
+
+/**
  * Stable identifier for a scene-graph node. The string payload is the
  * IDML `Self` attribute (e.g. `\"TextFrame/u14\"`) — stable for the
  * lifetime of the document. Operations reference nodes by ID, never
