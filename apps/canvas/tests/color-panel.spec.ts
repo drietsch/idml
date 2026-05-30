@@ -29,6 +29,68 @@ test.describe("Phase 5 — Color panel", () => {
     ).toBeVisible();
   });
 
+  test("AC-COLOR-3 — fill swatch surfaces a CMYK/RGB readout", async ({
+    page,
+  }) => {
+    // Select a frame whose fill resolves to a non-Paper swatch
+    // — the fixture's TextFrames carry "Color/Black" or similar.
+    const ok = await page.evaluate(async () => {
+      type DebugCanvas = {
+        client?: {
+          executeScript(src: string): Promise<{
+            output: string[];
+            error: string | null;
+          }>;
+          mutate(op: unknown): Promise<unknown>;
+        };
+        setElementSelection?(ids: unknown[], mode: string): void;
+      };
+      const dbg = (window as unknown as { __canvas?: DebugCanvas }).__canvas;
+      if (!dbg?.client) throw new Error("no client");
+      const treeJson = await dbg.client
+        .executeScript("verso.tree()")
+        .then((r) => r.output[0] ?? "[]");
+      type Node = {
+        id?: { kind: string; id: string } | null;
+        children?: Node[];
+      };
+      const walk = (nodes: Node[] | undefined): Node["id"] => {
+        if (!nodes) return null;
+        for (const n of nodes) {
+          if (n.id && n.id.kind === "textFrame") return n.id;
+          const f = walk(n.children);
+          if (f) return f;
+        }
+        return null;
+      };
+      const target = walk(JSON.parse(treeJson) as Node[]);
+      if (!target) return false;
+      // Force a known fill (Color/Black is in every IDML).
+      await dbg.client.mutate({
+        op: "setElementProperty",
+        args: {
+          elementId: { kind: target.kind, id: target.id },
+          path: "frameFillColor",
+          value: { type: "colorRef", value: "Color/Black" },
+        },
+      });
+      await new Promise((r) => setTimeout(r, 50));
+      dbg.setElementSelection?.([target], "replace");
+      await new Promise((r) => setTimeout(r, 150));
+      return true;
+    });
+    if (!ok) {
+      test.skip(true, "fixture has no TextFrame");
+      return;
+    }
+    await expect(
+      page.locator('[data-color-panel="ready"] [data-color-preview]'),
+    ).toBeVisible();
+    await expect(
+      page.locator('[data-color-panel="ready"] [data-color-rgb]'),
+    ).toBeVisible();
+  });
+
   test("AC-COLOR-2 — frameFillTint round-trips via the apply layer", async ({
     page,
   }) => {

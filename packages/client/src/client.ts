@@ -16,6 +16,7 @@ import {
   PROTOCOL_VERSION,
   type CaretGeometry,
   type CollectionName,
+  type ColorPreview,
   type ContentSelection,
   type DocumentHandle,
   type DocumentMeta,
@@ -321,6 +322,20 @@ export class CanvasClient {
       kind: "requestDocumentMeta",
     });
     if (reply.kind === "documentMetaReply") return reply.payload.meta;
+    throw new Error(`unexpected reply: ${reply.kind}`);
+  }
+
+  /**
+   * SDK Phase 5 (v1 sweep) — resolved colour readout for a single
+   * swatch. Powers the Color panel's CMYK/RGB display. Returns
+   * `null` when the swatch id doesn't resolve.
+   */
+  async colorPreview(swatchId: string): Promise<ColorPreview | null> {
+    const reply = await this.send({
+      kind: "requestColorPreview",
+      payload: { swatchId },
+    });
+    if (reply.kind === "colorPreviewReply") return reply.payload.result;
     throw new Error(`unexpected reply: ${reply.kind}`);
   }
 

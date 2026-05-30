@@ -56,6 +56,7 @@ export type {
   BookmarkSummary,
   CellStyleSummary,
   ColorGroupSummary,
+  ColorPreview,
   ConditionSetSummary,
   ConditionSummary,
   CrossReferenceSummary,
