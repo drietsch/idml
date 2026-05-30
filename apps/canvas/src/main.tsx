@@ -34,6 +34,7 @@ import { ObjectStylesPanel } from "./panels/object-styles-panel";
 import { ObjectTransformPanel } from "./panels/object-transform-panel";
 import { SwatchesPanel } from "./panels/swatches-panel";
 import { TextFrameOptionsPanel } from "./panels/text-frame-options-panel";
+import { TextWrapPanel } from "./panels/text-wrap-panel";
 import { ParagraphPanel } from "./panels/paragraph-panel";
 import { ParagraphStylesPanel } from "./panels/paragraph-styles-panel";
 import { StrokePanel } from "./panels/stroke-panel";
@@ -216,6 +217,17 @@ const BUILT_IN_PANELS: PanelContribution[] = [
     id: "verso.text-frame-options",
     title: "Text Frame",
     component: TextFrameOptionsPanel,
+    defaultDock: "right",
+    defaultGroup: "properties",
+  },
+  {
+    // SDK Phase 5 (v1 sweep) — Text Wrap. Element-scope bindings
+    // to frameTextWrapMode (toggle-group) + frameTextWrapOffsets
+    // (bounds). Both share the same Option<TextWrap> backing
+    // field — the apply layer preserves the unset half.
+    id: "verso.text-wrap",
+    title: "Text Wrap",
+    component: TextWrapPanel,
     defaultDock: "right",
     defaultGroup: "properties",
   },

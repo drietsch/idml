@@ -110,6 +110,8 @@ test.describe("Inspector P1 — property panel", () => {
         "frameOpacity",
         "frameStrokeColor",
         "frameStrokeWeight",
+        "frameTextWrapMode",
+        "frameTextWrapOffsets",
         "frameTransform",
       ].sort(),
     );
